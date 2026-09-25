@@ -189,8 +189,8 @@ export const PROTECTION_CATALOG: ProtectionCategory[] = [
     id: 'reseau_adv',
     label: 'Réseau & injection',
     items: [
-      def('nw_executor', 'Anti-exécuteur de scripts', 'Event émis par une ressource non déclarée = script Lua injecté.'),
-      def('nw_injection_traces', 'Traces d’injection', 'Repère les signatures et events réservés laissés par les menus de triche.'),
+      def('nw_executor', 'Anti-exécuteur & menus de triche', 'Ressource non déclarée = script injecté, et signatures de menus connus (Lapsus, Eulen, RedEngine, Susano…).'),
+      def('nw_injection_traces', 'Traces d’injection & anti-dumper', 'Signatures/events réservés laissés par les menus, et énumération/dump d’events en rafale (vol de logique serveur).'),
       def('nw_lagswitch', 'Anti lag-switch', 'Gel volontaire de la connexion corrélé à un effet en jeu.'),
       def('nw_desync', 'Désync origine de tir', 'Action émise depuis une position très éloignée de la position serveur.'),
       def('nw_event_flood', 'Flood d’événements réseau', 'Débit d’events réseau au-delà d’un quota dur.'),

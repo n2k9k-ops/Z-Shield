@@ -2721,11 +2721,13 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
         last_heartbeat_at: string | null; players_online: number | null;
         server_fingerprint: string | null;
         license_plan: string | null; license_expires_at: string | null;
+        license_revoked_at: string | null; license_revoked_reason: string | null;
       }>(
         `SELECT s.id, s.organization_id, o.name AS organization_name,
                 s.name, s.environment, s.state, s.last_heartbeat_at,
                 s.players_online, s.server_fingerprint,
-                l.plan AS license_plan, l.expires_at AS license_expires_at
+                l.plan AS license_plan, l.expires_at AS license_expires_at,
+                l.revoked_at AS license_revoked_at, l.revoked_reason AS license_revoked_reason
            FROM servers s
            JOIN organizations o ON o.id = s.organization_id
            LEFT JOIN licenses l ON l.organization_id = s.organization_id AND l.server_id = s.id
@@ -2753,6 +2755,8 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
               expires_at: r.license_expires_at,
               days_left: expires ? Math.max(0, Math.ceil((expires - now) / 86_400_000)) : 0,
               expired: expires ? expires < now : true,
+              revoked: r.license_revoked_at != null,
+              revoked_reason: r.license_revoked_reason,
             }
           : null,
       };
@@ -2797,7 +2801,8 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
          ON CONFLICT (organization_id, server_id) DO UPDATE SET
             token = EXCLUDED.token, plan = EXCLUDED.plan,
             issued_at = EXCLUDED.issued_at, expires_at = EXCLUDED.expires_at,
-            created_by = EXCLUDED.created_by`,
+            created_by = EXCLUDED.created_by,
+            revoked_at = NULL, revoked_reason = NULL, revoked_by = NULL`,
         [orgId, serverId, lic.token, plan, lic.issued, lic.expires, actor.user.userId],
       );
       return { lic, bound: binding !== 'any' };
@@ -2813,6 +2818,134 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
     return {
       token: outcome.lic.token, plan, bound: outcome.bound,
       expires_at: new Date(outcome.lic.expires * 1000).toISOString(),
+    };
+  }));
+
+  // Révocation (kill-switch) : marque la licence d'un serveur comme révoquée.
+  // Le verdict signé servi à l'anticheat (/api/license/verify) la coupera à
+  // distance. Réservé à l'admin plateforme.
+  const revokeSchema = z.object({ reason: z.string().max(200).optional() }).strict();
+  app.post('/api/admin/servers/:id/license/revoke', handle(async (request, reply) => {
+    const actor = await platformAdmin(request, reply);
+    if (!actor) return { error: 'forbidden' };
+    const serverId = (request.params as { id: string }).id;
+    const parsed = revokeSchema.safeParse(request.body ?? {});
+    const reason = parsed.success ? (parsed.data.reason ?? null) : null;
+
+    const ok = await withPlatformAdmin(pool, async (client) => {
+      const { rowCount } = await client.query(
+        `UPDATE licenses SET revoked_at = now(), revoked_reason = $2, revoked_by = $3
+          WHERE server_id = $1`,
+        [serverId, reason, actor.user.userId],
+      );
+      return (rowCount ?? 0) > 0;
+    });
+    if (!ok) {
+      reply.status(404);
+      return { error: 'not_found', message: 'Aucune licence sur ce serveur.' };
+    }
+    await audit(actor, 'admin.license.revoked', { kind: 'server', id: serverId },
+      { reason }, request.ip);
+    return { status: 'ok', revoked: true };
+  }));
+
+  // Rétablit une licence révoquée (remboursement annulé, faux positif…).
+  app.post('/api/admin/servers/:id/license/restore', handle(async (request, reply) => {
+    const actor = await platformAdmin(request, reply);
+    if (!actor) return { error: 'forbidden' };
+    const serverId = (request.params as { id: string }).id;
+
+    const ok = await withPlatformAdmin(pool, async (client) => {
+      const { rowCount } = await client.query(
+        `UPDATE licenses SET revoked_at = NULL, revoked_reason = NULL, revoked_by = NULL
+          WHERE server_id = $1`,
+        [serverId],
+      );
+      return (rowCount ?? 0) > 0;
+    });
+    if (!ok) {
+      reply.status(404);
+      return { error: 'not_found', message: 'Aucune licence sur ce serveur.' };
+    }
+    await audit(actor, 'admin.license.restored', { kind: 'server', id: serverId }, {}, request.ip);
+    return { status: 'ok', revoked: false };
+  }));
+
+  // -------------------------------------------------------------------------
+  // Verdict de licence EN LIGNE (kill-switch) — endpoint PUBLIC interrogé par
+  // l'anticheat. Renvoie un verdict SIGNÉ (même secret que les licences) :
+  //   "lv1|<empreinte>|<active|revoked>|<issued_at>~<hmac_hex>"
+  // Le cœur (server/license_online.lua) le vérifie et coupe à distance une clé
+  // révoquée. Pas de session requise : l'agent n'a pas de session utilisateur.
+  // On ne révèle rien de sensible — seulement actif/révoqué pour une empreinte.
+  // -------------------------------------------------------------------------
+  function signVerdict(serverId: string, status: 'active' | 'revoked') {
+    const issued = Math.floor(Date.now() / 1000);
+    const payload = `lv1|${serverId}|${status}|${issued}`;
+    return `${payload}~${hmacSha256Hex(env().LICENSE_SIGNING_SECRET, payload)}`;
+  }
+  const verifyQuerySchema = z.object({
+    server: z.string().regex(/^[0-9a-f]{16}$/).optional(),
+    fingerprint: z.string().regex(/^[0-9a-f]{16}$/).optional(),
+  });
+  app.get('/api/license/verify', handle(async (request, reply) => {
+    const q = verifyQuerySchema.safeParse(request.query ?? {});
+    const fp = q.success ? (q.data.server ?? q.data.fingerprint) : undefined;
+    if (!fp) {
+      reply.status(400);
+      return { error: 'validation', message: 'Paramètre server (empreinte 16 hex) requis.' };
+    }
+    // Recherche transversale par empreinte : on lit l'état de révocation de la
+    // licence du serveur portant cette empreinte.
+    const row = await withPlatformAdmin(pool, async (client) => {
+      const res = await client.query<{ revoked_at: string | null }>(
+        `SELECT l.revoked_at
+           FROM servers s
+           JOIN licenses l ON l.organization_id = s.organization_id AND l.server_id = s.id
+          WHERE s.server_fingerprint = $1 AND s.deleted_at IS NULL
+          LIMIT 1`,
+        [fp],
+      );
+      return res.rows[0] ?? null;
+    });
+    // Empreinte inconnue ou non révoquée -> verdict actif (la coupe à
+    // l'expiration reste gérée hors-ligne par le cœur). Révoquée -> verdict
+    // révoqué, collant côté cœur.
+    const status: 'active' | 'revoked' = row && row.revoked_at != null ? 'revoked' : 'active';
+    reply.header('Cache-Control', 'no-store');
+    return { verdict: signVerdict(fp, status), status };
+  }));
+
+  // Offres publiques (onglet Tarifs). Renvoie les plans visibles + leurs quotas,
+  // pour un affichage honnête (mêmes chiffres que ceux réellement appliqués).
+  app.get('/api/plans', handle(async (request) => {
+    await guard.actor(request); // session valide requise, aucune donnée sensible
+    const { rows: plans } = await pool.query<{
+      code: string; name: string; monthly_cents: number; currency: string;
+    }>(
+      `SELECT code, name, monthly_cents, currency FROM plans
+        WHERE is_public = true AND code <> 'free'
+        ORDER BY monthly_cents`,
+    );
+    const { rows: ents } = await pool.query<{
+      plan_code: string; key: string; int_value: string | null; bool_value: boolean | null;
+    }>(
+      `SELECT plan_code, key, int_value, bool_value FROM plan_entitlements
+        WHERE plan_code IN (SELECT code FROM plans WHERE is_public = true AND code <> 'free')`,
+    );
+    const byPlan: Record<string, Record<string, number | boolean | null>> = {};
+    for (const e of ents) {
+      (byPlan[e.plan_code] ??= {})[e.key] =
+        e.int_value != null ? Number(e.int_value) : e.bool_value;
+    }
+    return {
+      plans: plans.map((p) => ({
+        code: p.code,
+        name: p.name,
+        monthly_cents: p.monthly_cents,
+        currency: p.currency,
+        entitlements: byPlan[p.code] ?? {},
+      })),
     };
   }));
 

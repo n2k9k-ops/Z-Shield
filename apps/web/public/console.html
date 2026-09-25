@@ -437,6 +437,7 @@ a{color:inherit}
 
     <div class="navlabel">Espace</div>
     <div class="navitem" data-view="servers"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>Serveurs &amp; licence</div>
+    <div class="navitem" data-view="tarifs"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l9-5 9 5v8l-9 5-9-5Z"/><path d="M12 3v18M3 8l9 5 9-5"/></svg>Tarifs &amp; offres</div>
     <div class="navitem" data-view="terminal"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 7l4 4-4 4M11 15h6"/></svg>Terminal</div>
     <div class="navitem" data-view="members"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 5.2a3.2 3.2 0 0 1 0 5.9M18.5 20a5.5 5.5 0 0 0-3-4.9"/></svg>Comptes &amp; accès</div>
     <div class="navitem" data-view="admin" id="navAdmin" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5l7-3Z"/><path d="M9 11h6M12 8v6"/></svg>Admin — tous serveurs<span class="badge" id="adminBadge">0</span></div>
@@ -629,6 +630,15 @@ a{color:inherit}
         <div><h2 style="font-size:16px;margin:0">Protections</h2><div style="color:var(--muted);font-size:12.5px;margin-top:2px">Active/désactive et choisis <b>Surveiller</b> ou <b>Bloquer</b>. L'anticheat recharge sa config en direct.</div></div>
         <div class="sum"><div><span class="dot-g"></span><b id="cfgActive">0</b> actives</div><div><span class="dot-w"></span><b id="cfgWatch">0</b> surveillées</div><div><b id="cfgTot">0</b> au total</div></div>
       </div>
+      <div class="card" style="padding:16px 18px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px"><div style="font-weight:700;font-size:13.5px">Modes prêts à l'emploi</div><div style="color:var(--muted);font-size:12px;margin-top:2px">Un clic applique un réglage complet. Tu vérifies, puis tu enregistres.</div></div>
+          <button class="btn btn-sm" onclick="zApplyPreset('light')">Léger</button>
+          <button class="btn btn-sm" onclick="zApplyPreset('balanced')">Équilibré</button>
+          <button class="btn btn-sm" onclick="zApplyPreset('pvp')">PvP</button>
+          <button class="btn btn-sm btn-green" onclick="zApplyPreset('strict')">Strict</button>
+        </div>
+      </div>
       <div class="search" style="margin-bottom:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="protSearch" placeholder="Rechercher un réglage…"></div>
       <div class="savebar" id="cfgSaveBar" hidden style="position:sticky;top:8px;z-index:40;margin-bottom:14px">
         <span class="dotpulse"></span>
@@ -681,14 +691,17 @@ a{color:inherit}
         <div class="vbar">
           <div class="si" style="width:46px;height:46px;border-radius:12px;background:var(--panel2);border:1px solid var(--line2);display:grid;place-items:center"><svg width="22" height="22" viewBox="0 0 256 256"><path fill="var(--green)" d="M52 122 200 40 150 104 116 152 100 126Z"/><path fill="#eaf0ea" d="M150 150 214 122 128 224Z"/></svg></div>
           <div class="vt"><div class="nm">Z-Shield — ressources anticheat</div><div class="ds">FXServer récent · OneSync requis · dépose les dossiers dans <span class="mono">resources/</span></div></div>
-          <button class="btn btn-green" onclick="downloadInstall()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Modèle server.cfg</button>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <a class="btn btn-green" href="/zshield-ac.zip" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Télécharger l'anticheat (.zip)</a>
+            <button class="btn" onclick="downloadInstall()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z" opacity=".0"/><path d="M8 6h8M8 10h8M8 14h5"/></svg>Modèle server.cfg</button>
+          </div>
         </div>
       </div>
 
       <div class="card wm">
-        <div class="pad" style="border-bottom:1px solid var(--hair)"><h2 style="font-size:15px">Installation en 5 étapes</h2><div style="color:var(--muted);font-size:12.5px;margin-top:3px">≈ 5 minutes. Tout ce que tu colles ci-dessous se met dans ton <span class="mono">server.cfg</span>.</div></div>
+        <div class="pad" style="border-bottom:1px solid var(--hair)"><h2 style="font-size:15px">Installation en 6 étapes</h2><div style="color:var(--muted);font-size:12.5px;margin-top:3px">≈ 5 minutes. Le bouton <b>« Télécharger l'anticheat (.zip) »</b> ci-dessus contient TOUS les fichiers. Ce que tu colles ci-dessous se met dans ton <span class="mono">server.cfg</span>.</div></div>
 
-        <div class="step"><div class="no">1</div><div class="sc"><h4>Dépose les dossiers</h4><p>Décompresse et place <b>zshield-ac</b> et <b>zshield-agent</b> dans le dossier <span class="mono">resources/</span> de ton serveur FiveM.</p></div></div>
+        <div class="step"><div class="no">1</div><div class="sc"><h4>Télécharge et dépose les dossiers</h4><p>Clique <b>« Télécharger l'anticheat (.zip) »</b>, décompresse, puis place les dossiers <b>zshield-ac</b> et <b>zshield-agent</b> dans le dossier <span class="mono">resources/</span> de ton serveur FiveM. Le .zip contient l'intégralité des fichiers de l'anticheat.</p></div></div>
 
         <div class="step"><div class="no">2</div><div class="sc"><h4>Récupère les identifiants d'agent</h4><p>Dans ce dashboard : onglet <b>Serveurs &amp; licence</b> → ton serveur → bouton <b>« Identifiants d'agent »</b>. Copie les 4 lignes générées (elles relient CE serveur au dashboard) et colle-les dans <span class="mono">server.cfg</span> :</p><div class="code"><pre>set zshield_agent_id "agt_xxxxxxxx"
 set zshield_server_id "srv_xxxxxxxx"
@@ -697,12 +710,14 @@ set zshield_agent_secret "•••••• (affiché une seule fois)"</pre></d
 
         <div class="step"><div class="no">3</div><div class="sc"><h4>Colle ta clé de licence</h4><p>La clé fournie par ton vendeur (elle est liée à CE serveur). Rien d'autre à configurer : la protection anti-triche est déjà réglée dans la ressource.</p><div class="code"><pre>set zshield_license_key "ZS-•••• (ta clé de licence)"</pre><button class="copy" data-copy='set zshield_license_key "ZS-•••• (ta clé de licence)"'>Copier</button></div></div></div>
 
-        <div class="step"><div class="no">4</div><div class="sc"><h4>Ordre de démarrage</h4><p>Z-Shield démarre <b>en dernier</b>, après ton framework. OneSync doit être activé.</p><div class="code"><pre>set onesync on
+        <div class="step"><div class="no">4</div><div class="sc"><h4>Active le kill-switch en ligne <span style="color:var(--faint);font-weight:400">(recommandé)</span></h4><p>Cette ligne relie l'anticheat au dashboard pour pouvoir <b>couper une licence à distance</b> (clé volée/revendue). Remplace l'URL par celle de ton API Z-Shield. Sans elle, la protection marche quand même, mais tu perds le kill-switch en ligne.</p><div class="code"><pre>set zshield_dashboard_url "https://zshield-api.onrender.com"</pre><button class="copy" data-copy='set zshield_dashboard_url "https://zshield-api.onrender.com"'>Copier</button></div></div></div>
+
+        <div class="step"><div class="no">5</div><div class="sc"><h4>Ordre de démarrage</h4><p>Z-Shield démarre <b>en dernier</b>, après ton framework. OneSync doit être activé.</p><div class="code"><pre>set onesync on
 # ... ton framework (ESX/QBCore) et tes ressources ...
 ensure zshield-agent
 ensure zshield-ac</pre><button class="copy" data-copy="set onesync on&#10;ensure zshield-agent&#10;ensure zshield-ac">Copier</button></div></div></div>
 
-        <div class="step"><div class="no">5</div><div class="sc"><h4>Démarre le serveur</h4><p>Au lancement, la console affiche l'<b>identifiant du serveur</b>, l'état de la licence et <b>« Protégé par Z-Shield »</b>. Le serveur apparaît alors ici, protection active.</p><div class="code"><pre>[Z-Shield] Identifiant de ce serveur : 7b9d6cd94dbfd140
+        <div class="step"><div class="no">6</div><div class="sc"><h4>Démarre le serveur</h4><p>Au lancement, la console affiche l'<b>identifiant du serveur</b>, l'état de la licence et <b>« Protégé par Z-Shield »</b>. Le serveur apparaît alors ici, protection active.</p><div class="code"><pre>[Z-Shield] Identifiant de ce serveur : 7b9d6cd94dbfd140
 [Z-Shield] Licence : VALIDE (pro — 30 j restants)
 [Z-Shield] Protégé par Z-Shield</pre></div></div></div>
       </div>
@@ -748,8 +763,8 @@ ensure zshield-ac</pre><button class="copy" data-copy="set onesync on&#10;ensure
 
     <!-- ADMIN — tous les serveurs (admin plateforme uniquement) -->
     <section class="view content" data-view="admin">
-      <div class="section-head" style="margin-top:0"><h2>Tous les serveurs sous Z-Shield</h2><div class="grow"></div><button class="btn btn-ghost btn-sm" onclick="zAdminLoad()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>Actualiser</button></div>
-      <div class="notice" style="margin-bottom:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Vue vendeur : chaque serveur ayant installé l'anticheat apparaît ici (tous clients confondus). Tu peux émettre/renouveler leur licence toi-même.</div></div>
+      <div class="section-head" style="margin-top:0"><h2>Tous les serveurs sous Z-Shield</h2><div class="grow"></div><button class="btn btn-green btn-sm" onclick="zAdminGenKey()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 7a4 4 0 1 0-3.9 5H15l2 2 2-2 2 2V12h-2.1A4 4 0 0 0 15 7Z"/></svg>Générer une clé</button><button class="btn btn-ghost btn-sm" onclick="zAdminLoad()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>Actualiser</button></div>
+      <div class="notice" style="margin-bottom:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Vue vendeur : chaque serveur ayant installé l'anticheat apparaît ici (tous clients confondus). Génère des clés à vendre, renouvelle ou révoque les licences.</div></div>
       <div class="grid kpis" style="margin-bottom:16px">
         <div class="card kpi"><div class="k-lab">Serveurs</div><div class="k-val num" id="adKpiTotal">0</div><div class="k-delta"><span class="mut">installés</span></div></div>
         <div class="card kpi"><div class="k-lab">En ligne</div><div class="k-val num" id="adKpiOnline">0</div><div class="k-delta"><span class="mut">actifs</span></div></div>
@@ -758,6 +773,13 @@ ensure zshield-ac</pre><button class="copy" data-copy="set onesync on&#10;ensure
       </div>
       <div class="search" style="margin-bottom:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="adminSearch" placeholder="Rechercher un serveur, une organisation, un identifiant…"></div>
       <div class="card"><div style="overflow-x:auto"><table class="tbl" id="adminTbl"><thead><tr><th>Serveur</th><th>Organisation</th><th>État</th><th>Joueurs</th><th>Licence</th><th>Empreinte</th><th></th></tr></thead><tbody id="adminRows"></tbody></table></div></div>
+    </section>
+
+    <section class="view content" data-view="tarifs">
+      <div class="section-head" style="margin-top:0"><h2>Nos offres</h2></div>
+      <p style="color:var(--sub);font-size:13.5px;margin:0 0 6px;max-width:640px">Facturation <b>par serveur</b>, sans engagement. Essai gratuit de 7 jours, toutes les protections actives. Le cœur anticheat serveur-autoritatif et toutes les détections sont inclus dans chaque offre.</p>
+      <div id="tarifsGrid" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:16px"></div>
+      <p style="color:var(--faint);font-size:12px;margin-top:16px">Prix en euros, par serveur et par mois. Contacte-nous pour un réseau de plus de 5 serveurs.</p>
     </section>
 
     <!-- MEMBERS end -->
@@ -895,7 +917,7 @@ const protections=[
 ];
 
 /* nav */
-const titles={overview:"Vue d'ensemble",players:"Joueurs — renseignement",map:"Carte live",multiview:"Multi‑vue",bans:"Bans & sanctions",prot:"Configuration",blacklist:"Blacklist",signatures:"Signatures",servers:"Serveurs & licence",install:"Installation",terminal:"Terminal",members:"Comptes & accès"};
+const titles={overview:"Vue d'ensemble",players:"Joueurs — renseignement",map:"Carte live",multiview:"Multi‑vue",bans:"Bans & sanctions",prot:"Configuration",blacklist:"Blacklist",signatures:"Signatures",servers:"Serveurs & licence",tarifs:"Tarifs & offres",install:"Installation",terminal:"Terminal",members:"Comptes & accès"};
 const nav=document.getElementById('nav');
 let currentView='overview';
 function applyView(v){
@@ -1609,6 +1631,8 @@ function downloadInstall(){
   "set onesync on\n\n"+
   "# --- Ta cle de licence (fournie par ton vendeur) ---\n"+
   "set zshield_license_key \"<<ta-cle-de-licence>>\"\n\n"+
+  "# --- Kill-switch en ligne (recommande) : permet de couper une cle a distance ---\n"+
+  "set zshield_dashboard_url \"https://zshield-api.onrender.com\"\n\n"+
   "# --- Identifiants d'agent (Dashboard > Serveurs > Identifiants d'agent) ---\n"+
   "set zshield_agent_id \"<<agt_...>>\"\n"+
   "set zshield_server_id \"<<srv_...>>\"\n"+
@@ -1897,6 +1921,31 @@ async function zConfigLoad(){
   var nb=document.querySelector('.navitem[data-view="prot"] .badge');if(nb)nb.textContent=ZS.cfgTotal;
   zCfgSummary();
 }
+/* Modes prêts : appliquent on/mode à toutes les protections selon le préfixe de
+   catégorie. Les catégories anti-vol/injection/intégrité restent TOUJOURS en Bloquer
+   (jamais en simple surveillance) quel que soit le mode. L'utilisateur vérifie et
+   enregistre ensuite (rien n'est poussé sans son clic sur Enregistrer). */
+var ZS_PRESETS={
+  strict:  {label:'Strict',   watch:[]},
+  balanced:{label:'Équilibré',watch:['av','ai']},
+  light:   {label:'Léger',    watch:['mv','pl','wp','vh','ai','av','sp','bh']},
+  pvp:     {label:'PvP',      watch:['mv','pl','bh']}
+};
+function zApplyPreset(name){
+  var p=ZS_PRESETS[name];
+  if(!p){return;}
+  if(!ZS.protIndex||ZS.protIndex.size===0){toast('Configuration pas encore chargée','red');return;}
+  var alwaysBlock={nw:1,rc:1,rs:1,conn:1,nt:1,bl:1,expl:1}; // anti-vol / injection / intégrité
+  ZS.protIndex.forEach(function(it){
+    it.on=true;
+    var pre=String(it.id||'').split('_')[0];
+    it.mode=(!alwaysBlock[pre] && p.watch.indexOf(pre)>=0)?'watch':'block';
+  });
+  if(typeof renderCfgPanel==='function')renderCfgPanel();
+  if(typeof cfgTouch==='function')cfgTouch();
+  if(typeof zCfgSummary==='function')zCfgSummary();
+  toast('Mode « '+p.label+' » appliqué — vérifie puis Enregistre','grn');
+}
 function zCfgSummary(){
   if(!ZS.protIndex)return;
   var active=0,watch=0;
@@ -2095,6 +2144,16 @@ function zCopy(t){try{navigator.clipboard.writeText(t);toast('Copié','grn');}ca
    navigateur ne l'a pas ouverte (mémorisé en local, par version).
    ========================================================================= */
 var ZS_NEWS=[
+  {v:'1.2.0',date:'26 septembre 2026',title:'Modes prêts + anti-Lapsus + anti-dumper',items:[
+    ['🎚️','Modes de configuration en 1 clic','Choisis Léger, Équilibré, PvP ou Strict — plus besoin de régler chaque protection à la main.'],
+    ['🎯','Anti menus de triche','Signatures des menus connus (Lapsus, Eulen, RedEngine, Susano…) intégrées à l\'anti-injection.'],
+    ['📦','Anti vol de fichiers serveur','Détection des dumpers qui aspirent la logique du serveur par énumération d\'events.'],
+    ['⬇️','Installation simplifiée','Un bouton télécharge TOUS les fichiers de l\'anticheat (plus seulement le server.cfg), avec la ligne du kill-switch.'],
+  ]},
+  {v:'1.1.0',date:'26 septembre 2026',title:'Offres visibles + kill-switch',items:[
+    ['💳','Onglet Tarifs','Retrouve nos offres (Starter, Pro, Network) directement dans le panneau, avec ce que chacune inclut.'],
+    ['🔒','Kill-switch renforcé','Une licence peut être coupée à distance en cas d\'abus — protection anti-revente encore plus solide.'],
+  ]},
   {v:'1.0.0',date:'26 septembre 2026',title:'Lancement en libre-service',items:[
     ['🆕','Crée ton compte toi-même','Inscription directe sur Z-Shield, sans attendre d\'invitation. Ton compte démarre vide.'],
     ['🔑','Active ton serveur avec ta clé','Colle ta clé de licence : ton serveur est créé automatiquement et ton panneau se débloque.'],
@@ -2189,6 +2248,7 @@ var ADMIN_SERVERS = [], adminQuery = '';
 function zSetTxt(id, v){ var e=document.getElementById(id); if(e) e.textContent=zfmt(v); }
 function zAdminLicChip(l){
   if(!l) return '<span class="tag amb">Aucune</span>';
+  if(l.revoked) return '<span class="tag red">Révoquée</span>';
   if(l.expired) return '<span class="tag red">Expirée</span>';
   var p=(l.plan||'').charAt(0).toUpperCase()+(l.plan||'').slice(1);
   return '<span class="tag grn">'+zesc(p)+' · '+l.days_left+' j</span>';
@@ -2217,16 +2277,30 @@ function zAdminRender(){
       +'<td style="text-align:right"><button class="btn btn-sm btn-green" onclick="zAdminManage('+zJs(s.id)+','+zJs(s.name)+')">Licence</button></td></tr>';
   }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px">Aucun serveur n\'a encore installé l\'anticheat.</td></tr>';
 }
+function zAdminCloseModal(){var e=document.getElementById('zAdminModal');if(e)e.remove();}
 function zAdminManage(id,name){
+  var srv=(ADMIN_SERVERS||[]).filter(function(s){return s.id===id;})[0]||{};
+  var lic=srv.license||null;
+  var stateLine;
+  if(!lic) stateLine='<span class="tag amb">Aucune licence</span>';
+  else if(lic.revoked) stateLine='<span class="tag red">Révoquée</span>'+(lic.revoked_reason?(' <span style="color:var(--faint);font-size:12px">— '+zesc(lic.revoked_reason)+'</span>'):'');
+  else if(lic.expired) stateLine='<span class="tag red">Expirée</span>';
+  else stateLine='<span class="tag grn">'+zesc(((lic.plan||'').charAt(0).toUpperCase()+(lic.plan||'').slice(1))+' · '+lic.days_left+' j')+'</span>';
+
+  var revokeBtn = lic ? (lic.revoked
+      ? '<button class="btn btn-sm" id="adRestore">Rétablir</button>'
+      : '<button class="btn btn-sm btn-ghost" id="adRevoke" style="color:var(--red)">Révoquer</button>') : '';
+
   var m=document.createElement('div');m.id='zAdminModal';
   m.style.cssText='position:fixed;inset:0;z-index:340;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:20px;overflow:auto';
   m.innerHTML='<div style="background:var(--panel2);border:1px solid var(--line2);border-radius:16px;max-width:460px;width:100%;padding:24px">'
     +'<div style="font-family:var(--disp);font-weight:800;font-size:18px;margin-bottom:6px">Licence — '+zesc(name)+'</div>'
-    +'<p style="color:var(--sub);font-size:13px;margin:0 0 16px">Émets ou renouvelle la licence de ce serveur (liée automatiquement à son empreinte).</p>'
-    +'<label style="font-size:12px;color:var(--muted)">Plan<select id="adPlan" style="width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;color:var(--ink);font-size:14px;margin:6px 0 12px"><option value="trial">Essai</option><option value="starter">Starter</option><option value="pro" selected>Pro</option><option value="enterprise">Enterprise</option></select></label>'
+    +'<div style="margin:0 0 14px">État actuel : '+stateLine+'</div>'
+    +'<p style="color:var(--sub);font-size:13px;margin:0 0 16px">Émets ou renouvelle la licence de ce serveur (liée automatiquement à son empreinte). Renouveler lève une révocation.</p>'
+    +'<label style="font-size:12px;color:var(--muted)">Plan<select id="adPlan" style="width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;color:var(--ink);font-size:14px;margin:6px 0 12px"><option value="trial">Essai</option><option value="starter">Starter</option><option value="pro" selected>Pro</option><option value="enterprise">Network</option></select></label>'
     +'<label style="font-size:12px;color:var(--muted)">Durée (jours — optionnel)<input id="adDays" placeholder="défaut du plan" style="width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;color:var(--ink);font-size:14px;margin-top:6px"></label>'
     +'<div id="adOut" class="mono" style="display:none;margin-top:12px;padding:10px;border:1px dashed var(--line2);border-radius:8px;font-size:11.5px;word-break:break-all;color:var(--sub)"></div>'
-    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px"><button class="btn btn-ghost btn-sm" onclick="var e=document.getElementById(\'zAdminModal\');if(e)e.remove()">Fermer</button><button class="btn btn-green btn-sm" id="adGo">Émettre la licence</button></div></div>';
+    +'<div style="display:flex;gap:10px;justify-content:space-between;align-items:center;margin-top:18px"><div>'+revokeBtn+'</div><div style="display:flex;gap:10px"><button class="btn btn-ghost btn-sm" onclick="zAdminCloseModal()">Fermer</button><button class="btn btn-green btn-sm" id="adGo">Émettre / renouveler</button></div></div></div>';
   m.addEventListener('click',function(e){if(e.target===m)m.remove();});
   document.body.appendChild(m);
   document.getElementById('adGo').onclick=async function(){
@@ -2239,12 +2313,90 @@ function zAdminManage(id,name){
       toast('Licence émise','grn'); if(typeof zLog==='function')zLog('Licence admin émise · '+name);
       await zAdminLoad();
     }catch(e){toast('Échec : '+(e.message||e),'red');}
-    btn.disabled=false;btn.textContent='Émettre la licence';
+    btn.disabled=false;btn.textContent='Émettre / renouveler';
+  };
+  var rv=document.getElementById('adRevoke');
+  if(rv) rv.onclick=async function(){
+    var reason=prompt('Raison de la révocation (optionnel) :','')||'';
+    if(!confirm('Révoquer la licence de « '+name+' » ?\nLe serveur sera coupé à distance au prochain contrôle (kill-switch).'))return;
+    this.disabled=true;
+    try{await zapi('/api/admin/servers/'+id+'/license/revoke',{method:'POST',body:{reason:reason}});toast('Licence révoquée','grn');if(typeof zLog==='function')zLog('Licence révoquée · '+name);zAdminCloseModal();await zAdminLoad();}
+    catch(e){toast('Échec : '+(e.message||e),'red');this.disabled=false;}
+  };
+  var rs=document.getElementById('adRestore');
+  if(rs) rs.onclick=async function(){
+    this.disabled=true;
+    try{await zapi('/api/admin/servers/'+id+'/license/restore',{method:'POST',body:{}});toast('Licence rétablie','grn');if(typeof zLog==='function')zLog('Licence rétablie · '+name);zAdminCloseModal();await zAdminLoad();}
+    catch(e){toast('Échec : '+(e.message||e),'red');this.disabled=false;}
+  };
+}
+/* Générateur de clé autonome (à vendre à un nouveau client). La clé n'est liée à
+   aucun serveur : le client la colle à l'inscription et son serveur se crée. */
+function zAdminGenKey(){
+  var m=document.createElement('div');m.id='zAdminModal';
+  m.style.cssText='position:fixed;inset:0;z-index:340;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:20px;overflow:auto';
+  m.innerHTML='<div style="background:var(--panel2);border:1px solid var(--line2);border-radius:16px;max-width:460px;width:100%;padding:24px">'
+    +'<div style="font-family:var(--disp);font-weight:800;font-size:18px;margin-bottom:6px">Générer une clé à vendre</div>'
+    +'<p style="color:var(--sub);font-size:13px;margin:0 0 16px">Crée une clé signée, non liée à un serveur. Ton client la colle à l\'activation : son serveur est créé et la clé se lie à lui. Une clé = un serveur.</p>'
+    +'<label style="font-size:12px;color:var(--muted)">Plan<select id="gkPlan" style="width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;color:var(--ink);font-size:14px;margin:6px 0 12px"><option value="trial">Essai (7 j)</option><option value="starter">Starter</option><option value="pro" selected>Pro</option><option value="enterprise">Network</option></select></label>'
+    +'<label style="font-size:12px;color:var(--muted)">Durée (jours — optionnel)<input id="gkDays" placeholder="défaut du plan" style="width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;color:var(--ink);font-size:14px;margin-top:6px"></label>'
+    +'<div id="gkOut" style="display:none;margin-top:14px"><div style="font-size:12px;color:var(--muted);margin-bottom:6px">Clé (à donner au client) :</div><div class="mono" id="gkKey" style="padding:10px;border:1px dashed var(--green-line);background:var(--green-soft);border-radius:8px;font-size:11.5px;word-break:break-all;color:var(--ink)"></div><button class="btn btn-sm" style="margin-top:10px" id="gkCopy">Copier la clé</button></div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px"><button class="btn btn-ghost btn-sm" onclick="zAdminCloseModal()">Fermer</button><button class="btn btn-green btn-sm" id="gkGo">Générer</button></div></div>';
+  m.addEventListener('click',function(e){if(e.target===m)m.remove();});
+  document.body.appendChild(m);
+  document.getElementById('gkGo').onclick=async function(){
+    var plan=document.getElementById('gkPlan').value;var d=parseInt(document.getElementById('gkDays').value,10);
+    var body={plan:plan}; if(d>0) body.days=d;
+    var btn=this;btn.disabled=true;btn.textContent='…';
+    try{
+      var j=await zapi('/api/licenses/generate',{method:'POST',body:body});
+      document.getElementById('gkOut').style.display='block';
+      document.getElementById('gkKey').textContent=j.token;
+      var cp=document.getElementById('gkCopy');if(cp)cp.onclick=function(){zCopy(j.token);};
+      toast('Clé générée','grn');if(typeof zLog==='function')zLog('Clé de licence générée · '+plan);
+    }catch(e){toast('Échec : '+(e.message||e),'red');}
+    btn.disabled=false;btn.textContent='Générer';
   };
 }
 (function(){var s=document.getElementById('adminSearch');if(s)s.addEventListener('input',function(e){adminQuery=(e.target.value||'').toLowerCase();zAdminRender();});})();
+
+/* ---- Onglet Tarifs : offres publiques lues depuis /api/plans (chiffres réels) ---- */
+function zEuro(cents){var v=(Number(cents||0)/100);return (Number.isInteger(v)?v.toFixed(0):v.toFixed(2)).replace('.',',')+' €';}
+function zPlanFeatures(e){
+  e=e||{};var f=[];
+  var srv=e['servers.max'];if(srv!=null)f.push(srv+' serveur'+(srv>1?'s':''));
+  var seats=e['users.max'];if(seats!=null)f.push(seats+' sièges d\'équipe');
+  var ret=e['retention.days'];if(ret!=null)f.push('Rétention des incidents '+ret+' j');
+  f.push('Cœur anticheat + 189 protections');
+  f.push('Kill-switch licence en ligne');
+  if(e['feature.incidents'])f.push('Rejeu d\'incident & dossiers joueur');
+  if(e['feature.webhooks'])f.push('Notifications Discord (webhook)');
+  return f;
+}
+async function zTarifsLoad(){
+  var host=document.getElementById('tarifsGrid');if(!host)return;
+  var plans;try{plans=(await zapi('/api/plans')).plans||[];}catch(e){host.innerHTML='<div style="color:var(--muted);font-size:13px">Offres indisponibles pour le moment.</div>';return;}
+  var mine=(ZS.me&&ZS.me.plan_code)||null;
+  host.innerHTML=plans.map(function(p){
+    var reco=(p.code==='pro');
+    var feats=zPlanFeatures(p.entitlements).map(function(t){return '<li style="display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:13px;color:var(--sub)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--green)" stroke-width="2.5" style="flex:0 0 auto;margin-top:2px"><path d="M20 6 9 17l-5-5"/></svg><span>'+zesc(t)+'</span></li>';}).join('');
+    return '<div class="card" style="padding:22px;position:relative;'+(reco?'border-color:var(--green-line);box-shadow:0 0 0 1px var(--green-line)':'')+'">'
+      +(reco?'<span class="rtag" style="position:absolute;top:16px;right:16px;background:var(--green-soft);color:var(--green);border-color:var(--green-line)">Populaire</span>':'')
+      +'<div style="font-family:var(--disp);font-weight:800;font-size:17px">'+zesc(p.name)+'</div>'
+      +'<div style="margin:8px 0 2px"><span style="font-size:30px;font-weight:800">'+zEuro(p.monthly_cents)+'</span><span style="color:var(--muted);font-size:13px"> /mois</span></div>'
+      +'<div style="color:var(--faint);font-size:11.5px;margin-bottom:14px">par serveur'+(mine===p.code?' · ton offre actuelle':'')+'</div>'
+      +'<ul style="list-style:none;padding:0;margin:0 0 16px">'+feats+'</ul>'
+      +'<button class="btn '+(reco?'btn-green':'')+'" style="width:100%;justify-content:center" onclick="zTarifChoose('+zJs(p.code)+','+zJs(p.name)+')">'+(mine===p.code?'Offre actuelle':'Choisir '+zesc(p.name))+'</button>'
+      +'</div>';
+  }).join('')||'<div style="color:var(--muted);font-size:13px">Aucune offre publique.</div>';
+}
+function zTarifChoose(code,name){
+  // Le paiement en ligne n'est pas branché : on est honnête et on oriente vers le
+  // vendeur, qui génère la clé (pas de faux tunnel d'achat).
+  toast('Pour passer à '+name+', contacte ton vendeur Z-Shield pour recevoir ta clé.','grn');
+}
 /* Affiche l'onglet Admin + charge les données pour les comptes vendeur. */
-(function(){if(typeof zLoadAll==='function'){var _l=zLoadAll;zLoadAll=async function(){await _l.apply(this,arguments);if(ZS.me&&ZS.me.is_platform_admin){var na=document.getElementById('navAdmin');if(na)na.style.display='';await zAdminLoad();}};}})();
+(function(){if(typeof zLoadAll==='function'){var _l=zLoadAll;zLoadAll=async function(){await _l.apply(this,arguments);if(ZS.me&&ZS.me.is_platform_admin){var na=document.getElementById('navAdmin');if(na)na.style.display='';await zAdminLoad();}await zTarifsLoad();};}})();
 
 
 /* =========================================================================
@@ -2311,7 +2463,7 @@ async function zSwitchOrg(id){try{await zapi('/api/auth/switch-organization',{me
 
 </script>
 
-<script>window.ZS_BUILD="2026-09-25 23:02 UTC";</script>
+<script>window.ZS_BUILD="2026-09-25 23:43 UTC";</script>
 <script>
 (async () => {
   try { const r = await fetch('/api/auth/me', { credentials: 'include' }); if (r.status === 401) location.href = '/login'; }
