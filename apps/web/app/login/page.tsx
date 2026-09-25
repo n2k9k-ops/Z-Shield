@@ -135,7 +135,7 @@ function LoginForm() {
         </button>
 
         <p className="auth__note">
-          Pas encore de compte ? <Link href="/register">Créer une organisation</Link>
+          Accès sur invitation uniquement. Contacte l'administrateur pour un compte.
         </p>
       </form>
     </main>

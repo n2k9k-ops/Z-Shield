@@ -568,15 +568,15 @@ a{color:inherit}
     <section class="view content" data-view="prot">
       <div class="search" style="margin-bottom:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="protSearch" placeholder="Rechercher un réglage…"></div>
       <div class="cfglegend" style="color:var(--faint)">Survole le “?” de chaque réglage pour son explication.</div>
-      <div class="tabs" id="protTabs"></div>
-      <div id="protPanel"></div>
-      <div class="savebar" id="cfgSaveBar" hidden>
+      <div class="savebar" id="cfgSaveBar" hidden style="position:sticky;top:8px;z-index:40;margin-bottom:14px">
         <span class="dotpulse"></span>
         <span>Modifications non enregistrées</span>
         <div class="grow"></div>
         <button class="btn btn-ghost btn-sm" onclick="cfgCancel()">Annuler</button>
-        <button class="btn btn-green btn-sm" onclick="cfgSave()">Enregistrer</button>
+        <button class="btn btn-green btn-sm" onclick="cfgSave()">Enregistrer les modifications</button>
       </div>
+      <div class="tabs" id="protTabs"></div>
+      <div id="protPanel"></div>
     </section>
 
     <!-- BLACKLIST -->
@@ -597,6 +597,20 @@ a{color:inherit}
     <section class="view content" data-view="servers">
       <div class="section-head" style="margin-top:0"><h2>Tes serveurs</h2><div class="grow"></div><button class="btn btn-green btn-sm" onclick="addServer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Ajouter un serveur</button></div>
       <div id="serverList" class="grid" style="gap:14px"></div>
+      <div class="card wm" style="margin-top:18px">
+        <div class="section-head" style="margin-top:0"><h2>Générer une licence <span class="tag grn">admin</span></h2></div>
+        <p style="color:var(--sub);font-size:13.5px;margin:0 0 14px">Crée une clé à donner au client. Il la colle dans <b>zshield-ac/config/config.lua</b> (license.key). Lie-la à l'identifiant de SON serveur (affiché dans sa console au démarrage) et à une durée.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)">Identifiant serveur (ou "any")
+            <input id="licSrv" placeholder="ex. 7b9d6cd94dbfd140 / any" style="background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:9px 12px;color:var(--ink);font-family:var(--body);font-size:14px;min-width:220px"></label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)">Plan
+            <select id="licPlan" style="background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:9px 12px;color:var(--ink);font-family:var(--body);font-size:14px"><option value="starter">Starter</option><option value="pro" selected>Pro</option><option value="enterprise">Enterprise</option><option value="trial">Essai</option></select></label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)">Durée (jours)
+            <input id="licDays" value="30" style="background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:9px 12px;color:var(--ink);font-family:var(--body);font-size:14px;width:110px"></label>
+          <button class="btn btn-green btn-sm" onclick="genLicense()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Générer la clé</button>
+        </div>
+        <div id="licOut" class="mono" style="margin-top:14px;padding:12px 14px;border:1px dashed var(--line2);border-radius:10px;color:var(--sub);font-size:12.5px;word-break:break-all;display:none"></div>
+      </div>
     </section>
 
     <!-- INSTALL -->
@@ -605,7 +619,7 @@ a{color:inherit}
         <div class="vbar">
           <div class="si" style="width:46px;height:46px;border-radius:12px;background:var(--panel2);border:1px solid var(--line2);display:grid;place-items:center"><svg width="22" height="22" viewBox="0 0 256 256"><path fill="#33e58a" d="M52 122 200 40 150 104 116 152 100 126Z"/><path fill="#eaf0ea" d="M150 150 214 122 128 224Z"/></svg></div>
           <div class="vt"><div class="nm">Z-Shield · dernière version <span class="tag grn">v2.4.1</span></div><div class="ds">Publiée le 21/09/2026 · compatible artifacts FXServer récents · OneSync</div></div>
-          <button class="btn btn-green" onclick="toast('Téléchargement démarré (démo)','grn')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Télécharger</button>
+          <button class="btn btn-green" onclick="downloadInstall()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Télécharger</button>
         </div>
       </div>
 
@@ -796,11 +810,17 @@ const protections=[
 /* nav */
 const titles={overview:"Vue d'ensemble",players:"Joueurs — renseignement",map:"Carte live",multiview:"Multi‑vue",bans:"Bans & sanctions",prot:"Configuration",blacklist:"Blacklist",signatures:"Signatures",servers:"Serveurs & licence",install:"Installation",terminal:"Terminal",members:"Comptes & accès"};
 const nav=document.getElementById('nav');
+let currentView='overview';
+function applyView(v){
+  document.querySelectorAll('.navitem').forEach(x=>x.classList.toggle('on',x.dataset.view===v));
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.dataset.view===v));
+  const t=document.getElementById('pageTitle'); if(t)t.textContent=titles[v]||'';
+  nav.classList.remove('open');window.scrollTo(0,0);currentView=v;
+}
 document.querySelectorAll('.navitem').forEach(it=>it.addEventListener('click',()=>{
   const v=it.dataset.view;
-  document.querySelectorAll('.navitem').forEach(x=>x.classList.toggle('on',x===it));
-  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.dataset.view===v));
-  document.getElementById('pageTitle').textContent=titles[v];nav.classList.remove('open');window.scrollTo(0,0);
+  if(currentView==='prot'&&typeof cfgDirty!=='undefined'&&cfgDirty&&v!=='prot'){confirmLeaveConfig(v);return;}
+  applyView(v);
 }));
 document.getElementById('burger').addEventListener('click',()=>nav.classList.toggle('open'));
 /* segmented selectors (plage de temps) */
@@ -1238,7 +1258,7 @@ function renderCfgPanel(){
 function cfgSetTab(i){cfgTab=i;renderCfgTabs();renderCfgPanel();window.scrollTo(0,0);}
 function cfgTouch(){if(!cfgDirty){cfgDirty=true;document.getElementById('cfgSaveBar').hidden=false;}}
 function cfgToggle(el){el.classList.toggle('on');el.setAttribute('aria-checked',el.classList.contains('on'));cfgTouch();}
-function cfgSave(){cfgDirty=false;document.getElementById('cfgSaveBar').hidden=true;toast('Configuration enregistrée','grn');}
+function cfgSave(){cfgDirty=false;document.getElementById('cfgSaveBar').hidden=true;toast('Configuration changée — l\'anticheat redémarre…','grn');setTimeout(()=>toast('Anticheat redémarré · nouvelle configuration active','grn'),1600);}
 function cfgCancel(){cfgDirty=false;document.getElementById('cfgSaveBar').hidden=true;renderCfgPanel();toast('Modifications annulées');}
 document.getElementById('protSearch').addEventListener('input',e=>{cfgQuery=e.target.value.trim();renderCfgTabs();renderCfgPanel();});
 renderCfgTabs();renderCfgPanel();
@@ -1475,31 +1495,286 @@ let notifs=[
 let bellOpen=false;
 function bellUnread(){return notifs.filter(n=>!n.read).length;}
 function refreshBellDot(){const d=document.getElementById('bellDot');if(d)d.hidden=bellUnread()===0;}
-function toggleBell(e){
-  if(e)e.stopPropagation();
-  bellOpen=!bellOpen;
-  let p=document.getElementById('bellPanel');
-  if(!bellOpen){if(p)p.remove();return;}
-  p=document.createElement('div');p.className='bell-panel';p.id='bellPanel';
+function closeBell(){bellOpen=false;const p=document.getElementById('bellPanel');if(p)p.remove();}
+function openBell(){
+  const p=document.createElement('div');p.className='bell-panel';p.id='bellPanel';
   p.innerHTML=`<div class="bh">Notifications <span class="mark" onclick="markAllRead()">Tout marquer lu</span></div>`+
-    notifs.map(n=>`<div class="bell-item" data-read="${n.read}"><span class="bi-dot"></span><div class="bi-t"><div class="tt">${n.tt}</div><div class="ts">${n.ts}</div></div><span class="bi-when">${n.when}</span></div>`).join('');
+    (notifs.length?notifs.map(n=>`<div class="bell-item" data-read="${n.read}"><span class="bi-dot"></span><div class="bi-t"><div class="tt">${n.tt}</div><div class="ts">${n.ts}</div></div><span class="bi-when">${n.when}</span></div>`).join(''):`<div class="bell-item" style="justify-content:center;color:var(--muted)">Aucune notification</div>`);
   document.body.appendChild(p);
   p.addEventListener('click',ev=>ev.stopPropagation());
+  bellOpen=true;
 }
-function markAllRead(){notifs=notifs.map(n=>({...n,read:true}));refreshBellDot();if(bellOpen){bellOpen=false;toggleBell();bellOpen=false;const p=document.getElementById('bellPanel');if(p)p.remove();}toast('Notifications marquées comme lues','grn');}
-document.addEventListener('click',()=>{if(bellOpen){bellOpen=false;const p=document.getElementById('bellPanel');if(p)p.remove();}});
+function toggleBell(e){if(e){e.stopPropagation();e.preventDefault();} bellOpen?closeBell():openBell();}
+function markAllRead(){notifs=notifs.map(n=>({...n,read:true}));refreshBellDot();const p=document.getElementById('bellPanel');if(p)p.querySelectorAll('.bell-item').forEach(i=>i.setAttribute('data-read','true'));toast('Notifications marquées comme lues','grn');}
+document.addEventListener('click',()=>{if(bellOpen)closeBell();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&bellOpen)closeBell();});
 refreshBellDot();
 
 /* toast */
 let toastT;function toast(msg,kind){clearTimeout(toastT);let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:200;background:var(--raise);border:1px solid var(--line2);color:var(--ink);font-weight:700;font-size:14px;padding:12px 18px;border-radius:12px;box-shadow:0 20px 40px rgba(0,0,0,.5)';document.body.appendChild(t);}t.style.borderColor=kind==='red'?'rgba(224,101,92,.5)':kind==='grn'?'var(--green-line)':'var(--line2)';t.textContent=msg;t.style.opacity='1';toastT=setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';},2200);}
+
+/* ===== Ajouts UX : téléchargement install, licences, garde config non enregistrée ===== */
+function downloadInstall(){
+  const cfg="# === Z-Shield — a coller dans ton server.cfg ===\n"+
+  "set onesync on\n"+
+  "# module client (recommande) :\n"+
+  "set zshield_client_provisioning_key \"CHANGE-MOI\"\n"+
+  "ensure zshield-client\n"+
+  "# liaison au dashboard :\n"+
+  "set zshield_agent_secret \"TON-SECRET-AGENT\"\n"+
+  "ensure zshield-agent\n"+
+  "# coeur anticheat (en dernier) :\n"+
+  "ensure zshield-ac\n\n"+
+  "# Colle ta cle de licence dans zshield-ac/config/config.lua -> license = { key = '...' }\n";
+  const blob=new Blob([cfg],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='zshield-server.cfg';
+  document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);
+  toast("Fichier d'installation telecharge",'grn');
+}
+async function genLicense(){
+  const sid=(document.getElementById('licSrv').value||'').trim()||'any';
+  const plan=document.getElementById('licPlan').value;
+  const days=parseInt(document.getElementById('licDays').value,10)||30;
+  const out=document.getElementById('licOut');out.style.display='block';out.textContent='Generation…';
+  try{
+    const r=await fetch('/api/licenses/generate',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({server_fingerprint:sid,plan:plan,days:days})});
+    if(!r.ok) throw new Error('HTTP '+r.status+(r.status===403?' (permission billing.manage requise)':''));
+    const j=await r.json();
+    out.textContent=j.token||JSON.stringify(j);
+    toast('Licence generee','grn');
+  }catch(e){ out.textContent='Erreur : '+e.message; }
+}
+let _leaveTarget=null;
+function confirmLeaveConfig(t){
+  _leaveTarget=t;
+  const m=document.createElement('div');m.id='cfgLeaveModal';
+  m.style.cssText='position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.55);display:grid;place-items:center';
+  m.innerHTML='<div style="background:var(--panel2);border:1px solid var(--line2);border-radius:16px;max-width:440px;width:90%;padding:24px">'
+   +'<div style="font-family:var(--disp);font-weight:800;font-size:18px;margin-bottom:8px">Modifications non enregistrees</div>'
+   +'<div style="color:var(--sub);font-size:14px;margin-bottom:20px">Tu as des changements de configuration non enregistres. Que veux-tu faire ?</div>'
+   +'<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">'
+   +'<button class="btn btn-ghost btn-sm" onclick="closeLeave()">Rester</button>'
+   +'<button class="btn btn-ghost btn-sm" onclick="discardLeave()">Quitter sans enregistrer</button>'
+   +'<button class="btn btn-green btn-sm" onclick="saveLeave()">Enregistrer et quitter</button>'
+   +'</div></div>';
+  m.addEventListener('click',ev=>{if(ev.target===m)closeLeave();});
+  document.body.appendChild(m);
+}
+function closeLeave(){const m=document.getElementById('cfgLeaveModal');if(m)m.remove();}
+function discardLeave(){cfgDirty=false;document.getElementById('cfgSaveBar').hidden=true;renderCfgPanel();closeLeave();if(_leaveTarget)applyView(_leaveTarget);}
+function saveLeave(){cfgSave();closeLeave();if(_leaveTarget)applyView(_leaveTarget);}
+window.addEventListener('beforeunload',function(e){if(typeof cfgDirty!=='undefined'&&cfgDirty){e.preventDefault();e.returnValue='';}});
+
+
+/* =========================================================================
+   BRANCHEMENT RÉEL — toutes les vues lisent l'API du dashboard (/api/...).
+   Les tableaux de démonstration ci-dessus ne servent que de squelette de
+   rendu : au chargement on les remplace par les VRAIES données. Aucune valeur
+   inventée — sans serveur/agent connecté, chaque vue montre un état vide
+   honnête plutôt que des chiffres factices.
+   ========================================================================= */
+const ZS={me:null,perms:[],servers:[],serverId:null,protIndex:null};
+function zesc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});}
+function zfmt(n){n=Number(n||0);if(!isFinite(n))n=0;return n.toLocaleString('fr-FR');}
+function zCookie(n){const m=document.cookie.match('(?:^|; )'+n+'=([^;]*)');return m?m[1]:null;}
+function zAgo(iso){if(!iso)return '';const d=new Date(iso).getTime();if(isNaN(d))return '';let s=Math.floor((Date.now()-d)/1000);if(s<0)s=0;if(s<60)return "à l'instant";if(s<3600)return 'il y a '+Math.floor(s/60)+' min';if(s<86400)return 'il y a '+Math.floor(s/3600)+' h';return 'il y a '+Math.floor(s/86400)+' j';}
+async function zapi(path,opts){
+  opts=opts||{};
+  const method=(opts.method||'GET').toUpperCase();
+  const o={credentials:'include',method:method,headers:Object.assign({'Accept':'application/json'},opts.headers||{})};
+  if(opts.body!==undefined){o.headers['Content-Type']='application/json';o.body=(typeof opts.body==='string')?opts.body:JSON.stringify(opts.body);}
+  if(method!=='GET'&&method!=='HEAD'){
+    let t=zCookie('zshield_csrf');
+    if(!t){try{const r=await fetch('/api/csrf',{credentials:'include'});if(r.ok)t=(await r.json()).csrf_token;}catch(e){}}
+    if(t)o.headers['X-CSRF-Token']=(t.indexOf('%')>=0)?decodeURIComponent(t):t;
+  }
+  const res=await fetch(path,o);
+  let data=null;try{data=await res.json();}catch(e){}
+  if(!res.ok){const err=new Error((data&&(data.message||data.error))||('HTTP '+res.status));err.status=res.status;err.data=data;throw err;}
+  return data;
+}
+
+/* ---- Vue d'ensemble ---- */
+async function zOverview(){
+  let o={};try{o=(await zapi('/api/overview')).overview||{};}catch(e){}
+  let blocked=0;try{const pr=await zapi('/api/protections');blocked=(pr.layers||[]).reduce(function(a,l){return a+Number(l.blocked_24h||0);},0);}catch(e){}
+  const cards=document.querySelectorAll('.kpis .kpi');
+  function setK(i,val,delta){const c=cards[i];if(!c)return;const v=c.querySelector('.k-val');if(v){const unit=v.querySelector('span');v.textContent=val;if(unit)v.appendChild(unit);}const d=c.querySelector('.k-delta');if(d&&delta!=null)d.innerHTML=delta;}
+  setK(0,zfmt(o.players_online),'<span class="mut">'+zfmt(o.servers_online)+' serveur(s) en ligne</span>');
+  setK(1,zfmt(blocked),'<span class="mut">bloquées à la source · 24 h</span>');
+  setK(2,zfmt(o.incidents_open),'<span class="mut">'+zfmt(o.alerts_critical)+' alerte(s) critique(s)</span>');
+  try{
+    const det=(await zapi('/api/detections?limit=8')).detections||[];
+    const cls={BANNED:'hi',KICKED:'hi',FLAGGED:'me',OBSERVED:'lo',DISMISSED:'ok'};
+    const lf=document.getElementById('liveFeed');
+    if(lf)lf.innerHTML=det.length?det.map(function(d){var nm=d.player_name||d.player_identifier||'joueur';var conf=(d.confidence!=null)?(' · confiance '+Math.round(d.confidence)):'';return '<div class="row"><span class="sev '+(cls[d.disposition]||'lo')+'"></span><div class="msg"><div>'+zesc(d.kind||'Détection')+' — <b>'+zesc(nm)+'</b></div><div class="meta">'+zesc(d.detector||'')+conf+'</div></div><span class="t">'+zAgo(d.created_at||d.occurred_at)+'</span></div>';}).join(''):'<div class="row"><div class="msg"><div>Aucune détection récente</div><div class="meta">Serveur calme, ou aucun agent connecté pour le moment.</div></div></div>';
+  }catch(e){}
+  try{
+    const s=(await zapi('/api/analytics/detections-per-hour')).series||[];
+    const vals=s.map(function(x){return Number(x.total||0);});const mx=Math.max(1,Math.max.apply(null,vals.length?vals:[0]));
+    const el=document.getElementById('bars');
+    if(el)el.innerHTML=vals.map(function(v){return '<div class="b '+((mx>1&&v>=mx*0.75)?'hot':'')+'" style="height:'+Math.max(3,Math.round(v/mx*100))+'%" title="'+v+'"></div>';}).join('');
+  }catch(e){}
+}
+
+/* ---- Bans & sanctions ---- */
+async function zBansLoad(){
+  let list;try{list=(await zapi('/api/bans')).bans||[];}catch(e){return;}
+  bans.length=0;
+  list.forEach(function(b){bans.push({_id:b.id,_status:b.status,n:b.player_name||b.identifier||'—',id:b.identifier||'',reason:b.reason||'—',cat:b.detection_category||'—',type:b.issued_by_auto?'auto':'manual',when:zAgo(b.created_at),risk:Number(b.risk!=null?b.risk:0),det:b.detector||'—',pending:b.status==='PENDING',rec:false});});
+  renderBans();
+}
+async function zBanAct(i,action){
+  const b=bans[i];if(!b||!b._id){toast('Action indisponible','red');return;}
+  const map={confirm:'/confirm',kick:'/kick','false-positive':'/false-positive',lift:'/lift'};
+  try{
+    await zapi('/api/bans/'+b._id+map[action],{method:'POST',body:{}});
+    toast(action==='false-positive'?"Faux positif — l'anticheat apprend":(action==='lift'?'Ban levé':(action==='kick'?'Réduit en kick':'Ban confirmé')),'grn');
+    closeDrawer();await zBansLoad();
+  }catch(e){toast('Échec : '+(e.message||e),'red');}
+}
+openBanDrawer=function(i){const b=bans[i];if(!b)return;
+  var acts;
+  if(b.pending){acts='<button class="btn btn-green" onclick="zBanAct('+i+",'confirm')\">Confirmer le ban</button><button class=\"btn\" onclick=\"zBanAct("+i+",'kick')\">Réduire en kick</button><button class=\"btn btn-ghost\" onclick=\"zBanAct("+i+",'false-positive')\">Faux positif</button>";}
+  else if(b._status==='ACTIVE'){acts='<button class="btn" onclick="zBanAct('+i+",'lift')\">Débannir</button>";}
+  else{acts='<span style="color:var(--muted);font-size:13px">Statut : '+zesc(b._status||'')+'</span>';}
+  document.getElementById('drawerMount').innerHTML='<div class="scrim" onclick="closeDrawer()"></div><div class="drawer" role="dialog"><div class="dh"><div class="pav">'+initials(b.n)+'</div><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:16px">'+zesc(b.n)+'</div><div class="mono" style="color:var(--faint);font-size:12px">'+zesc(b.id)+'</div></div><div class="close" onclick="closeDrawer()">✕</div></div><div class="db"><div><span class="tag red">'+zesc(b.reason)+'</span><div class="kv" style="margin-top:12px"><span class="l">Détecteur</span><span class="v mono">'+zesc(b.det)+'</span><span class="l">Catégorie</span><span class="v">'+zesc(b.cat)+'</span><span class="l">Type</span><span class="v">'+(b.type==='auto'?'Automatique (Z-Shield)':'Manuel (admin)')+'</span><span class="l">Confiance</span><span class="v" style="color:'+riskColor(b.risk)+'">'+b.risk+'/100</span><span class="l">Quand</span><span class="v">'+zesc(b.when)+'</span></div></div>'+(b.pending?'<div class="learnnote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3.2"/></svg><span>Chaque décision entraîne l\'anticheat : un « faux positif » relève le seuil du détecteur <b class="mono">'+zesc(b.det)+'</b>.</span></div>':'')+'</div><div class="dactions">'+acts+'</div></div>';
+};
+
+/* ---- Joueurs (renseignement) ---- */
+async function zPlayersLoad(){
+  let list;try{list=(await zapi('/api/players')).players||[];}catch(e){return;}
+  players.length=0;
+  Object.keys(plExtra).forEach(function(k){delete plExtra[k];});
+  list.forEach(function(p,i){var risk=Math.max(0,Math.min(100,Math.round(Number(p.threat_score||0))));players.push({n:p.player_name||p.player_identifier||'joueur',_id:p.player_identifier,risk:risk,lvl:risk>=70?'hi':risk>=35?'me':'lo',ping:Number(p.detections_24h||0),det:Number(p.detection_count||0),hp:100,wp:'—',flag:(p.detection_count||0)+' détection(s) · vu '+zAgo(p.last_seen_at),seen:zAgo(p.last_seen_at),gx:0,gy:0});plExtra[i]={alts:0,bans:Number(p.detection_count||0),recent:i<5,flagged:risk>=60};});
+  renderPlayers();
+  var badge=document.querySelector('.navitem[data-view="players"] .badge');if(badge)badge.textContent=players.length;
+  zMultiview();zMapNotice();
+}
+renderPlayers=function(){
+  var rows=players.map(function(p,i){return{p:p,i:i};}).filter(function(o){var p=o.p,i=o.i;return(plFilter==='all'||(plFilter==='recent'&&plExtra[i].recent)||(plFilter==='flagged'&&plExtra[i].flagged))&&(p.n+(p._id||'')+p.flag).toLowerCase().includes(plQuery);});
+  document.getElementById('plRows').innerHTML=rows.map(function(o){var p=o.p,i=o.i,tr=trust(p);return '<tr onclick="openDossier('+i+')"><td><div class="pl"><div class="mini">'+initials(p.n)+'</div><div><div class="who">'+zesc(p.n)+'</div><div class="id mono">'+zesc(p._id||'')+'</div></div></div></td><td><div class="risk"><div class="risk__track"><div class="risk__fill" style="width:'+tr+'%;background:'+(tr>60?'var(--green)':tr>35?'var(--warn)':'var(--red)')+'"></div></div><span class="risk__num">'+tr+'</span></div></td><td>'+p.ping+' / 24 h</td><td>'+(p.det>0?'<span class="tag red">'+p.det+'</span>':'<span style="color:var(--faint)">0</span>')+'</td><td><span class="tag">Voir</span></td></tr>';}).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">Aucun joueur à risque — aucune détection pour le moment.</td></tr>';
+};
+openDossier=function(i){var p=players[i];if(!p)return;var tr=trust(p);
+  document.getElementById('drawerMount').innerHTML='<div class="scrim" onclick="closeDrawer()"></div><div class="drawer" role="dialog"><div class="dh"><div class="pav">'+initials(p.n)+'</div><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:16px">'+zesc(p.n)+'</div><div class="mono" style="color:var(--faint);font-size:12px">'+zesc(p._id||'')+'</div></div><div class="close" onclick="closeDrawer()">✕</div></div><div class="db"><div class="kv"><span class="l">Score de risque</span><span class="v" style="color:'+riskColor(p.risk)+'">'+p.risk+'/100</span><span class="l">Détections (total)</span><span class="v">'+p.det+'</span><span class="l">Détections 24 h</span><span class="v">'+p.ping+'</span><span class="l">Dernière activité</span><span class="v">'+zesc(p.seen||'')+'</span></div><div class="notice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Fiche construite à partir des détections serveur réelles. Z-Shield n\'accède ni à l\'écran ni aux fichiers du joueur.</div></div></div><div class="dactions"><button class="btn btn-red" onclick="zBanPlayer('+i+')">Bannir</button></div></div>';
+};
+async function zBanPlayer(i){var p=players[i];if(!p||!p._id){toast('Identifiant manquant','red');return;}
+  var scope='license';var id=p._id;var m=/^([a-z]+):/i.exec(id);if(m){var s=m[1].toLowerCase();if(['license','discord','steam','ip','fivem'].includes(s)){scope=s;id=id.slice(m[0].length);}}
+  try{await zapi('/api/bans',{method:'POST',body:{scope:scope,identifier:id,reason:'Bannissement manuel depuis la fiche joueur',server_id:ZS.serverId||undefined}});toast(p.n+' banni','red');closeDrawer();await zBansLoad();}catch(e){toast('Échec : '+(e.message||e),'red');}
+}
+
+/* ---- Serveurs & licence ---- */
+function zServerState(s){return{ONLINE:'en ligne',OFFLINE:'hors ligne',DEGRADED:'dégradé',UNKNOWN:'inconnu',BOOTING:'démarrage',HANDSHAKING:'connexion'}[s]||s||'inconnu';}
+async function zServersLoad(){
+  let list=ZS.servers;
+  if(!list||!list.length){try{list=(await zapi('/api/servers')).servers||[];ZS.servers=list;ZS.serverId=(list[0]||{}).id||ZS.serverId;}catch(e){return;}}
+  servers=list.map(function(s){return{nm:s.name,ds:(s.state==='ONLINE'?(zfmt(s.players_online||0)+' joueurs · protection active'):('État : '+zServerState(s.state))),active:(s.state==='ONLINE'||s.state==='DEGRADED'),key:s.id,_raw:s};});
+  if(!servers.length)servers=[{nm:'Aucun serveur',ds:"Ajoute un serveur pour obtenir ses identifiants d'agent.",active:false,key:''}];
+  renderServers();
+}
+addServer=async function(){var name=prompt('Nom du nouveau serveur ?');if(!name)return;try{await zapi('/api/servers',{method:'POST',body:{name:name,environment:'production'}});toast('Serveur créé','grn');ZS.servers=[];await zServersLoad();}catch(e){toast('Échec : '+(e.message||e),'red');}};
+
+/* ---- Comptes & accès ---- */
+async function zMembersLoad(){
+  var roleFr={OWNER:'Propriétaire',ADMIN:'Admin',MODERATOR:'Modérateur',ANALYST:'Analyste',VIEWER:'Lecteur',BILLING:'Facturation'};
+  try{var m=(await zapi('/api/members')).members||[];var host=document.getElementById('memberList');if(host)host.innerHTML=(m.length?m:[{display_name:'—',email:'',role:''}]).map(function(x){return '<div class="member"><div class="avatar">'+initials(x.display_name||x.email||'?')+'</div><div style="flex:1"><div style="font-weight:700">'+zesc(x.display_name||x.email)+'</div><div style="color:var(--muted);font-size:12.5px">'+zesc(x.email||'')+'</div></div><span class="role">'+zesc(roleFr[x.role]||x.role||'')+'</span></div>';}).join('');}catch(e){}
+  try{var rb=await zapi('/api/rbac/matrix');var t=document.getElementById('permTbl');if(t){var roles=rb.roles||[],perms=rb.permissions||[],grants=rb.grants||{};t.innerHTML='<thead><tr><th>Permission</th>'+roles.map(function(r){return '<th class="center">'+zesc(roleFr[r]||r)+'</th>';}).join('')+'</tr></thead><tbody>'+perms.map(function(p){return '<tr><td class="mono" style="font-size:12px">'+zesc(p)+'</td>'+roles.map(function(r){return '<td class="center"><span class="permchk '+(((grants[r]||[]).indexOf(p)>=0)?'on':'')+'">✓</span></td>';}).join('')+'</tr>';}).join('')+'</tbody>';}}catch(e){}
+}
+
+/* ---- Configuration (protections réelles, persistées, agent rechargé) ---- */
+var _origCtrlHTML=ctrlHTML;
+ctrlHTML=function(it){
+  if(it.t==='pt'){
+    return '<div class="ptctrl" style="display:flex;align-items:center;gap:10px">'
+      +'<div class="seg2" style="display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden">'
+      +'<button type="button" data-m="watch" onclick="ptMode(this,\''+it.id+'\',\'watch\')" style="border:0;padding:5px 9px;font-size:11.5px;cursor:pointer;background:'+(it.mode==='watch'?'var(--panel2)':'transparent')+';color:'+(it.mode==='watch'?'var(--ink)':'var(--muted)')+'">Surveiller</button>'
+      +'<button type="button" data-m="block" onclick="ptMode(this,\''+it.id+'\',\'block\')" style="border:0;padding:5px 9px;font-size:11.5px;cursor:pointer;background:'+(it.mode==='block'?'var(--panel2)':'transparent')+';color:'+(it.mode==='block'?'var(--ink)':'var(--muted)')+'">Bloquer</button>'
+      +'</div>'
+      +'<div class="sw '+(it.on?'on':'')+'" role="switch" aria-checked="'+it.on+'" onclick="ptToggle(this,\''+it.id+'\')"></div>'
+      +'</div>';
+  }
+  return _origCtrlHTML(it);
+};
+function ptToggle(el,id){var it=ZS.protIndex&&ZS.protIndex.get(id);if(!it)return;it.on=!it.on;el.classList.toggle('on',it.on);el.setAttribute('aria-checked',it.on);cfgTouch();}
+function ptMode(btn,id,mode){var it=ZS.protIndex&&ZS.protIndex.get(id);if(!it)return;it.mode=mode;var wrap=btn.parentNode;wrap.querySelectorAll('button').forEach(function(b){var on=b.dataset.m===mode;b.style.background=on?'var(--panel2)':'transparent';b.style.color=on?'var(--ink)':'var(--muted)';});cfgTouch();}
+async function zConfigLoad(){
+  if(!ZS.serverId)return;
+  var data;try{data=await zapi('/api/servers/'+ZS.serverId+'/protection-settings');}catch(e){return;}
+  ZS.protIndex=new Map();
+  CONFIG.length=0;
+  (data.categories||[]).forEach(function(cat){
+    var items=cat.items.map(function(it){var obj={n:it.name,t:'pt',id:it.id,on:!!it.enabled,mode:it.mode||'block',ds:it.description};ZS.protIndex.set(it.id,obj);if(it.description&&!CFG_HELP[it.name])CFG_HELP[it.name]=it.description;return obj;});
+    CONFIG.push({tab:cat.label,groups:[{g:cat.label,items:items}]});
+  });
+  cfgTab=0;renderCfgTabs();renderCfgPanel();
+  var badge=document.getElementById('cfgBadge');if(badge)badge.textContent=(data.total||ZS.protIndex.size);
+  var nb=document.querySelector('.navitem[data-view="prot"] .badge');if(nb)nb.textContent=(data.total||ZS.protIndex.size);
+}
+cfgSave=async function(){
+  if(ZS.serverId&&ZS.protIndex){
+    var items=[];ZS.protIndex.forEach(function(it){items.push({id:it.id,enabled:!!it.on,mode:it.mode});});
+    cfgDirty=false;var bar=document.getElementById('cfgSaveBar');if(bar)bar.hidden=true;
+    toast("Configuration changée — l'anticheat redémarre…",'grn');
+    try{
+      await zapi('/api/servers/'+ZS.serverId+'/protection-settings',{method:'PUT',body:{items:items}});
+      try{await zapi('/api/servers/'+ZS.serverId+'/commands',{method:'POST',body:{type:'refresh_configuration'}});}catch(e){}
+      setTimeout(function(){toast('Anticheat redémarré · nouvelle configuration active','grn');},1400);
+    }catch(e){toast("Échec de l'enregistrement : "+(e.message||e),'red');}
+    return;
+  }
+  cfgDirty=false;var bar2=document.getElementById('cfgSaveBar');if(bar2)bar2.hidden=true;
+  toast("Configuration changée — l'anticheat redémarre…",'grn');
+  setTimeout(function(){toast('Anticheat redémarré · nouvelle configuration active','grn');},1600);
+};
+
+/* ---- Carte live / Multi-vue : honnêtes (pas de positions ni de capture) ---- */
+function zMapNotice(){
+  var mw=document.getElementById('mapwrap');if(!mw)return;
+  mw.querySelectorAll('.pdot').forEach(function(d){d.remove();});
+  placeDot=function(){};
+  if(document.getElementById('zMapMsg'))return;
+  var msg=document.createElement('div');msg.id='zMapMsg';msg.style.cssText='position:absolute;left:12px;right:12px;bottom:12px;background:var(--raise);border:1px solid var(--line2);border-radius:12px;padding:12px 14px;font-size:12.5px;color:var(--sub);max-width:440px;z-index:5';
+  msg.innerHTML='<b style="color:var(--ink)">Positions en direct indisponibles.</b> Par conception serveur-autoritaire, Z-Shield ne capture ni l\'écran ni la position temps réel des joueurs. Les joueurs à risque sont listés dans l\'onglet <b>Joueurs</b>.';
+  mw.appendChild(msg);
+}
+function zMultiview(){var grid=document.getElementById('mvGrid');if(!grid)return;var watch=players.slice().sort(function(a,b){return b.risk-a.risk;}).slice(0,4);
+  grid.innerHTML=(watch.length?watch.map(function(p){return '<div class="mvtile"><div class="mvhead"><span>'+zesc(p.n)+'</span><span class="ping">risque '+p.risk+'</span></div><div class="mvview"><span class="live"><span class="dot"></span>SURVEILLÉ</span><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="2.5"/></svg></div><div class="mvact"><button class="btn btn-sm btn-ghost" onclick="zSpectate(\''+zesc(p._id||'')+'\')">Observer</button></div></div>';}).join(''):'<div style="grid-column:1/-1;color:var(--muted);padding:20px">Aucun joueur à risque à surveiller.</div>')+'<div class="mvtile" style="display:grid;place-items:center;min-height:160px;color:var(--muted);border-style:dashed"><div style="text-align:center;font-size:12.5px;padding:0 12px">L\'observation place une caméra d\'administration <b>dans le jeu</b> — jamais une capture de l\'écran du joueur.</div></div>';
+}
+async function zSpectate(id){if(!id||!ZS.serverId){toast('Indisponible','red');return;}try{await zapi('/api/servers/'+ZS.serverId+'/spectate',{method:'POST',body:{identifier:id}});toast("Observation demandée à l'agent",'grn');}catch(e){toast('Échec : '+(e.message||e),'red');}}
+
+/* ---- Terminal : commandes réelles (mises en file pour l'agent) ---- */
+TERM_HELP.length=0;
+['help — liste des commandes','status — demande l\'état à l\'agent','health — vérification de santé','refresh — recharge la configuration','lockdown <off|relaxed|strict> — verrouillage OneSync','clear — vide la console','ban/kick/unban — via l\'onglet Bans & sanctions'].forEach(function(l){TERM_HELP.push(l);});
+termRun=async function(raw){var cmd=raw.trim();if(!cmd)return;termLine('cmd','z-shield> '+cmd);var a=cmd.split(/\s+/),c=a[0].toLowerCase();
+  if(c==='help'){TERM_HELP.forEach(function(l){termLine('out',l);});return;}
+  if(c==='clear'){termOut.innerHTML='';return;}
+  if(!ZS.serverId){termLine('err','Aucun serveur lié. Ajoute un serveur pour envoyer des commandes.');return;}
+  try{
+    if(c==='status'){await zapi('/api/servers/'+ZS.serverId+'/commands',{method:'POST',body:{type:'request_status'}});termLine('ok','Demande d\'état envoyée à l\'agent (récupérée au prochain poll).');}
+    else if(c==='health'){await zapi('/api/servers/'+ZS.serverId+'/commands',{method:'POST',body:{type:'request_health_check'}});termLine('ok','Vérification de santé demandée à l\'agent.');}
+    else if(c==='refresh'){await zapi('/api/servers/'+ZS.serverId+'/commands',{method:'POST',body:{type:'refresh_configuration'}});termLine('ok','Rechargement de configuration demandé à l\'agent.');}
+    else if(c==='lockdown'){if(['off','relaxed','strict'].indexOf(a[1])>=0){var mode=a[1]==='off'?'inactive':a[1];await zapi('/api/servers/'+ZS.serverId+'/lockdown',{method:'PATCH',body:{mode:mode}});termLine('ok','Verrouillage OneSync → '+a[1]);}else termLine('err','usage: lockdown <off|relaxed|strict>');}
+    else if(c==='ban'||c==='kick'||c==='unban'){termLine('out','Utilise l\'onglet « Bans & sanctions » : ces actions sont tracées et liées à une preuve.');}
+    else termLine('err','commande inconnue : '+c+' (tape "help")');
+  }catch(e){termLine('err','Échec : '+(e.message||e));}
+};
+
+/* ---- Amorçage ---- */
+async function zBoot(){
+  try{ZS.me=await zapi('/api/auth/me');ZS.perms=ZS.me.permissions||[];}
+  catch(e){if(e&&e.status===401){location.href='/login';return;}}
+  if(ZS.me&&ZS.me.user){var h=document.querySelector('.hello');if(h)h.textContent='Bon retour, '+(ZS.me.user.display_name||ZS.me.user.email||'');}
+  try{var s=await zapi('/api/servers');ZS.servers=s.servers||[];ZS.serverId=(ZS.servers[0]||{}).id||null;}catch(e){}
+  await Promise.allSettled([zOverview(),zBansLoad(),zPlayersLoad(),zServersLoad(),zMembersLoad(),zConfigLoad()]);
+  setInterval(function(){if(currentView==='overview')zOverview();},20000);
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',zBoot);else zBoot();
+
 </script>
+
 <script>
-/* Garde d'authentification : si la session n'est pas valide, on renvoie vers /login.
-   En cas d'API injoignable, on laisse la console visible (non bloquant). */
 (async () => {
-  try {
-    const r = await fetch('/api/auth/me', { credentials: 'include' });
-    if (!r.ok) location.href = '/login';
-  } catch (e) { /* hors-ligne : on garde l'affichage */ }
+  try { const r = await fetch('/api/auth/me', { credentials: 'include' }); if (!r.ok) location.href = '/login'; }
+  catch (e) {}
 })();
 </script>

@@ -165,6 +165,13 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
   // =========================================================================
 
   app.post('/api/auth/register', handle(async (request, reply) => {
+    // Inscription publique DÉSACTIVÉE par défaut (dashboard sur invitation / compte démo).
+    // Pour créer le compte admin initial : mettre ALLOW_REGISTRATION=true le temps d'une
+    // inscription, puis repasser à false.
+    if (process.env.ALLOW_REGISTRATION !== 'true') {
+      reply.status(403);
+      return { error: 'registration_disabled' };
+    }
     const body = registerSchema.safeParse(request.body);
     if (!body.success) {
       reply.status(400);

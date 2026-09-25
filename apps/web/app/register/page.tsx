@@ -1,8 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ApiError, api } from '@/lib/api';
+
+/**
+ * Inscription publique désactivée (dashboard sur invitation / compte démo).
+ * On renvoie vers la connexion. Pour créer le compte admin initial, voir
+ * docs : activer ALLOW_REGISTRATION le temps d'une inscription, puis désactiver.
+ */
+function RegistrationDisabledRedirect() {
+  useEffect(() => { window.location.replace('/login'); }, []);
+  return null;
+}
 
 /** Logo Z-Shield (éclats blancs, halo vert), réutilisé depuis le rail. */
 function BrandMark() {
@@ -24,6 +34,10 @@ function DiscordMark() {
 }
 
 export default function RegisterPage() {
+  return <RegistrationDisabledRedirect />;
+}
+
+function RegisterPageDisabled() {
   const [form, setForm] = useState({
     organization_name: '',
     display_name: '',
