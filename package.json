@@ -1,0 +1,24 @@
+{
+  "name": "zshield-dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Multi-tenant SaaS dashboard for supervising FiveM servers through the ZShield agent.",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @zshield/api & npm run dev --workspace @zshield/web",
+    "build": "npm run build --workspace @zshield/web",
+    "typecheck": "npm run typecheck --workspace @zshield/api && npm run typecheck --workspace @zshield/web",
+    "test": "npm run test --workspace @zshield/api",
+    "migrate": "npm run migrate --workspace @zshield/api",
+    "db:up": "docker compose -f docker-compose.dev.yml up -d postgres redis",
+    "db:down": "docker compose -f docker-compose.dev.yml down",
+    "dev:api": "npm run dev --workspace @zshield/api",
+    "dev:web": "npm run dev --workspace @zshield/web"
+  }
+}

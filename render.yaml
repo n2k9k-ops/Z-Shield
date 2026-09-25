@@ -1,0 +1,56 @@
+# =============================================================================
+# Z-Shield Dashboard — déploiement GRATUIT sur Render (Blueprint).
+#
+# Deux services web (l'API et le site), en Docker. La base (PostgreSQL) et Redis
+# sont externes et gratuits : Neon + Upstash (voir DEPLOY_FREE.md).
+#
+# Le navigateur ne parle qu'au SITE ; le site proxifie /api et /ws vers l'API en
+# interne → même origine, cookies de session sûrs.
+#
+# Les valeurs `sync: false` sont à saisir dans l'interface Render (secrets).
+# =============================================================================
+
+services:
+  # --- API (Fastify). Pas d'URL publique utilisée par le navigateur. ---------
+  - type: web
+    name: zshield-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # PostgreSQL Neon (URL complète, format postgres://...). À coller.
+      - key: DATABASE_URL
+        sync: false
+      # Redis Upstash (URL rediss://...). À coller.
+      - key: REDIS_URL
+        sync: false
+      # openssl rand -base64 32
+      - key: ZSHIELD_CREDENTIAL_KEY
+        sync: false
+      # openssl rand -base64 32
+      - key: SESSION_SECRET
+        sync: false
+      # LE MÊME secret que zshield-ac/server/license.lua
+      - key: LICENSE_SIGNING_SECRET
+        sync: false
+      # L'URL publique du SITE (ex : https://zshield-web.onrender.com)
+      - key: CORS_ORIGINS
+        sync: false
+
+  # --- Site (Next.js). C'est l'URL que tu ouvres et que voient les clients. ---
+  - type: web
+    name: zshield-web
+    runtime: docker
+    dockerfilePath: ./apps/web/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # L'URL publique de l'API (ex : https://zshield-api.onrender.com)
+      - key: ZSHIELD_API_ORIGIN
+        sync: false

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Z-Shield">
+  <defs>
+    <linearGradient id="zm" x1="40" y1="40" x2="210" y2="220" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dfe8f2"/>
+    </linearGradient>
+  </defs>
+  <!-- Upper shard: swept arrow blade pointing up-right (top bar of the Z) -->
+  <path fill="url(#zm)" d="M52 122 L200 40 L150 104 L116 152 L100 126 Z"/>
+  <!-- Lower shard: clean downward blade (bottom bar / tail of the Z) -->
+  <path fill="url(#zm)" d="M150 150 L214 122 L128 224 Z"/>
+</svg>

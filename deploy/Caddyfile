@@ -1,0 +1,10 @@
+# HTTPS automatique (Let's Encrypt). Le domaine et l'email viennent de l'env.
+# Tout le trafic va au site ; le site proxifie /api et /ws vers l'API en interne.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy web:3000
+}

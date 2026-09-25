@@ -1,0 +1,106 @@
+# =============================================================================
+# Z-Shield Dashboard — déploiement production (un seul serveur / VPS).
+#
+# Tout est privé sauf Caddy, qui termine le HTTPS (certificat Let's Encrypt
+# automatique) et route tout vers le site. Le site proxifie /api et /ws vers
+# l'API en interne : une seule origine, cookies de session sûrs.
+#
+# Démarrage :  docker compose -f docker-compose.prod.yml up -d --build
+# Voir DEPLOY.md pour le pas à pas (domaine, secrets, admin).
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: zshield
+      # Utilisé par le script d'init pour créer le rôle applicatif.
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init-prod:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zshield"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Applique les migrations une fois, puis s'arrête. L'API attend sa réussite.
+  migrate:
+    image: zshield-api:local
+    restart: "no"
+    command: ["node", "--experimental-strip-types", "apps/api/src/lib/migrate.ts"]
+    environment:
+      DATABASE_MIGRATION_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/zshield
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    image: zshield-api:local
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      CORS_ORIGINS: https://${DOMAIN}
+      DATABASE_URL: postgres://zshield_app:${APP_DB_PASSWORD}@postgres:5432/zshield
+      DATABASE_MIGRATION_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/zshield
+      REDIS_URL: redis://redis:6379
+      ZSHIELD_CREDENTIAL_KEY: ${ZSHIELD_CREDENTIAL_KEY}
+      SESSION_SECRET: ${SESSION_SECRET}
+      LICENSE_SIGNING_SECRET: ${LICENSE_SIGNING_SECRET}
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    image: zshield-web:local
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Le site proxifie /api et /ws vers l'API (réseau interne Docker).
+      ZSHIELD_API_ORIGIN: http://api:4000
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

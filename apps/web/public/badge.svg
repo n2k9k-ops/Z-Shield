@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="228" height="56" viewBox="0 0 228 56" role="img" aria-label="Protégé par Z-Shield">
+  <rect x="0.5" y="0.5" width="227" height="55" rx="11" fill="#0b0e13" stroke="#2b323d"/>
+  <g transform="translate(16,12) scale(0.125)">
+    <path fill="#33e58a" d="M52 122 L200 40 L150 104 L116 152 L100 126 Z"/>
+    <path fill="#33e58a" d="M150 150 L214 122 L128 224 Z"/>
+  </g>
+  <text x="52" y="24" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#6c7889" letter-spacing="1.5">PROTÉGÉ PAR</text>
+  <text x="52" y="42" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="18" font-weight="800" fill="#f3f6f9">Z-Shield</text>
+  <circle cx="208" cy="28" r="4" fill="#33e58a"/>
+</svg>
