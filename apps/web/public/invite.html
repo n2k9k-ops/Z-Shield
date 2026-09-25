@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rejoindre — Z-Shield</title>
+<style>
+  :root{--bg:#061109;--panel:#0b1510;--panel2:#0e1a13;--line:#182319;--line2:#1c2a20;
+    --ink:#eaf0ea;--sub:#9fb0a4;--muted:#6f7f74;--green:#33e58a;--green-d:#1fbf72;
+    --ink-on-green:#04140b;--green-line:rgba(51,229,138,.28);--red:#e0655c;--warn:#d2a44a;
+    --disp:'Segoe UI',system-ui,sans-serif;--body:'Segoe UI',system-ui,sans-serif;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);
+    min-height:100vh;display:grid;place-items:center;padding:20px}
+  .box{width:100%;max-width:460px;background:var(--panel2);border:1px solid var(--line2);
+    border-radius:18px;padding:28px 26px;box-shadow:0 30px 70px rgba(0,0,0,.5)}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .brand span{font-weight:800;font-size:18px}
+  h1{font-size:21px;margin:0 0 6px;font-family:var(--disp)}
+  .lede{color:var(--sub);font-size:14px;margin:0 0 20px;line-height:1.5}
+  .lede b{color:var(--ink)}
+  label{display:block;font-size:12px;color:var(--muted);margin:14px 0 6px}
+  input{width:100%;background:var(--panel);border:1px solid var(--line2);border-radius:10px;
+    padding:11px 13px;color:var(--ink);font-size:14px;font-family:var(--body)}
+  input:disabled{color:var(--sub);opacity:.8}
+  .hint{font-size:12px;color:var(--muted);margin-top:5px}
+  .btn{width:100%;justify-content:center;margin-top:20px;background:var(--green);
+    color:var(--ink-on-green);border:0;border-radius:10px;padding:12px;font-weight:800;
+    font-size:14px;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:default}
+  .notice{border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.5;margin-bottom:14px}
+  .notice.err{background:rgba(224,101,92,.10);border:1px solid rgba(224,101,92,.4);color:#f0b4ae}
+  .notice.ok{background:rgba(51,229,138,.08);border:1px solid var(--green-line);color:var(--sub)}
+  .tag{display:inline-block;font-size:11px;font-weight:800;color:var(--green);
+    border:1px solid var(--green-line);border-radius:8px;padding:2px 8px;margin-left:6px}
+  a{color:var(--green)}
+  .center{text-align:center;margin-top:16px;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="box" id="box">
+  <div class="brand">
+    <svg width="28" height="28" viewBox="0 0 256 256"><path fill="var(--green)" d="M52 122 200 40 150 104 116 152 100 126Z"/><path fill="#eaf0ea" d="M150 150 214 122 128 224Z"/></svg>
+    <span>Z-Shield</span>
+  </div>
+  <div id="content"><p class="lede">Chargement de l'invitation…</p></div>
+</div>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});}
+function qs(k){return new URLSearchParams(location.search).get(k)||'';}
+var ROLE_FR={ADMIN:'Administrateur',STAFF:'Modérateur',VIEWER:'Lecteur'};
+var content=document.getElementById('content');
+var INV=null;
+
+function showError(msg){content.innerHTML='<div class="notice err">'+esc(msg)+'</div><div class="center"><a href="/login">Aller à la connexion</a></div>';}
+
+function askCode(prefill){
+  content.innerHTML='<h1>Rejoindre un serveur</h1><p class="lede">Entre le <b>code d\'accès</b> que l\'administrateur du serveur t\'a envoyé.</p>'
+    +'<label>Code d\'accès</label><input id="codeIn" placeholder="colle ton code ici" value="'+esc(prefill||'')+'">'
+    +'<button class="btn" id="codeBtn">Continuer</button>'
+    +'<div class="center"><a href="/login">J\'ai déjà un compte</a></div>';
+  document.getElementById('codeBtn').onclick=function(){var c=(document.getElementById('codeIn').value||'').trim();if(c.length<10){content.querySelector('.btn').insertAdjacentHTML('beforebegin','');return alertInline('Entre un code valide.');}location.search='?code='+encodeURIComponent(c);};
+}
+function alertInline(m){var n=document.querySelector('.notice.err');if(n)n.textContent=m;else content.insertAdjacentHTML('afterbegin','<div class="notice err">'+esc(m)+'</div>');}
+
+async function lookup(code){
+  try{
+    var r=await fetch('/api/invitations/lookup?code='+encodeURIComponent(code),{credentials:'include'});
+    var j=await r.json();
+    if(!j.valid){
+      var msg=j.error==='expired'?'Cette invitation a expiré. Demande un nouveau code à l\'administrateur.'
+        :j.error==='already_accepted'?'Cette invitation a déjà été utilisée. Connecte-toi.'
+        :'Code introuvable. Vérifie le code reçu.';
+      showError(msg);return;
+    }
+    INV={code:code,role:j.role,email:j.email,org:j.organization_name};
+    renderForm();
+  }catch(e){showError('Impossible de vérifier l\'invitation pour le moment.');}
+}
+
+function renderForm(){
+  content.innerHTML='<h1>Crée ton compte</h1>'
+    +'<p class="lede">Tu rejoins <b>'+esc(INV.org)+'</b> en tant que <b>'+esc(ROLE_FR[INV.role]||INV.role)+'</b>.<span class="tag">'+esc(ROLE_FR[INV.role]||INV.role)+'</span></p>'
+    +'<div id="msg"></div>'
+    +'<label>Adresse e-mail</label><input id="email" value="'+esc(INV.email)+'" disabled>'
+    +'<label>Ton nom</label><input id="name" placeholder="Ex. Kylian" maxlength="80">'
+    +'<label>Mot de passe</label><input id="pw" type="password" placeholder="12 caractères minimum"><div class="hint">12 caractères minimum.</div>'
+    +'<button class="btn" id="go">Créer mon compte et accéder au panel</button>';
+  document.getElementById('go').onclick=accept;
+  document.getElementById('pw').addEventListener('keydown',function(e){if(e.key==='Enter')accept();});
+}
+
+async function accept(){
+  var name=(document.getElementById('name').value||'').trim();
+  var pw=document.getElementById('pw').value||'';
+  var msg=document.getElementById('msg');
+  msg.innerHTML='';
+  if(name.length<1){msg.innerHTML='<div class="notice err">Entre ton nom.</div>';return;}
+  if(pw.length<12){msg.innerHTML='<div class="notice err">Mot de passe : 12 caractères minimum.</div>';return;}
+  var btn=document.getElementById('go');btn.disabled=true;btn.textContent='Création…';
+  try{
+    var r=await fetch('/api/invitations/accept',{method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({code:INV.code,display_name:name,password:pw})});
+    var j=await r.json();
+    if(!r.ok){
+      var m=j.error==='invalid_or_expired'?'Invitation invalide ou expirée.':(j.field?('Champ invalide : '+j.field):'Création impossible.');
+      msg.innerHTML='<div class="notice err">'+esc(m)+'</div>';btn.disabled=false;btn.textContent='Créer mon compte et accéder au panel';return;
+    }
+    content.innerHTML='<div class="notice ok">Compte créé. Redirection vers ton panel…</div>';
+    location.href='/console.html';
+  }catch(e){msg.innerHTML='<div class="notice err">Erreur réseau. Réessaie.</div>';btn.disabled=false;btn.textContent='Créer mon compte et accéder au panel';}
+}
+
+(function(){var code=qs('code');if(code&&code.length>=10)lookup(code);else askCode(code);})();
+</script>
+</body>
+</html>

@@ -1768,7 +1768,146 @@ async function zBoot(){
   await Promise.allSettled([zOverview(),zBansLoad(),zPlayersLoad(),zServersLoad(),zMembersLoad(),zConfigLoad()]);
   setInterval(function(){if(currentView==='overview')zOverview();},20000);
 }
+/* Amorçage déplacé dans le bloc « BRANCHEMENT RÉEL 2 » (gère licence + couleur + audit). */
+
+
+/* =========================================================================
+   BRANCHEMENT RÉEL 2 — verrouillage licence, couleur du panel, journal
+   d'actions (terminal). Défini ici ; l'amorçage unique est appelé tout en bas.
+   ========================================================================= */
+
+/* ---- Thème / couleur du panel ---- */
+function zHex2rgb(h){h=String(h||'').replace('#','');if(h.length===3)h=h.split('').map(function(c){return c+c;}).join('');var n=parseInt(h,16);return[(n>>16)&255,(n>>8)&255,n&255];}
+function zRgba(h,a){var c=zHex2rgb(h);return'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')';}
+function zShade(h,p){var c=zHex2rgb(h).map(function(v){return Math.max(0,Math.min(255,Math.round(v+v*p)));});return'#'+c.map(function(v){return('0'+v.toString(16)).slice(-2);}).join('');}
+function zLum(h){var c=zHex2rgb(h);return(0.299*c[0]+0.587*c[1]+0.114*c[2])/255;}
+function zApplyColor(hex){if(!/^#?[0-9a-fA-F]{3,6}$/.test(String(hex||'')))hex='#33e58a';var r=document.documentElement.style;r.setProperty('--green',hex);r.setProperty('--green-d',zShade(hex,-0.15));r.setProperty('--green-soft',zRgba(hex,0.10));r.setProperty('--green-line',zRgba(hex,0.28));r.setProperty('--ink-on-green',zLum(hex)>0.6?'#04140b':'#ffffff');}
+function zColorKey(){return 'zshield_color_'+((ZS.me&&ZS.me.organization_id)||'x');}
+function zSetColor(hex){zApplyColor(hex);try{localStorage.setItem(zColorKey(),hex);}catch(e){}var card=document.getElementById('zColorCard');if(card){var cur=String(hex).toLowerCase();card.querySelectorAll('.zsw').forEach(function(b){b.style.borderColor=(b.dataset.c.toLowerCase()===cur)?'#fff':'transparent';});}toast('Couleur du panel mise à jour','grn');}
+function zInjectColorCard(){var host=document.querySelector('.view[data-view="servers"]');if(!host||document.getElementById('zColorCard'))return;
+  var presets=['#33e58a','#4aa3ff','#b98bff','#ff8f4a','#ff5c8a','#f5c542','#2dd4bf','#e0655c'];
+  var cur='';try{cur=localStorage.getItem(zColorKey())||'#33e58a';}catch(e){cur='#33e58a';}
+  var card=document.createElement('div');card.className='card wm';card.id='zColorCard';card.style.marginTop='18px';
+  card.innerHTML='<div class="section-head" style="margin-top:0"><h2>Apparence du panel</h2></div><p style="color:var(--sub);font-size:13.5px;margin:0 0 12px">Couleur d\'accent de ton panel (verte par défaut). Elle est mémorisée sur ce navigateur.</p><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+presets.map(function(c){return '<button type="button" class="zsw" data-c="'+c+'" title="'+c+'" style="width:30px;height:30px;border-radius:8px;border:2px solid '+(c.toLowerCase()===cur.toLowerCase()?'#fff':'transparent')+';background:'+c+';cursor:pointer"></button>';}).join('')+'<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-left:6px">Perso <input type="color" id="zColorInput" value="'+cur+'" style="width:36px;height:30px;border:0;background:none;cursor:pointer"></label></div>';
+  host.appendChild(card);
+  card.querySelectorAll('.zsw').forEach(function(b){b.onclick=function(){zSetColor(b.dataset.c);};});
+  var ci=document.getElementById('zColorInput');if(ci)ci.oninput=function(e){zSetColor(e.target.value);};
+}
+
+/* ---- Verrouillage tant que le serveur n'a pas de licence ---- */
+function zShowGate(){document.body.style.overflow='hidden';var g=document.getElementById('zGate');if(!g){g=document.createElement('div');g.id='zGate';document.body.appendChild(g);}g.style.cssText='position:fixed;inset:0;z-index:400;background:#061109;display:grid;place-items:center;padding:20px;overflow:auto';zRenderGate();}
+function zHideGate(){var g=document.getElementById('zGate');if(g)g.remove();document.body.style.overflow='';}
+function zRenderGate(){var g=document.getElementById('zGate');if(!g)return;
+  var brand='<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><svg width="30" height="30" viewBox="0 0 256 256"><path fill="var(--green)" d="M52 122 200 40 150 104 116 152 100 126Z"/><path fill="#eaf0ea" d="M150 150 214 122 128 224Z"/></svg><span style="font-weight:800;font-size:18px">Z-Shield</span></div>';
+  var hasServer=!!(ZS.servers&&ZS.servers.length&&ZS.serverId);
+  var body;
+  if(!hasServer){
+    body='<h1 style="font-size:22px;margin:0 0 6px">Bienvenue sur Z-Shield</h1><p style="color:var(--sub);font-size:14px;margin:0 0 18px">Crée ton serveur pour commencer. Tu pourras ensuite l\'activer et régler tes protections.</p>'
+      +'<label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Nom du serveur</label>'
+      +'<input id="zgName" placeholder="Ex. Los Santos RP" style="width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:11px 13px;color:var(--ink);font-size:14px;margin-bottom:16px">'
+      +'<button class="btn btn-green" style="width:100%;justify-content:center" onclick="zGateCreate()">Créer mon serveur</button>';
+  }else{
+    var s=ZS.servers[0];
+    body='<h1 style="font-size:22px;margin:0 0 6px">Active « '+zesc(s.name)+' »</h1><p style="color:var(--sub);font-size:14px;margin:0 0 18px">Ton serveur n\'a pas encore de licence active. Active-le pour débloquer le panneau complet.</p>'
+      +'<label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Plan</label>'
+      +'<select id="zgPlan" style="width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:11px 13px;color:var(--ink);font-size:14px;margin-bottom:16px"><option value="trial">Essai</option><option value="starter">Starter</option><option value="pro" selected>Pro</option><option value="enterprise">Enterprise</option></select>'
+      +'<button class="btn btn-green" style="width:100%;justify-content:center" onclick="zGateActivate()">Activer mon serveur</button>'
+      +'<div style="display:flex;gap:10px;align-items:flex-start;margin-top:16px;padding:12px 14px;background:var(--green-soft,rgba(51,229,138,.07));border:1px solid var(--green-line);border-radius:12px;font-size:12.5px;color:var(--sub);line-height:1.5"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="flex:0 0 auto;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>La clé que ton anticheat lit se colle dans <b>zshield-ac/config/config.lua</b>. Ici, tu actives le <b>suivi de ce serveur</b> dans le dashboard.</div></div>';
+  }
+  g.innerHTML='<div style="max-width:520px;width:100%;background:var(--panel2,#0b1510);border:1px solid var(--line2,#1c2a20);border-radius:18px;padding:28px 26px;box-shadow:0 30px 70px rgba(0,0,0,.5)">'+brand+body+'<div style="text-align:center;margin-top:18px"><button type="button" onclick="zLogout()" style="background:none;border:0;color:var(--muted);font-size:12.5px;cursor:pointer;text-decoration:underline">Se déconnecter</button></div></div>';
+}
+async function zGateCreate(){var el=document.getElementById('zgName');var n=(el&&el.value||'').trim();if(!n){toast('Entre un nom de serveur','red');return;}try{await zapi('/api/servers',{method:'POST',body:{name:n,environment:'production'}});toast('Serveur créé','grn');await zRefreshServers();zRenderGate();}catch(e){toast('Échec : '+(e.message||e),'red');}}
+async function zGateActivate(){if(!ZS.serverId){toast('Aucun serveur','red');return;}var pl=document.getElementById('zgPlan');var plan=(pl&&pl.value)||'trial';try{await zapi('/api/servers/'+ZS.serverId+'/license',{method:'POST',body:{plan:plan}});toast('Serveur activé','grn');zHideGate();await zLoadAll();if(typeof applyView==='function')applyView('overview');}catch(e){toast('Échec de l\'activation : '+(e.message||e),'red');}}
+async function zLogout(){try{await zapi('/api/auth/logout',{method:'POST',body:{}});}catch(e){}location.href='/login';}
+
+/* ---- Terminal = journal des actions (audit réel + écho live) ---- */
+var ZAUDIT={'license.issued':'Licence activée','license.generated':'Licence générée','protections.updated':'Configuration modifiée','configuration.updated':'Configuration distante mise à jour','command.issued':"Commande envoyée à l'agent",'ban.created':'Bannissement créé','ban.pending_created':'Sanction en attente','ban.confirmed':'Ban confirmé','ban.reduced_kick':'Sanction réduite en kick','ban.false_positive':'Faux positif','ban.lifted':'Ban levé','server.created':'Serveur créé','server.deleted':'Serveur supprimé','anticheat.lockdown':'Verrouillage OneSync','credential.created':'Identifiants agent générés','member.role_changed':'Rôle modifié'};
+function zClock(iso){var d=iso?new Date(iso):new Date();if(isNaN(d))return '';return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
+function zLog(txt){var out=document.getElementById('termOut');if(out)termLine('ok','['+zClock()+'] '+txt);}
+async function zAuditLoad(){var out=document.getElementById('termOut');if(!out)return;try{var e=(await zapi('/api/audit-logs')).entries||[];out.innerHTML='';termLine('mut','Z-Shield — journal des actions (plus récentes en bas). Tape "help" pour les commandes.');e.slice(0,60).reverse().forEach(function(a){var lbl=ZAUDIT[a.action]||a.action;var who=a.actor_email||a.actor_label||'système';var tgt=a.target_id?(' · '+(a.target_kind||'')+' '+a.target_id):'';termLine('out','['+zClock(a.created_at)+'] '+lbl+tgt+' — '+who);});out.scrollTop=out.scrollHeight;}catch(e){}}
+
+/* Écho live des actions faites dans l'UI (l'enregistrement réel est l'audit log serveur). */
+(function(){var _s=cfgSave;cfgSave=async function(){var r=await _s.apply(this,arguments);zLog('Configuration enregistrée — rechargement anticheat demandé');return r;};})();
+(function(){var _b=zBanAct;zBanAct=async function(i,a){var b=bans[i];var r=await _b.apply(this,arguments);var lbl={confirm:'Ban confirmé',kick:'Réduit en kick','false-positive':'Faux positif',lift:'Ban levé'}[a]||a;zLog(lbl+(b?(' · '+b.n):''));return r;};})();
+(function(){var _a=addServer;addServer=async function(){var r=await _a.apply(this,arguments);zLog('Serveur créé');return r;};})();
+
+/* ---- Amorçage unique (gère licence + couleur + audit) ---- */
+async function zRefreshServers(){try{var s=await zapi('/api/servers');ZS.servers=s.servers||[];ZS.serverId=(ZS.servers[0]||{}).id||null;}catch(e){}}
+async function zLoadAll(){await Promise.allSettled([zOverview(),zBansLoad(),zPlayersLoad(),zServersLoad(),zMembersLoad(),zConfigLoad(),zAuditLoad()]);zInjectColorCard();if(!ZS._tick){ZS._tick=setInterval(function(){if(currentView==='overview')zOverview();},20000);}}
+zBoot=async function(){
+  try{ZS.me=await zapi('/api/auth/me');ZS.perms=ZS.me.permissions||[];}
+  catch(e){if(e&&e.status===401){location.href='/login';return;}}
+  try{zApplyColor(localStorage.getItem(zColorKey()));}catch(e){}
+  if(ZS.me&&ZS.me.user){var h=document.querySelector('.hello');if(h)h.textContent='Bon retour, '+(ZS.me.user.display_name||ZS.me.user.email||'');}
+  await zRefreshServers();
+  var licensed=false;
+  if(ZS.serverId){try{var l=await zapi('/api/servers/'+ZS.serverId+'/license');licensed=!!(l&&l.has_license&&!l.expired);}catch(e){}}
+  // Le compte vendeur (admin plateforme) n'est jamais verrouillé : il gère les licences.
+  if(licensed||(ZS.me&&ZS.me.is_platform_admin)){zHideGate();await zLoadAll();}
+  else{zShowGate();}
+};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',zBoot);else zBoot();
+
+
+/* =========================================================================
+   BRANCHEMENT RÉEL 3 — invitations (comptes multiples par organisation).
+   L'admin génère un code (lien /invite.html?code=...) ; l'invité crée son
+   compte et rejoint le serveur avec le rôle choisi.
+   ========================================================================= */
+function zRoleFr(r){return({OWNER:'Propriétaire',ADMIN:'Administrateur',STAFF:'Modérateur',VIEWER:'Lecteur'})[r]||r;}
+function zCopy(t){try{navigator.clipboard.writeText(t);toast('Copié','grn');}catch(e){toast('Copie impossible','red');}}
+function zCloseInvite(){var m=document.getElementById('zInviteModal');if(m)m.remove();}
+function zInviteModal(){
+  var m=document.createElement('div');m.id='zInviteModal';
+  m.style.cssText='position:fixed;inset:0;z-index:320;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:20px;overflow:auto';
+  m.innerHTML='<div style="background:var(--panel2);border:1px solid var(--line2);border-radius:16px;max-width:480px;width:100%;padding:24px">'
+   +'<div style="font-family:var(--disp);font-weight:800;font-size:18px;margin-bottom:6px">Ajouter un utilisateur</div>'
+   +'<p style="color:var(--sub);font-size:13px;margin:0 0 16px;line-height:1.5">Génère un code d\'accès à envoyer. La personne créera son propre compte et rejoindra <b>ce serveur</b> avec le rôle choisi.</p>'
+   +'<div id="zInvBody">'
+   +'<label style="font-size:12px;color:var(--muted)">E-mail de la personne<input id="zInvEmail" type="email" placeholder="ami@exemple.com" style="width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;color:var(--ink);font-size:14px;margin-top:6px"></label>'
+   +'<label style="font-size:12px;color:var(--muted);display:block;margin-top:12px">Rôle<select id="zInvRole" style="width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;color:var(--ink);font-size:14px;margin-top:6px"><option value="ADMIN">Administrateur — tout sauf comptes</option><option value="STAFF" selected>Modérateur — voir + sanctionner</option><option value="VIEWER">Lecteur — lecture seule</option></select></label>'
+   +'</div>'
+   +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px"><button class="btn btn-ghost btn-sm" onclick="zCloseInvite()">Fermer</button><button class="btn btn-green btn-sm" id="zInvGen" onclick="zInviteGen()">Générer le code</button></div>'
+   +'</div>';
+  m.addEventListener('click',function(e){if(e.target===m)zCloseInvite();});
+  document.body.appendChild(m);
+}
+async function zInviteGen(){
+  var email=(document.getElementById('zInvEmail').value||'').trim();
+  var role=document.getElementById('zInvRole').value;
+  if(!/.+@.+\..+/.test(email)){toast('E-mail invalide','red');return;}
+  var btn=document.getElementById('zInvGen');btn.disabled=true;btn.textContent='…';
+  try{
+    var j=await zapi('/api/invitations',{method:'POST',body:{email:email,role:role}});
+    var link=location.origin+'/invite.html?code='+encodeURIComponent(j.code);
+    document.getElementById('zInvBody').innerHTML='<div style="background:var(--green-soft,rgba(51,229,138,.08));border:1px solid var(--green-line);border-radius:12px;padding:14px">'
+      +'<div style="font-size:13px;color:var(--sub);margin-bottom:10px;line-height:1.5">Envoie ce lien à <b style="color:var(--ink)">'+zesc(email)+'</b>. Valable 7 jours, à usage unique.</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Lien d\'invitation</div>'
+      +'<div class="mono" style="word-break:break-all;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:10px;font-size:12px">'+zesc(link)+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin:10px 0 4px">Code seul (si tu préfères le dicter)</div>'
+      +'<div class="mono" style="word-break:break-all;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:10px;font-size:12px">'+zesc(j.code)+'</div>'
+      +'<button class="btn btn-sm" style="margin-top:12px" onclick="zCopy('+JSON.stringify(link)+')">Copier le lien</button>'
+      +'</div>';
+    document.getElementById('zInvGen').style.display='none';
+    if(typeof zLog==='function')zLog('Invitation créée · '+email+' ('+role+')');
+    zInvitesLoad();
+  }catch(e){toast('Échec : '+(e.message||e),'red');btn.disabled=false;btn.textContent='Générer le code';}
+}
+async function zInvitesLoad(){
+  var host=document.querySelector('.view[data-view="members"]');if(!host)return;
+  var card=document.getElementById('zInvitesCard');
+  if(!card){card=document.createElement('div');card.id='zInvitesCard';card.className='card';card.style.marginTop='16px';host.appendChild(card);}
+  try{
+    var list=(await zapi('/api/invitations')).invitations||[];
+    var pending=list.filter(function(i){return !i.accepted_at;});
+    card.innerHTML='<div class="pad" style="border-bottom:1px solid var(--hair)"><h2 style="font-size:15px">Invitations en attente</h2></div>'
+      +(pending.length?pending.map(function(i){return '<div class="member"><div class="avatar">@</div><div style="flex:1"><div style="font-weight:700">'+zesc(i.email)+'</div><div style="color:var(--muted);font-size:12.5px">'+zRoleFr(i.role)+' · expire le '+new Date(i.expires_at).toLocaleDateString('fr-FR')+'</div></div><button class="btn btn-ghost btn-sm" onclick="zInviteRevoke('+JSON.stringify(i.id)+')">Révoquer</button></div>';}).join(''):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Aucune invitation en attente.</div>');
+  }catch(e){}
+}
+async function zInviteRevoke(id){try{await zapi('/api/invitations/'+id,{method:'DELETE'});toast('Invitation révoquée','grn');zInvitesLoad();}catch(e){toast('Échec : '+(e.message||e),'red');}}
+function zWireInviteBtn(){var b=document.querySelector('.view[data-view="members"] .section-head .btn-green');if(b&&!b._wired){b._wired=true;b.onclick=zInviteModal;}}
+/* Étend le chargement des membres : câble le bouton « Ajouter un compte » + liste les invitations. */
+(function(){if(typeof zMembersLoad==='function'){var _m=zMembersLoad;zMembersLoad=async function(){await _m.apply(this,arguments);zWireInviteBtn();await zInvitesLoad();};}})();
 
 </script>
 

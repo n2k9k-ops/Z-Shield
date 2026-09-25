@@ -12,7 +12,7 @@ import type { Pool } from 'pg';
 import type { Redis } from 'ioredis';
 import { z } from 'zod';
 import { withTenant, withUser, withPlatformAdmin } from '../lib/db.ts';
-import { newId, newOpaqueToken, hmacSha256Hex } from '../lib/crypto.ts';
+import { newId, newOpaqueToken, hmacSha256Hex, hashToken, hashPassword } from '../lib/crypto.ts';
 import { env } from '../config/env.ts';
 import { organizationChannel } from '../lib/redis.ts';
 import type { AuthService } from '../auth/sessions.ts';
@@ -614,6 +614,217 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
 
     await audit(actor, 'member.removed', { kind: 'membership', id: membershipId }, {}, request.ip);
     return { status: 'ok' };
+  }));
+
+  // =========================================================================
+  // Invitations — comptes multiples par organisation
+  //
+  // Un membre habilité (member.manage) invite quelqu'un par e-mail + rôle. On
+  // génère un CODE opaque (jeton 32 octets), on n'en stocke que le hachage, et
+  // on renvoie le code EN CLAIR une seule fois pour que l'admin le transmette
+  // (lien /invite.html?code=...). L'invité crée SON compte avec ce code et
+  // rejoint l'organisation avec le rôle prévu. Voir migration 0014 pour les
+  // politiques RLS « par code » qui autorisent le parcours public.
+  // =========================================================================
+
+  const inviteRoleSchema = z.enum(['ADMIN', 'STAFF', 'VIEWER']);
+  const inviteCreateSchema = z
+    .object({ email: z.string().email().max(254), role: inviteRoleSchema.default('STAFF') })
+    .strict();
+  const inviteAcceptSchema = z
+    .object({
+      code: z.string().min(10).max(400),
+      display_name: z.string().min(1).max(80),
+      password: z.string().min(12).max(256),
+    })
+    .strict();
+  const INVITE_TTL_DAYS = 7;
+
+  app.get('/api/invitations', handle(async (request) => {
+    const actor = await guard.requireRead(request, 'member.read');
+    return withTenant(pool, actor.organizationId, async (client) => {
+      const { rows } = await client.query(
+        `SELECT id, email, role, invited_by, created_at, expires_at, accepted_at
+           FROM invitations WHERE organization_id = $1
+          ORDER BY (accepted_at IS NULL) DESC, created_at DESC LIMIT 100`,
+        [actor.organizationId],
+      );
+      return { invitations: rows };
+    });
+  }));
+
+  app.post('/api/invitations', handle(async (request, reply) => {
+    const actor = await guard.require(request, 'member.manage');
+    const body = inviteCreateSchema.safeParse(request.body);
+    if (!body.success) {
+      reply.status(400);
+      return { error: 'validation', message: body.error.issues[0]?.message };
+    }
+    const code = newOpaqueToken();
+    const id = newId('inv');
+    const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 3600 * 1000);
+
+    await withTenant(pool, actor.organizationId, async (client) => {
+      // Ré-inviter la même adresse régénère le code et réarme l'expiration.
+      await client.query(
+        `INSERT INTO invitations (id, organization_id, email, role, token_hash, invited_by, expires_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (organization_id, email) DO UPDATE
+            SET role = EXCLUDED.role, token_hash = EXCLUDED.token_hash,
+                invited_by = EXCLUDED.invited_by, expires_at = EXCLUDED.expires_at,
+                accepted_at = NULL, created_at = now()`,
+        [id, actor.organizationId, body.data.email, body.data.role, hashToken(code), actor.user.userId, expiresAt],
+      );
+    });
+
+    await audit(actor, 'invitation.created', { kind: 'invitation', id },
+      { email: body.data.email, role: body.data.role }, request.ip);
+    reply.status(201);
+    // Le code n'est renvoyé QU'ICI, une seule fois (seul son hachage est stocké).
+    return { code, email: body.data.email, role: body.data.role, expires_at: expiresAt.toISOString() };
+  }));
+
+  app.delete('/api/invitations/:id', handle(async (request, reply) => {
+    const actor = await guard.require(request, 'member.manage');
+    const id = (request.params as { id: string }).id;
+    const done = await withTenant(pool, actor.organizationId, async (client) => {
+      const { rowCount } = await client.query(
+        `DELETE FROM invitations WHERE organization_id = $1 AND id = $2 AND accepted_at IS NULL`,
+        [actor.organizationId, id],
+      );
+      return (rowCount ?? 0) > 0;
+    });
+    if (!done) {
+      reply.status(404);
+      return { error: 'not_found' };
+    }
+    await audit(actor, 'invitation.revoked', { kind: 'invitation', id }, {}, request.ip);
+    return { status: 'ok' };
+  }));
+
+  // ---- Parcours PUBLIC (pas de session) : résoudre puis accepter un code -----
+
+  app.get('/api/invitations/lookup', handle(async (request, reply) => {
+    const code = (request.query as { code?: string }).code;
+    if (!code || code.length < 10) {
+      reply.status(400);
+      return { valid: false, error: 'validation' };
+    }
+    const hashHex = hashToken(code).toString('hex');
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // hashHex est strictement hexadécimal (sortie d'un digest) : pas d'injection.
+      await client.query(`SET LOCAL app.invite_code = '${hashHex}'`);
+      const { rows } = await client.query<{
+        organization_id: string; email: string; role: string;
+        expires_at: string; accepted_at: string | null; organization_name: string;
+      }>(
+        `SELECT i.organization_id, i.email, i.role, i.expires_at, i.accepted_at,
+                o.name AS organization_name
+           FROM invitations i JOIN organizations o ON o.id = i.organization_id
+          WHERE i.token_hash = decode($1, 'hex')`,
+        [hashHex],
+      );
+      await client.query('COMMIT');
+      const inv = rows[0];
+      if (!inv) { reply.status(404); return { valid: false, error: 'not_found' }; }
+      if (inv.accepted_at) return { valid: false, error: 'already_accepted' };
+      if (new Date(inv.expires_at).getTime() < Date.now()) return { valid: false, error: 'expired' };
+      return { valid: true, organization_name: inv.organization_name, email: inv.email, role: inv.role };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }));
+
+  app.post('/api/invitations/accept', handle(async (request, reply) => {
+    const body = inviteAcceptSchema.safeParse(request.body);
+    if (!body.success) {
+      reply.status(400);
+      return { error: 'validation', field: body.error.issues[0]?.path.join('.') };
+    }
+    const hashHex = hashToken(body.data.code).toString('hex');
+    const passwordHash = await hashPassword(body.data.password);
+
+    const client = await pool.connect();
+    let userId = '';
+    let organizationId = '';
+    try {
+      await client.query('BEGIN');
+      await client.query(`SET LOCAL app.invite_code = '${hashHex}'`);
+      const inv = (
+        await client.query<{
+          id: string; organization_id: string; email: string; role: string;
+          expires_at: string; accepted_at: string | null;
+        }>(
+          `SELECT id, organization_id, email, role, expires_at, accepted_at
+             FROM invitations WHERE token_hash = decode($1, 'hex') FOR UPDATE`,
+          [hashHex],
+        )
+      ).rows[0];
+
+      if (!inv || inv.accepted_at || new Date(inv.expires_at).getTime() < Date.now()) {
+        await client.query('ROLLBACK');
+        reply.status(400);
+        return { error: 'invalid_or_expired' };
+      }
+      organizationId = inv.organization_id;
+
+      // Réutilise le compte si l'e-mail existe déjà (l'utilisateur rejoint une
+      // organisation de plus) ; sinon crée le compte avec le mot de passe fourni.
+      const existing = (
+        await client.query<{ id: string }>(`SELECT id FROM users WHERE email = $1`, [inv.email])
+      ).rows[0];
+      if (existing) {
+        userId = existing.id;
+      } else {
+        userId = newId('usr');
+        await client.query(
+          `INSERT INTO users (id, email, password_hash, display_name, email_verified_at)
+                VALUES ($1, $2, $3, $4, now())`,
+          [userId, inv.email, passwordHash, body.data.display_name],
+        );
+      }
+
+      // Contexte tenant posé APRÈS résolution de l'organisation : membership,
+      // MAJ de l'invitation et audit passent par la politique tenant normale.
+      await client.query(`SET LOCAL app.organization_id = '${organizationId}'`);
+      await client.query(
+        `INSERT INTO memberships (id, organization_id, user_id, role, invited_by, accepted_at)
+              VALUES ($1, $2, $3, $4, $5, now())
+         ON CONFLICT (organization_id, user_id)
+         DO UPDATE SET role = EXCLUDED.role, accepted_at = now()`,
+        [newId('usr').replace('usr_', 'mem_'), organizationId, userId, inv.role, null],
+      );
+      await client.query(`UPDATE invitations SET accepted_at = now() WHERE id = $1`, [inv.id]);
+      await client.query(
+        `INSERT INTO audit_logs (organization_id, actor_user_id, actor_kind, action, target_kind, target_id)
+              VALUES ($1, $2, 'user', 'invitation.accepted', 'membership', $3)`,
+        [organizationId, userId, inv.id],
+      );
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    // Connexion immédiate : on ouvre une session sur l'organisation rejointe.
+    const created = await auth.createSession({
+      userId,
+      mfaSatisfied: true,
+      organizationId,
+      ip: request.ip,
+      userAgent: request.headers['user-agent'] ?? null,
+    });
+    reply.setCookie(SESSION_COOKIE, created.token, cookieOptions(deps.isProduction, SESSION_TTL));
+    const csrf = issueCsrfToken(reply, deps.isProduction);
+    reply.status(201);
+    return { status: 'ok', csrf_token: csrf, organization_id: organizationId };
   }));
 
   // =========================================================================

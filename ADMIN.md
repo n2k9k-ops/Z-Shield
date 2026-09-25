@@ -27,6 +27,28 @@ Onglet **Serveurs & licence** → carte « Générer une licence » :
 > La génération appelle `POST /api/licenses/generate` (permission `billing.manage`). Le secret
 > de signature vit côté serveur, jamais dans le navigateur.
 
+## Comptes multiples — inviter des utilisateurs (nouveau)
+
+Chaque organisation (= un serveur/client) peut avoir plusieurs comptes.
+
+1. Onglet **Comptes & accès** → bouton **Ajouter un compte**.
+2. Entre l'**e-mail** de la personne + son **rôle** (Administrateur / Modérateur / Lecteur) →
+   **Générer le code**. Un **lien** `…/invite.html?code=…` (et le code seul) s'affiche **une seule
+   fois** — copie-le et envoie-le.
+3. La personne ouvre le lien → « Crée ton compte pour accéder au serveur *Nom* » → elle choisit
+   son nom + mot de passe → elle **rejoint ton organisation** avec le rôle prévu et arrive
+   directement sur le panel.
+
+Détails techniques : le code est un jeton opaque de 32 octets, **seul son hachage est stocké**
+(migration `0014_invitation_acceptance.sql`, politiques RLS « par code »). Invitations à usage
+unique, **valables 7 jours**, révocables depuis la liste « Invitations en attente ». Endpoints :
+`POST/GET/DELETE /api/invitations`, `GET /api/invitations/lookup`, `POST /api/invitations/accept`.
+L'inscription publique (`/register`) reste **désactivée** : on ne rejoint que sur invitation.
+
+> ⚠️ Après avoir tiré cette version, Render relance la migration automatiquement
+> (`preDeployCommand`). La table `invitations` existait déjà ; 0014 n'ajoute que les politiques
+> d'acceptation, donc aucune perte de données.
+
 ## Console branchée sur l'API réelle
 
 Toutes les vues lisent désormais les vraies données du dashboard (`/api/...`), avec la session
