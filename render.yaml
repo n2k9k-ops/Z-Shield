@@ -1,56 +1,84 @@
 # =============================================================================
-# Z-Shield Dashboard — déploiement GRATUIT sur Render (Blueprint).
+# Z-Shield Dashboard — Blueprint Render (Postgres + Redis + API + Web)
+# Déploie toute la chaîne dashboard en une fois. Render > "New +" > "Blueprint",
+# pointe sur ce dépôt : il lit ce fichier et crée les 4 ressources.
 #
-# Deux services web (l'API et le site), en Docker. La base (PostgreSQL) et Redis
-# sont externes et gratuits : Neon + Upstash (voir DEPLOY_FREE.md).
+# ⚠️ Deux valeurs sont à saisir À LA MAIN (marquées sync:false) — Render les
+#    demande au déploiement, elles ne peuvent pas être générées automatiquement :
+#      - ZSHIELD_CREDENTIAL_KEY : openssl rand -base64 32   (32 octets base64)
+#      - ZSHIELD_API_ORIGIN     : l'URL de l'API (ex. https://zshield-api.onrender.com),
+#                                 à coller une fois l'API créée.
 #
-# Le navigateur ne parle qu'au SITE ; le site proxifie /api et /ws vers l'API en
-# interne → même origine, cookies de session sûrs.
-#
-# Les valeurs `sync: false` sont à saisir dans l'interface Render (secrets).
+# NB : si l'UI Render affiche « Key Value » au lieu de « Redis », remplace
+#      `type: redis` par `type: keyvalue` (même effet). Vérifie le nom exact
+#      dans la doc Render si le déploiement du bloc redis échoue.
 # =============================================================================
 
+databases:
+  - name: zshield-db
+    databaseName: zshield
+    plan: free                 # passe en 'starter'+ pour la prod
+    postgresMajorVersion: "16"
+
 services:
-  # --- API (Fastify). Pas d'URL publique utilisée par le navigateur. ---------
+  # --- Cache / Redis --------------------------------------------------------
+  - type: redis
+    name: zshield-redis
+    plan: free                 # passe en payant pour la persistance/prod
+    ipAllowList: []            # [] = accessible uniquement via le réseau privé Render
+    maxmemoryPolicy: noeviction
+
+  # --- API (Fastify, TypeScript exécuté par Node 22) ------------------------
   - type: web
     name: zshield-api
-    runtime: docker
-    dockerfilePath: ./apps/api/Dockerfile
-    dockerContext: .
-    plan: free
+    runtime: node
+    plan: starter              # 'free' possible pour tester (s'endort)
+    rootDir: .                 # racine = ce dossier (monorepo npm workspaces)
+    buildCommand: npm install
+    preDeployCommand: npm run migrate         # applique les migrations avant chaque déploiement
+    startCommand: node --experimental-strip-types apps/api/src/server.ts
     healthCheckPath: /healthz
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: NODE_ENV
         value: production
-      # PostgreSQL Neon (URL complète, format postgres://...). À coller.
+      - key: PORT
+        value: "4000"
       - key: DATABASE_URL
-        sync: false
-      # Redis Upstash (URL rediss://...). À coller.
+        fromDatabase:
+          name: zshield-db
+          property: connectionString
+      - key: DATABASE_MIGRATION_URL          # sur Render, même URL (le rôle fourni fait le DDL ; la RLS est FORCÉE)
+        fromDatabase:
+          name: zshield-db
+          property: connectionString
       - key: REDIS_URL
-        sync: false
-      # openssl rand -base64 32
-      - key: ZSHIELD_CREDENTIAL_KEY
-        sync: false
-      # openssl rand -base64 32
+        fromService:
+          type: redis
+          name: zshield-redis
+          property: connectionString
       - key: SESSION_SECRET
+        generateValue: true                   # ≥ 32 caractères aléatoires : OK
+      - key: ZSHIELD_CREDENTIAL_KEY           # DOIT être `openssl rand -base64 32` : à saisir
         sync: false
-      # LE MÊME secret que zshield-ac/server/license.lua
-      - key: LICENSE_SIGNING_SECRET
+      - key: CORS_ORIGINS                     # l'origine publique du web (le proxy Next passe par le serveur, mais on la déclare)
         sync: false
-      # L'URL publique du SITE (ex : https://zshield-web.onrender.com)
-      - key: CORS_ORIGINS
+      - key: WEB_ORIGIN
         sync: false
 
-  # --- Site (Next.js). C'est l'URL que tu ouvres et que voient les clients. ---
+  # --- Web (Next.js) — c'est l'URL que tes utilisateurs ouvrent -------------
   - type: web
     name: zshield-web
-    runtime: docker
-    dockerfilePath: ./apps/web/Dockerfile
-    dockerContext: .
-    plan: free
+    runtime: node
+    plan: starter
+    rootDir: .
+    buildCommand: npm install && npm run build --workspace @zshield/web
+    startCommand: npx --workspace @zshield/web next start -p $PORT
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: NODE_ENV
         value: production
-      # L'URL publique de l'API (ex : https://zshield-api.onrender.com)
-      - key: ZSHIELD_API_ORIGIN
+      - key: ZSHIELD_API_ORIGIN              # URL de l'API (le serveur Next proxifie /api et /ws vers elle)
         sync: false

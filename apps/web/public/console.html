@@ -1,0 +1,1505 @@
+<title>Z-Shield Console</title>
+<style>
+:root{
+  color-scheme: dark;
+  /* Noir + vert, épuré */
+  --bg:#040504; --bg2:#070807; --panel:#101210; --panel2:#151713; --raise:#191c18;
+  --line:#1c1f1b; --line2:#262a24; --hair:#171a16;
+  --ink:#eaf0ea; --sub:#93a094; --muted:#5c675d; --faint:#39423a;
+  --green:#33e58a; --green-d:#1fbf72; --ink-on-green:#04140b;
+  --green-soft:rgba(51,229,138,.10); --green-line:rgba(51,229,138,.28);
+  --red:#e0655c; --warn:#d2a44a;
+  --disp:"Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --body:"Manrope", ui-sans-serif, system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, monospace;
+  --nav-w:238px; --r:14px;
+  --wm:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'><path fill='%2333e58a' d='M52 122 200 40 150 104 116 152 100 126Z'/><path fill='%2333e58a' d='M150 150 214 122 128 224Z'/></svg>");
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--disp);font-weight:700;line-height:1.08;margin:0;letter-spacing:-.02em}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+button{font-family:inherit}
+a{color:inherit}
+
+.app{display:grid;grid-template-columns:var(--nav-w) 1fr;min-height:100%}
+.nav{background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:3px;padding:16px 12px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 14px;font-family:var(--disp);font-weight:800;font-size:19px}
+.brand svg{width:23px;height:23px;flex:0 0 auto}
+.brand .vtag{margin-left:auto;font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:2px 6px}
+/* sélecteur de serveur */
+.srvswitch{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);background:var(--panel);border-radius:12px;cursor:pointer;margin-bottom:10px}
+.srvswitch:hover{border-color:var(--line2)}
+.srvswitch .si{position:relative;width:34px;height:34px;border-radius:9px;background:var(--panel2);border:1px solid var(--line2);display:grid;place-items:center;flex:0 0 auto}
+.srvswitch .si svg{width:17px;height:17px;color:var(--green)}
+.srvswitch .si .on-dot{position:absolute;right:-2px;bottom:-2px;width:9px;height:9px;border-radius:50%;background:var(--green);border:2px solid var(--bg2)}
+.srvswitch .st{flex:1;min-width:0}
+.srvswitch .st .nm{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srvswitch .st .ds{color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srvswitch .chev{color:var(--faint);flex:0 0 auto}
+/* recherche */
+.navsearch{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:9px 11px;margin-bottom:6px}
+.navsearch svg{width:15px;height:15px;color:var(--muted);flex:0 0 auto}
+.navsearch input{flex:1;min-width:0;background:none;border:0;outline:none;color:var(--ink);font-size:13.5px;font-family:inherit}
+.navsearch input::placeholder{color:var(--muted)}
+.navsearch .kbd{font-family:var(--mono);font-size:11px;color:var(--faint);border:1px solid var(--line);border-radius:6px;padding:2px 6px}
+.navlabel{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding:15px 10px 7px}
+.navitem{display:flex;align-items:center;gap:11px;padding:7px 10px;border-radius:9px;color:var(--sub);font-weight:600;font-size:13px;cursor:pointer;border:1px solid transparent;user-select:none}
+.navitem:hover{background:var(--panel);color:var(--ink)}
+.navitem.on{background:var(--panel2);color:var(--ink);border-color:var(--line)}
+.navitem .ic{width:18px;height:18px;flex:0 0 auto;opacity:.8}
+.navitem.on .ic{color:var(--green);opacity:1}
+.navitem .badge{margin-left:auto;background:var(--panel);color:var(--sub);border:1px solid var(--line2);font-size:11px;font-weight:700;border-radius:7px;padding:1px 8px;min-width:22px;text-align:center;font-variant-numeric:tabular-nums}
+.navitem.on .badge{color:var(--green);border-color:var(--green-line)}
+.nav .spacer{flex:1;min-height:10px}
+.navuser{display:flex;align-items:center;gap:10px;padding:10px;margin-top:8px;border:1px solid var(--line);background:var(--panel);border-radius:12px;cursor:pointer}
+.navuser:hover{border-color:var(--line2)}
+.navuser .chev{color:var(--faint);flex:0 0 auto}
+.avatar{width:34px;height:34px;border-radius:9px;background:var(--panel2);border:1px solid var(--line2);display:grid;place-items:center;font-weight:800;color:var(--green);font-size:12px;flex:0 0 auto}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:15px 26px;background:rgba(5,7,6,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar h1{font-size:19px}
+.topbar .srv{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub);background:var(--panel);border:1px solid var(--line);padding:6px 11px;border-radius:9px;font-weight:600}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.grow{flex:1}
+.content{padding:26px;max-width:1200px;width:100%}
+/* cloche de notifications */
+.bell{position:relative;width:38px;height:38px;border-radius:10px;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;color:var(--sub)}
+.bell:hover{color:var(--ink);border-color:var(--line2)}
+.bell svg{width:18px;height:18px}
+.bell-dot{position:absolute;top:8px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--red);border:2px solid var(--bg)}
+.bell-panel{position:absolute;top:56px;right:26px;width:min(360px,92vw);background:var(--bg2);border:1px solid var(--line2);border-radius:14px;box-shadow:0 24px 50px rgba(0,0,0,.5);z-index:90;overflow:hidden}
+.bell-panel .bh{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid var(--line);font-weight:700}
+.bell-panel .bh .mark{margin-left:auto;font-size:12px;font-weight:700;color:var(--green);cursor:pointer}
+.bell-item{display:flex;gap:11px;padding:12px 15px;border-bottom:1px solid var(--hair);cursor:pointer}
+.bell-item:last-child{border-bottom:0}
+.bell-item:hover{background:var(--panel2)}
+.bell-item .bi-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:0 0 auto;background:var(--green)}
+.bell-item[data-read="true"] .bi-dot{background:var(--faint)}
+.bell-item .bi-t{flex:1;min-width:0}
+.bell-item .bi-t .tt{font-weight:600;font-size:13.5px}
+.bell-item .bi-t .ts{color:var(--muted);font-size:12px;margin-top:2px}
+.bell-item .bi-when{color:var(--faint);font-size:11px;white-space:nowrap}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:700;font-size:14px;border-radius:10px;padding:9px 14px;border:1px solid var(--line2);background:var(--panel2);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--faint)}
+.btn svg{width:16px;height:16px}
+.btn-green{background:var(--green);color:var(--ink-on-green);border-color:transparent}
+.btn-green:hover{background:#43ef98}
+.btn-red{background:rgba(224,101,92,.10);color:#ef8a83;border-color:rgba(224,101,92,.28)}
+.btn-red:hover{background:rgba(224,101,92,.18)}
+.btn-ghost{background:transparent}
+.btn-sm{padding:6px 11px;font-size:13px;border-radius:8px}
+
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;position:relative;overflow:hidden}
+.card.wm::after{content:"";position:absolute;right:-24px;bottom:-30px;width:160px;height:160px;background:var(--wm) no-repeat center/contain;opacity:.04;pointer-events:none}
+.pad{padding:20px}
+/* KPI dans la DA GodEyes : gros chiffre, label capital, icône filigrane, variation */
+.kpi{padding:24px;min-height:158px;display:flex;flex-direction:column;position:relative;overflow:hidden;border-radius:18px}
+.kpi .bgi{position:absolute;right:-6px;top:52%;transform:translateY(-50%);width:132px;height:132px;color:#ffffff;opacity:.045;pointer-events:none}
+.kpi .bgi svg{width:100%;height:100%}
+.kpi .k-lab{font-size:11.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:700;position:relative}
+.kpi .k-val{font-family:var(--disp);font-weight:800;font-size:44px;letter-spacing:-.025em;line-height:1;margin:16px 0 auto;position:relative}
+.kpi .k-delta{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;margin-top:18px;position:relative;white-space:nowrap;min-width:0}
+.kpi .k-delta svg{width:15px;height:15px;flex:0 0 auto}
+.kpi .k-delta .mut{color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.up{color:var(--green)} .down{color:var(--red)}
+/* Sélecteur segmenté (24h / 7j / 30j) — actif = noir enfoncé, propre */
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px;gap:3px}
+.seg button{border:0;background:none;color:var(--muted);font-family:inherit;font-weight:700;font-size:13.5px;padding:8px 18px;border-radius:8px;cursor:pointer}
+.seg button:hover{color:var(--sub)}
+.seg button.on{background:var(--bg);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line2)}
+.welcome .hello{font-size:31px;font-weight:800}
+.welcome .subline{color:var(--muted);font-size:15.5px;margin:8px 0 18px}
+/* Sélecteur de jours : plus fin, et décollé des cartes KPI en dessous */
+.welcome .seg{padding:4px;border-radius:11px;margin-bottom:30px}
+.welcome .seg button{padding:6px 14px;font-size:12.5px}
+
+.section-head{display:flex;align-items:center;gap:12px;margin:24px 0 14px}
+.section-head h2{font-size:16px}
+.section-head .grow{flex:1}
+
+.feed .row{display:flex;align-items:flex-start;gap:12px;padding:13px 16px;border-top:1px solid var(--hair)}
+.feed .row:first-child{border-top:0}
+.sev{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:0 0 auto}
+.sev.hi{background:var(--red)} .sev.me{background:var(--warn)} .sev.lo{background:var(--muted)} .sev.ok{background:var(--green)}
+.feed .msg{flex:1;min-width:0}
+.feed .msg .meta{color:var(--muted);font-size:12.5px;margin-top:2px}
+.feed .t{color:var(--faint);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:6px;border:1px solid var(--line2);color:var(--sub)}
+.tag.grn{color:var(--green);border-color:var(--green-line);background:var(--green-soft)}
+.tag.red{color:#ef8a83;border-color:rgba(224,101,92,.28);background:rgba(224,101,92,.08)}
+.tag.amb{color:var(--warn);border-color:rgba(210,164,74,.28);background:rgba(210,164,74,.07)}
+
+.bars{display:flex;align-items:flex-end;gap:6px;height:118px;padding-top:8px}
+.bars .b{flex:1;background:var(--green-soft);border-top:2px solid var(--green);border-radius:3px 3px 0 0;min-height:4px}
+.bars .b.hot{background:rgba(51,229,138,.18);border-top-color:#5cffab}
+.axis{display:flex;justify-content:space-between;color:var(--faint);font-size:11px;margin-top:8px}
+
+/* map */
+.maplayout{display:grid;grid-template-columns:1fr 320px;gap:14px}
+.mapwrap{position:relative;background:#05100c;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;aspect-ratio:1/1}
+.mapwrap .lbl{font-family:var(--body);font-weight:700;fill:#48604f;letter-spacing:2px}
+.mapwrap .lbl.big{fill:#6a8a70;letter-spacing:3px}
+.mapwrap .tick{font-family:var(--mono);fill:#2f3d33;font-size:11px;letter-spacing:0}
+.mapwrap svg.base{position:absolute;inset:0;width:100%;height:100%}
+.pdot{position:absolute;width:15px;height:15px;border-radius:50%;transform:translate(-50%,-50%);cursor:pointer;border:2px solid rgba(255,255,255,.8);transition:left .9s linear,top .9s linear;z-index:2}
+.pdot.lo{background:var(--green)} .pdot.me{background:var(--warn)} .pdot.hi{background:var(--red)}
+.pdot.sel{outline:3px solid var(--ink);outline-offset:2px;z-index:5}
+.maplegend{position:absolute;left:12px;bottom:12px;display:flex;gap:14px;background:rgba(5,7,6,.72);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--sub)}
+.maplegend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.mapcount{position:absolute;right:12px;top:12px;background:rgba(5,7,6,.72);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:9px;padding:7px 12px;font-size:13px;font-weight:700}
+
+.pcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);display:flex;flex-direction:column;overflow:hidden}
+.pcard .empty{padding:44px 22px;text-align:center;color:var(--muted);font-size:13.5px}
+.pcard .empty svg{width:32px;height:32px;opacity:.4;margin-bottom:10px}
+.phead{padding:16px 18px;border-bottom:1px solid var(--hair);display:flex;align-items:center;gap:12px}
+.pav{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;font-weight:800;font-size:15px;background:var(--panel2);border:1px solid var(--line2)}
+.pinfo{display:flex;flex-direction:column;gap:9px;padding:16px 18px}
+.rowline{display:flex;align-items:center;justify-content:space-between;font-size:13.5px;gap:12px}
+.rowline .l{color:var(--muted);font-weight:600}
+.rowline .v{font-weight:700;text-align:right}
+.riskbar{height:7px;border-radius:6px;background:var(--panel2);overflow:hidden;border:1px solid var(--line)}
+.riskbar > i{display:block;height:100%;border-radius:6px}
+.pactions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:16px 18px;border-top:1px solid var(--hair)}
+.pactions .btn{width:100%}
+
+/* table */
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.search{flex:1;min-width:200px;display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 13px}
+.search svg{width:16px;height:16px;color:var(--muted)}
+.search input{flex:1;background:none;border:0;outline:none;color:var(--ink);font-size:14px;font-family:inherit}
+.chip{font-size:13px;font-weight:600;color:var(--sub);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 12px;cursor:pointer}
+.chip.on{color:var(--green);border-color:var(--green-line);background:var(--green-soft)}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl thead th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:11px 14px;border-bottom:1px solid var(--line)}
+.tbl tbody td{padding:13px 14px;border-bottom:1px solid var(--hair)}
+.tbl tbody tr{cursor:pointer}
+.tbl tbody tr:hover{background:var(--panel2)}
+.tbl .pl{display:flex;align-items:center;gap:10px}
+.tbl .pl .mini{width:30px;height:30px;border-radius:8px;background:var(--panel2);border:1px solid var(--line2);display:grid;place-items:center;font-weight:800;font-size:12px}
+.tbl .who{font-weight:700}
+.tbl .id{font-size:12px;color:var(--faint)}
+
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(2,4,3,.66);backdrop-filter:blur(2px);z-index:60}
+.drawer{position:fixed;top:0;right:0;height:100%;width:min(460px,94vw);background:var(--bg2);border-left:1px solid var(--line2);z-index:61;display:flex;flex-direction:column;box-shadow:-30px 0 60px rgba(0,0,0,.5)}
+.drawer .dh{display:flex;align-items:center;gap:12px;padding:18px;border-bottom:1px solid var(--line)}
+.drawer .db{flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:18px}
+.close{margin-left:auto;background:var(--panel2);border:1px solid var(--line2);border-radius:9px;width:34px;height:34px;display:grid;place-items:center;cursor:pointer;color:var(--sub)}
+.evidence{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.evidence .cap{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--hair);font-size:12.5px;font-weight:700;color:var(--sub)}
+.shot{position:relative;aspect-ratio:16/9;background:#040605}
+.shot .zbadge{position:absolute;right:10px;bottom:10px;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:var(--green);background:rgba(4,20,11,.72);border:1px solid var(--green-line);border-radius:8px;padding:4px 8px}
+.shot .zbadge svg{width:13px;height:13px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:9px 14px;font-size:13.5px}
+.kv .l{color:var(--muted);font-weight:600}
+.kv .v{font-weight:700;text-align:right}
+.timeline{display:flex;flex-direction:column}
+.timeline .ev{display:flex;gap:12px;padding-bottom:14px;position:relative}
+.timeline .ev::before{content:"";position:absolute;left:5px;top:14px;bottom:-2px;width:2px;background:var(--line2)}
+.timeline .ev:last-child::before{display:none}
+.timeline .ev .pt{width:12px;height:12px;border-radius:50%;margin-top:2px;flex:0 0 auto;border:2px solid var(--bg2);z-index:1}
+.timeline .ev .txt{font-size:13px}
+.timeline .ev .txt .tt{color:var(--faint);font-size:11.5px;font-variant-numeric:tabular-nums}
+.dactions{display:flex;flex-wrap:wrap;gap:10px;padding:16px 18px;border-top:1px solid var(--line)}
+.dactions .btn{flex:1 1 40%}
+.shot .reclab{position:absolute;left:10px;top:10px;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:#e0655c;background:rgba(20,4,4,.72);border:1px solid rgba(224,101,92,.4);border-radius:8px;padding:4px 8px;font-variant-numeric:tabular-nums}
+.shot .reclab .recdot{width:8px;height:8px;border-radius:50%;background:#e0655c;animation:recpulse 1.4s ease-in-out infinite}
+@keyframes recpulse{0%,100%{opacity:1}50%{opacity:.25}}
+.learnnote{display:flex;gap:10px;align-items:flex-start;margin-top:6px;padding:12px 14px;background:var(--green-soft,rgba(51,229,138,.07));border:1px solid var(--green-line);border-radius:12px;font-size:12.5px;color:var(--sub);line-height:1.5}
+.learnnote svg{width:16px;height:16px;color:var(--green);flex:0 0 auto;margin-top:1px}
+.learnnote b{color:var(--tx,#e8efe9)}
+
+/* tabs (protections) — épuré : quiet par défaut, actif = pilule noire sobre */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.tab{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:12.5px;color:var(--muted);padding:7px 12px;border-radius:9px;cursor:pointer;border:1px solid transparent;white-space:nowrap;transition:color .12s,background .12s;background:none;font-family:inherit}
+.tab:hover{color:var(--sub)}
+.tab.on{background:var(--panel);color:var(--ink);border-color:var(--line)}
+.tab svg{width:15px;height:15px;opacity:.7}
+.tab.on svg{opacity:1}
+.tab .n{font-size:11px;color:var(--faint);font-weight:700;font-variant-numeric:tabular-nums}
+.tab.on .n{color:var(--green)}
+.prot{display:flex;align-items:center;gap:14px;padding:15px 16px;border-bottom:1px solid var(--hair)}
+.prot:last-child{border-bottom:0}
+.prot .pt{flex:1;min-width:0}
+.prot .pt .nm{font-weight:700;font-size:14.5px}
+.prot .pt .ds{color:var(--muted);font-size:12.5px;margin-top:2px}
+.mode{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px;gap:3px}
+.mode button{border:0;background:none;color:var(--muted);font-weight:700;font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer}
+.mode button.on[data-m="watch"]{background:rgba(147,160,148,.14);color:var(--ink)}
+.mode button.on[data-m="block"]{background:var(--green-soft);color:var(--green)}
+.sw{width:44px;height:26px;border-radius:20px;background:var(--panel2);border:1px solid var(--line2);position:relative;cursor:pointer;flex:0 0 auto;transition:background .15s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--muted);transition:transform .16s,background .16s}
+.sw.on{background:var(--green);border-color:var(--green)}
+.sw.on::after{transform:translateX(18px);background:#04140b}
+.help{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--line2);color:var(--faint);font-size:10px;font-weight:800;margin-left:7px;cursor:help;vertical-align:middle}
+.sdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;vertical-align:middle;flex:0 0 auto}
+.cfglegend{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:14px;font-size:12.5px;color:var(--sub)}
+.cfglegend .li{display:inline-flex;align-items:center;gap:7px}
+.cfglegend .d{width:8px;height:8px;border-radius:50%}
+.help:hover{color:var(--sub);border-color:var(--faint)}
+.catmini{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin-right:8px}
+
+/* servers / licence / install */
+.srvcard{display:flex;align-items:center;gap:16px;padding:18px}
+.srvcard .si{width:46px;height:46px;border-radius:12px;background:var(--panel2);border:1px solid var(--line2);display:grid;place-items:center}
+.srvcard .si svg{width:22px;height:22px;color:var(--green)}
+.srvcard .meta{flex:1}
+.srvcard .meta .nm{font-weight:700;font-size:15px}
+.srvcard .meta .ds{color:var(--muted);font-size:12.5px;margin-top:2px}
+.locked{border-style:dashed;border-color:var(--line2)}
+.keyrow{display:flex;gap:10px;flex-wrap:wrap}
+.keyrow input{flex:1;min-width:220px;background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:11px 14px;color:var(--ink);font-family:var(--mono);font-size:13px;outline:none}
+.keyrow input:focus{border-color:var(--green)}
+.notice{display:flex;gap:12px;padding:14px 16px;border-radius:12px;background:var(--green-soft);border:1px solid var(--green-line);font-size:13px;color:var(--sub)}
+.notice svg{width:18px;height:18px;color:var(--green);flex:0 0 auto;margin-top:1px}
+.member{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--hair)}
+.member:last-child{border-bottom:0}
+.member .role{font-size:12px;font-weight:700;color:var(--sub);border:1px solid var(--line2);border-radius:20px;padding:3px 10px}
+
+/* install steps */
+.vbar{display:flex;align-items:center;gap:16px;padding:18px}
+.vbar .vt{flex:1}
+.vbar .vt .nm{font-weight:800;font-size:16px;display:flex;align-items:center;gap:9px}
+.vbar .vt .ds{color:var(--muted);font-size:13px;margin-top:3px}
+.step{display:flex;gap:14px;padding:18px;border-top:1px solid var(--hair)}
+.step .no{width:28px;height:28px;flex:0 0 auto;border-radius:8px;background:var(--green-soft);border:1px solid var(--green-line);color:var(--green);font-weight:800;display:grid;place-items:center;font-size:13px}
+.step .sc{flex:1;min-width:0}
+.step h4{font-size:14.5px;margin-bottom:5px}
+.step p{color:var(--sub);font-size:13px;margin:0 0 10px}
+.code{background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:12px 14px;font-family:var(--mono);font-size:12.5px;color:#cfe9d8;overflow-x:auto;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.code pre{margin:0;white-space:pre;overflow-x:auto}
+.copy{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line2);border-radius:7px;color:var(--sub);font-size:11.5px;font-weight:700;padding:5px 9px;cursor:pointer}
+.copy:hover{color:var(--ink)}
+
+/* permissions (comptes & accès) */
+.permtbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.permtbl th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:12px 14px;border-bottom:1px solid var(--line)}
+.permtbl td{padding:11px 14px;border-bottom:1px solid var(--hair)}
+.permtbl td.center,.permtbl th.center{text-align:center}
+.permtbl tr:last-child td{border-bottom:0}
+.permchk{width:20px;height:20px;border-radius:6px;border:1px solid var(--line2);display:inline-grid;place-items:center;cursor:pointer;color:transparent}
+.permchk.on{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+/* terminal */
+.term{font-family:var(--mono);font-size:12.5px;background:#040605;border:1px solid var(--line);border-radius:12px 12px 0 0;padding:14px 16px;height:420px;overflow-y:auto;line-height:1.6}
+.term .ln{white-space:pre-wrap}
+.term .cmd{color:var(--ink)} .term .out{color:var(--sub)} .term .ok{color:var(--green)} .term .err{color:#ef8a83} .term .mut{color:var(--faint)}
+.term-in{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;padding:11px 16px}
+.term-in input{flex:1;background:none;border:0;outline:none;color:var(--ink);font-family:var(--mono);font-size:13px}
+/* multi-vue */
+.mvtile{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.mvtile .mvhead{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid var(--hair);font-weight:700;font-size:13.5px}
+.mvtile .mvhead .ping{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.mvtile .mvview{position:relative;aspect-ratio:16/9;background:#05100c;display:grid;place-items:center;color:var(--faint)}
+.mvtile .mvview .live{position:absolute;top:10px;right:10px;font-size:11px;font-weight:800;color:var(--green);display:flex;align-items:center;gap:5px}
+.mvtile .mvact{display:flex;gap:8px;padding:11px 14px;border-top:1px solid var(--hair)}
+
+/* config (165 réglages) */
+.cfggroup{margin-bottom:16px}
+.cfggroup .gh{display:flex;align-items:center;gap:10px;padding:0 2px 10px;color:var(--sub)}
+.cfggroup .gh h3{font-size:14px;color:var(--ink)}
+.cfggroup .gh .gc{margin-left:auto;font-size:11px;color:var(--faint);font-weight:700}
+.crow{display:flex;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--hair)}
+.crow:last-child{border-bottom:0}
+.crow .ct{flex:1;min-width:0}
+.crow .ct .nm{font-weight:600;font-size:14px}
+.crow .ct .cat{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin-right:8px}
+.crow input.fld,.crow select.fld{background:var(--bg);border:1px solid var(--line2);border-radius:8px;padding:7px 10px;color:var(--ink);font-family:var(--body);font-size:13px;outline:none;min-width:150px}
+.crow input.fld:focus,.crow select.fld:focus{border-color:var(--green)}
+.crow .listbtn{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;color:var(--sub);font-size:12.5px;font-weight:700;padding:7px 11px;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
+.crow .listbtn:hover{color:var(--ink)}
+.crow .listbtn .cnt{color:var(--green)}
+.savebar{position:sticky;bottom:14px;margin-top:16px;display:flex;align-items:center;gap:12px;background:var(--raise);border:1px solid var(--green-line);border-radius:12px;padding:12px 16px;box-shadow:0 16px 40px rgba(0,0,0,.5);font-weight:700;font-size:13.5px}
+.dotpulse{width:9px;height:9px;border-radius:50%;background:var(--amber)}
+.modal-scrim{position:fixed;inset:0;background:rgba(2,4,3,.66);backdrop-filter:blur(2px);z-index:120;display:grid;place-items:center}
+.modal{width:min(420px,92vw);background:var(--bg2);border:1px solid var(--line2);border-radius:16px;padding:22px;box-shadow:0 30px 60px rgba(0,0,0,.5)}
+.modal h3{font-size:17px;margin-bottom:8px}
+.modal p{color:var(--sub);font-size:13.5px;margin-bottom:18px}
+.modal .row{display:flex;gap:10px;justify-content:flex-end}
+
+/* blacklist */
+.blrow{display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--hair)}
+.blrow:last-child{border-bottom:0}
+.blicon{width:46px;height:34px;flex:0 0 auto;border-radius:8px;background:var(--panel2);border:1px solid var(--line2);display:grid;place-items:center;color:var(--sub)}
+.blicon svg{width:30px;height:22px}
+.blrow.on .blicon{color:var(--red);border-color:rgba(224,101,92,.35);background:rgba(224,101,92,.07)}
+.blrow .bt{flex:1;min-width:0}
+.blrow .bt .nm{font-weight:700;font-size:14px}
+.blrow .bt .hs{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:2px}
+.blstate{font-size:12px;font-weight:700;padding:3px 10px;border-radius:7px;border:1px solid var(--line2);color:var(--muted)}
+.blrow.on .blstate{color:#ef8a83;border-color:rgba(224,101,92,.3);background:rgba(224,101,92,.07)}
+
+.view{display:none}.view.on{display:block}
+
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  .nav{position:fixed;left:0;top:0;z-index:80;transform:translateX(-100%);transition:transform .2s;width:252px}
+  .nav.open{transform:none}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .maplayout{grid-template-columns:1fr}
+  .burger{display:grid!important}
+}
+.burger{display:none;place-items:center;width:38px;height:38px;border-radius:9px;background:var(--panel2);border:1px solid var(--line2);cursor:pointer}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <aside class="nav" id="nav">
+    <div class="brand">
+      <svg viewBox="0 0 256 256" aria-hidden="true" style="filter:drop-shadow(0 0 5px rgba(51,229,138,.6))"><path fill="#fff" d="M52 122 L200 40 L150 104 L116 152 L100 126 Z"/><path fill="#fff" d="M150 150 L214 122 L128 224 Z"/></svg>
+      <span>Z-Shield</span><span class="vtag">v2.4.1</span>
+    </div>
+
+    <div class="srvswitch" onclick="toast('Changer de serveur (démo)')">
+      <div class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6l-7-3Z"/></svg><span class="on-dot"></span></div>
+      <div class="st"><div class="nm">Los Santos RP</div><div class="ds">142 joueurs · en ligne</div></div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"/></svg>
+    </div>
+
+    <div class="navsearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input placeholder="Rechercher" id="navSearch"><span class="kbd">⌘K</span></div>
+
+    <div class="navlabel">Surveillance</div>
+    <div class="navitem on" data-view="overview"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>Vue d'ensemble</div>
+    <div class="navitem" data-view="players"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 5.2a3.2 3.2 0 0 1 0 5.9M18.5 20a5.5 5.5 0 0 0-3-4.9"/></svg>Joueurs<span class="badge">142</span></div>
+    <div class="navitem" data-view="map"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3-6-3Z"/><path d="M9 3v15M15 6v15"/></svg>Carte live</div>
+    <div class="navitem" data-view="multiview"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="14" width="8" height="6" rx="1.5"/><rect x="13" y="14" width="8" height="6" rx="1.5"/></svg>Multi‑vue</div>
+    <div class="navitem" data-view="bans"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></svg>Bans &amp; sanctions</div>
+
+    <div class="navlabel">Défense</div>
+    <div class="navitem" data-view="prot"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h16M4 8l3-3M4 8l3 3M20 16H4M20 16l-3-3M20 16l-3 3"/></svg>Configuration<span class="badge" id="cfgBadge">165</span></div>
+    <div class="navitem" data-view="blacklist"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></svg>Blacklist</div>
+    <div class="navitem" data-view="signatures"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg>Signatures</div>
+    <div class="navitem" data-view="install"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Installation</div>
+
+    <div class="navlabel">Espace</div>
+    <div class="navitem" data-view="servers"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>Serveurs &amp; licence</div>
+    <div class="navitem" data-view="terminal"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 7l4 4-4 4M11 15h6"/></svg>Terminal</div>
+    <div class="navitem" data-view="members"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 5.2a3.2 3.2 0 0 1 0 5.9M18.5 20a5.5 5.5 0 0 0-3-4.9"/></svg>Comptes &amp; accès</div>
+
+    <div class="spacer"></div>
+    <div class="navuser" onclick="toast('Menu du compte (démo)')"><div class="avatar">DA</div><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13.5px">Dagos</div><div style="color:var(--muted);font-size:11.5px">Licence active</div></div><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"/></svg></div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="burger" id="burger"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#eaf0ea" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></div>
+      <h1 id="pageTitle">Vue d'ensemble</h1>
+      <div class="grow"></div>
+      <button class="bell" id="bellBtn" aria-label="Notifications" onclick="toggleBell(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
+        <span class="bell-dot" id="bellDot" hidden></span>
+      </button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <section class="view on content" data-view="overview">
+      <div class="welcome">
+        <h1 class="hello">Bon retour, Dagos</h1>
+        <p class="subline">Voici l'état de ton serveur Z-Shield en temps réel.</p>
+        <div class="seg" id="rangeSeg"><button class="on">24 h</button><button>7 j</button><button>30 j</button></div>
+      </div>
+      <div class="grid kpis">
+        <div class="card kpi">
+          <div class="bgi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 5.4a3.4 3.4 0 0 1 0 6.2M18.5 20a6.5 6.5 0 0 0-3.4-5.7"/></svg></div>
+          <div class="k-lab">Joueurs en ligne</div><div class="k-val num">142</div>
+          <div class="k-delta up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 17 10 11l4 4 6-7"/><path d="M15 8h5v5"/></svg>4,4 %<span class="mut">+412 aujourd'hui</span></div>
+        </div>
+        <div class="card kpi">
+          <div class="bgi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6l-7-3Z"/></svg></div>
+          <div class="k-lab">Menaces bloquées · 24 h</div><div class="k-val num">1 267</div>
+          <div class="k-delta up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 17 10 11l4 4 6-7"/><path d="M15 8h5v5"/></svg>99,2 %<span class="mut">automatiques</span></div>
+        </div>
+        <div class="card kpi">
+          <div class="bgi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg></div>
+          <div class="k-lab">Incidents ouverts</div><div class="k-val num">3</div>
+          <div class="k-delta down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 7 10 13l4-4 6 7"/><path d="M15 16h5v-5"/></svg>2<span class="mut">à haut risque</span></div>
+        </div>
+        <div class="card kpi">
+          <div class="bgi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
+          <div class="k-lab">Impact performance</div><div class="k-val num">0,3<span style="font-size:16px;color:var(--muted);font-weight:700"> ms</span></div>
+          <div class="k-delta"><span class="mut">négligeable · par tick serveur</span></div>
+        </div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1.5fr 1fr;margin-top:14px">
+        <div class="card">
+          <div class="pad" style="display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--hair)"><h2 style="font-size:15px">Activité en direct</h2><div class="grow"></div><span class="tag grn"><span class="dot"></span> temps réel</span></div>
+          <div class="feed" id="liveFeed"></div>
+        </div>
+        <div class="card wm pad">
+          <h2 style="font-size:15px">Détections par heure</h2>
+          <div style="color:var(--muted);font-size:12.5px;margin-top:2px">Dernières 12 h</div>
+          <div class="bars" id="bars"></div>
+          <div class="axis"><span>08h</span><span>12h</span><span>16h</span><span>now</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAP -->
+    <section class="view content" data-view="map">
+      <div class="maplayout">
+        <div class="mapwrap" id="mapwrap">
+          <svg class="base" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <!-- Océan -->
+            <rect width="1000" height="1000" fill="#04100c"/>
+            <g stroke="#081a13" stroke-width="1" opacity=".5"><path d="M0 500 Q 250 490 500 500 T 1000 500"/><path d="M0 620 Q 250 610 500 620 T 1000 620"/><path d="M0 740 Q 250 730 500 740 T 1000 740"/><path d="M0 860 Q 250 850 500 860 T 1000 860"/></g>
+
+            <!-- Terre -->
+            <path fill="#0a120d" stroke="#17201a" stroke-width="2" d="M150 130 C 320 70 560 78 768 116 C 900 138 956 250 940 378 C 950 520 922 664 884 766 C 848 866 712 906 566 890 C 452 880 420 840 350 812 C 288 788 244 806 214 744 C 184 684 232 620 200 558 C 168 502 138 466 156 372 C 172 288 96 196 150 130 Z"/>
+            <!-- Parc (surface boisée) -->
+            <path fill="#0c150e" stroke="#16211a" stroke-width="1" d="M360 470 C 430 450 500 460 520 520 C 535 575 500 610 440 614 C 388 617 350 590 344 540 C 340 500 340 478 360 470 Z"/>
+            <!-- Liseré côtier (plage ouest) -->
+            <path fill="none" stroke="#213026" stroke-width="3" opacity=".7" d="M200 558 C 168 502 138 466 156 372 C 172 288 96 196 150 130"/>
+
+            <!-- Reliefs / collines (courbes de niveau) -->
+            <g fill="none" stroke="#152018" stroke-width="1.4" opacity=".85">
+              <ellipse cx="268" cy="228" rx="92" ry="62"/><ellipse cx="268" cy="228" rx="64" ry="42"/><ellipse cx="268" cy="228" rx="36" ry="22"/>
+              <ellipse cx="430" cy="210" rx="60" ry="40"/><ellipse cx="430" cy="210" rx="34" ry="22"/>
+            </g>
+            <path fill="#0e1810" stroke="#1c2a20" stroke-width="1" d="M262 214 L276 236 L250 236 Z"/>
+            <text class="lbl" x="286" y="220" font-size="11">▲ 812 m</text>
+
+            <!-- Lac + zone humide -->
+            <path fill="#05130e" stroke="#123322" stroke-width="2" d="M690 262 C 760 240 838 258 850 316 C 862 372 820 420 748 420 C 684 420 640 388 638 330 C 636 294 650 274 690 262 Z"/>
+            <g fill="#0a2018"><circle cx="646" cy="420" r="5"/><circle cx="672" cy="436" r="4"/><circle cx="700" cy="428" r="3"/></g>
+            <!-- Rivière lac → mer -->
+            <path fill="none" stroke="#05130e" stroke-width="11" stroke-linecap="round" d="M700 418 C 662 512 636 604 596 690 C 574 748 556 800 542 856"/>
+            <path fill="none" stroke="#0d3324" stroke-width="1" d="M700 418 C 662 512 636 604 596 690 C 574 748 556 800 542 856"/>
+
+            <!-- Autoroutes (casing + voie) -->
+            <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <g stroke="#0f1811" stroke-width="9">
+                <path d="M204 520 C 420 486 630 512 902 468"/>
+                <path d="M520 132 C 548 360 512 566 546 866"/>
+                <path d="M300 296 C 430 420 476 560 520 700"/>
+                <path d="M628 548 C 730 592 820 636 884 704"/>
+                <path d="M360 806 C 470 720 560 690 700 700"/>
+              </g>
+              <g stroke="#26332400" stroke-width="4"/>
+              <g stroke="#2a3828" stroke-width="3.5">
+                <path d="M204 520 C 420 486 630 512 902 468"/>
+                <path d="M520 132 C 548 360 512 566 546 866"/>
+                <path d="M300 296 C 430 420 476 560 520 700"/>
+                <path d="M628 548 C 730 592 820 636 884 704"/>
+                <path d="M360 806 C 470 720 560 690 700 700"/>
+              </g>
+            </g>
+            <!-- Routes secondaires -->
+            <g fill="none" stroke="#1a241b" stroke-width="1.5" opacity=".9">
+              <path d="M300 360H520M360 300V520M600 300 L 640 460M760 460 L 820 560M420 640 L 360 760M660 560 L 720 660"/>
+            </g>
+
+            <!-- Centre-ville (trame dense + immeubles) -->
+            <g stroke="#1b261c" stroke-width="1">
+              <rect x="430" y="628" width="226" height="196" rx="2" fill="#0e160f"/>
+              <path d="M430 664H656M430 700H656M430 736H656M430 772H656M430 808H656M466 628V824M502 628V824M540 628V824M580 628V824M620 628V824"/>
+            </g>
+            <g fill="#141d15"><rect x="450" y="672" width="24" height="20"/><rect x="512" y="708" width="30" height="22"/><rect x="588" y="744" width="26" height="24"/><rect x="472" y="748" width="20" height="18"/><rect x="600" y="700" width="18" height="26"/><rect x="470" y="784" width="28" height="18"/></g>
+            <!-- Stade -->
+            <ellipse cx="392" cy="690" rx="30" ry="20" fill="#0e1810" stroke="#20302300" stroke-width="1"/>
+            <ellipse cx="392" cy="690" rx="22" ry="13" fill="none" stroke="#243627" stroke-width="1.5"/>
+
+            <!-- Aéroport (pistes) -->
+            <g transform="rotate(-22 300 776)">
+              <rect x="210" y="762" width="196" height="22" rx="2" fill="#131c14" stroke="#22302300"/>
+              <rect x="210" y="762" width="196" height="22" rx="2" fill="none" stroke="#243627" stroke-width="1"/>
+              <path d="M220 773H396" stroke="#33472f" stroke-width="2" stroke-dasharray="12 9"/>
+              <rect x="250" y="734" width="80" height="16" fill="#101911" stroke="#1f2c22"/>
+            </g>
+
+            <!-- Port (quais) -->
+            <g fill="#101911" stroke="#1c2a20"><rect x="596" y="808" width="16" height="52"/><rect x="620" y="808" width="16" height="52"/><rect x="644" y="808" width="16" height="46"/><rect x="668" y="808" width="16" height="40"/></g>
+
+            <!-- Quadrillage de coordonnées (précision) -->
+            <g stroke="#0e1a12" stroke-width="1" opacity=".7"><path d="M71 0V1000M286 0V1000M500 0V1000M714 0V1000M929 0V1000M0 71H1000M0 286H1000M0 500H1000M0 714H1000M0 929H1000"/></g>
+            <g class="tick">
+              <text x="76" y="16">-3000</text><text x="291" y="16">-1500</text><text x="505" y="16">0</text><text x="719" y="16">1500</text><text x="934" y="16" text-anchor="end" style="text-anchor:end">3000</text>
+              <text x="6" y="290">1500</text><text x="6" y="504">0</text><text x="6" y="718">-1500</text><text x="6" y="932">-3000</text>
+            </g>
+            <text class="tick" x="500" y="988" text-anchor="middle" style="text-anchor:middle">coordonnées serveur (X · Y)</text>
+
+            <!-- Étiquettes de quartiers -->
+            <text class="lbl big" x="452" y="616" font-size="17">CENTRE-VILLE</text>
+            <text class="lbl" x="348" y="672" font-size="12">STADE</text>
+            <text class="lbl" x="176" y="742" font-size="13">AÉROPORT</text>
+            <text class="lbl" x="592" y="878" font-size="12">PORT</text>
+            <text class="lbl" x="742" y="330" font-size="13">LAC</text>
+            <text class="lbl" x="214" y="150" font-size="12">COLLINES</text>
+            <text class="lbl" x="486" y="300" font-size="12">QUARTIER NORD</text>
+            <text class="lbl" x="392" y="498" font-size="12">PARC CENTRAL</text>
+            <text class="lbl" x="840" y="606" font-size="12">ZONE INDUS.</text>
+            <text class="lbl" x="120" y="470" font-size="11">PLAGE OUEST</text>
+          </svg>
+          <div class="mapcount"><span class="num" id="onMap">14</span> joueurs surveillés</div>
+          <div class="maplegend"><span><i style="background:#33e58a"></i>OK</span><span><i style="background:#d2a44a"></i>À surveiller</span><span><i style="background:#e0655c"></i>Risque élevé</span></div>
+        </div>
+        <div class="pcard" id="playerCard">
+          <div class="empty" id="pcEmpty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="9" r="3.2"/><path d="M5 20a7 7 0 0 1 14 0"/></svg><div>Clique sur un joueur de la carte<br>pour voir sa fiche et agir.</div></div>
+          <div id="pcBody" hidden></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BANS -->
+    <section class="view content" data-view="bans">
+      <div class="grid kpis" style="margin-bottom:16px">
+        <div class="card kpi"><div class="bgi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></svg></div><div class="k-lab">Bans · 24 h</div><div class="k-val num">37</div><div class="k-delta up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 17 10 11l4 4 6-7"/><path d="M15 8h5v5"/></svg>99 %<span class="mut">automatiques</span></div></div>
+        <div class="card kpi"><div class="bgi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4"/></svg></div><div class="k-lab">Sanctions à revoir</div><div class="k-val num">4</div><div class="k-delta"><span class="mut">en attente de confirmation</span></div></div>
+        <div class="card kpi"><div class="bgi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></div><div class="k-lab">Faux positifs (appris)</div><div class="k-val num">2</div><div class="k-delta"><span class="mut">l'anticheat s'ajuste</span></div></div>
+        <div class="card kpi"><div class="bgi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><div class="k-lab">Bans total</div><div class="k-val num">1 284</div><div class="k-delta"><span class="mut">depuis le début</span></div></div>
+      </div>
+      <div class="seg" id="banSub" style="margin-bottom:16px"><button class="on" data-bs="sanctions">Sanctions</button><button data-bs="bannissements">Bannissements</button></div>
+      <div class="toolbar">
+        <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="banSearch" placeholder="Rechercher un joueur, un identifiant, une raison…"></div>
+        <div class="chip on" data-filter="all">Tous</div>
+        <div class="chip" data-filter="auto">Automatiques</div>
+        <div class="chip" data-filter="manual">Manuels</div>
+      </div>
+      <div class="card"><table class="tbl"><thead><tr><th>Joueur</th><th>Raison</th><th>État</th><th>Quand</th><th>Preuve</th></tr></thead><tbody id="banRows"></tbody></table></div>
+    </section>
+
+    <!-- CONFIGURATION (165 réglages, 7 onglets) -->
+    <section class="view content" data-view="prot">
+      <div class="search" style="margin-bottom:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="protSearch" placeholder="Rechercher un réglage…"></div>
+      <div class="cfglegend" style="color:var(--faint)">Survole le “?” de chaque réglage pour son explication.</div>
+      <div class="tabs" id="protTabs"></div>
+      <div id="protPanel"></div>
+      <div class="savebar" id="cfgSaveBar" hidden>
+        <span class="dotpulse"></span>
+        <span>Modifications non enregistrées</span>
+        <div class="grow"></div>
+        <button class="btn btn-ghost btn-sm" onclick="cfgCancel()">Annuler</button>
+        <button class="btn btn-green btn-sm" onclick="cfgSave()">Enregistrer</button>
+      </div>
+    </section>
+
+    <!-- BLACKLIST -->
+    <section class="view content" data-view="blacklist">
+      <div class="notice" style="margin-bottom:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Interdis certaines <b>armes</b> et <b>véhicules</b> sur ton serveur. Une entrée <b>bloquée</b> est refusée à la création / à l'équipement, et une tentative génère une alerte. <span id="blCount" style="color:var(--green)"></span></div></div>
+      <div class="seg" id="blTabs" style="margin-bottom:16px"><button class="on" data-b="weapon">Armes</button><button data-b="vehicle">Véhicules</button><button data-b="ped">Peds</button><button data-b="object">Objets</button></div>
+      <div class="search" style="margin-bottom:12px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="blSearch" placeholder="Rechercher une arme, un véhicule, un identifiant…"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+        <input id="blAddName" placeholder="Ajouter : nom ou identifiant (ex. WEAPON_KNIFE, adder…)" style="flex:1;min-width:220px;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 13px;color:var(--ink);font-family:var(--body);font-size:14px;outline:none">
+        <select id="blAddType" style="background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;color:var(--ink);font-family:var(--body);font-size:14px"></select>
+        <button class="btn btn-green btn-sm" onclick="blAdd()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Ajouter</button>
+        <button class="btn btn-ghost btn-sm" onclick="toast('Import depuis le serveur (démo) : la liste réelle, addons compris, se remplit toute seule')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Importer du serveur</button>
+      </div>
+      <div class="card" id="blList"></div>
+    </section>
+
+    <!-- SERVERS -->
+    <section class="view content" data-view="servers">
+      <div class="section-head" style="margin-top:0"><h2>Tes serveurs</h2><div class="grow"></div><button class="btn btn-green btn-sm" onclick="addServer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Ajouter un serveur</button></div>
+      <div id="serverList" class="grid" style="gap:14px"></div>
+    </section>
+
+    <!-- INSTALL -->
+    <section class="view content" data-view="install">
+      <div class="card wm" style="margin-bottom:16px">
+        <div class="vbar">
+          <div class="si" style="width:46px;height:46px;border-radius:12px;background:var(--panel2);border:1px solid var(--line2);display:grid;place-items:center"><svg width="22" height="22" viewBox="0 0 256 256"><path fill="#33e58a" d="M52 122 200 40 150 104 116 152 100 126Z"/><path fill="#eaf0ea" d="M150 150 214 122 128 224Z"/></svg></div>
+          <div class="vt"><div class="nm">Z-Shield · dernière version <span class="tag grn">v2.4.1</span></div><div class="ds">Publiée le 21/09/2026 · compatible artifacts FXServer récents · OneSync</div></div>
+          <button class="btn btn-green" onclick="toast('Téléchargement démarré (démo)','grn')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Télécharger</button>
+        </div>
+      </div>
+
+      <div class="card wm">
+        <div class="pad" style="border-bottom:1px solid var(--hair)"><h2 style="font-size:15px">Installer en 4 étapes</h2><div style="color:var(--muted);font-size:12.5px;margin-top:3px">≈ 5 minutes. Aucune compétence technique requise.</div></div>
+        <div class="step"><div class="no">1</div><div class="sc"><h4>Décompresse et dépose les dossiers</h4><p>Mets <b>zshield-ac</b> et <b>zshield-agent</b> dans le dossier <span class="mono">resources/</span> de ton serveur.</p></div></div>
+        <div class="step"><div class="no">2</div><div class="sc"><h4>Active-les au démarrage</h4><p>Ajoute ces deux lignes dans ton <span class="mono">server.cfg</span> :</p><div class="code"><pre>ensure zshield-ac
+ensure zshield-agent</pre><button class="copy" data-copy="ensure zshield-ac&#10;ensure zshield-agent">Copier</button></div></div></div>
+        <div class="step"><div class="no">3</div><div class="sc"><h4>Colle ta clé et l'adresse du dashboard</h4><p>Dans <span class="mono">zshield-agent/config.lua</span>, colle la clé d'agent donnée par ton dashboard et l'URL de la plateforme :</p><div class="code"><pre>Config.dashboardUrl = "https://dashboard.z-shield.gg"
+Config.agentKey     = "colle-ta-cle-ici"</pre><button class="copy" data-copy='Config.dashboardUrl = "https://dashboard.z-shield.gg"&#10;Config.agentKey     = "colle-ta-cle-ici"'>Copier</button></div></div></div>
+        <div class="step"><div class="no">4</div><div class="sc"><h4>Démarre le serveur</h4><p>Au lancement, la console affiche l'état de ta licence et <b>« Protégé par Z-Shield »</b>. Ton serveur apparaît alors dans ce dashboard, protection active.</p><div class="code"><pre>[Z-Shield] Licence : VALIDE (essai — 6 j restants)
+[Z-Shield] Protégé par Z-Shield — 27 protections actives</pre></div></div></div>
+      </div>
+
+      <div class="notice" style="margin-top:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Tu n'as <b>rien à configurer d'autre</b> : les protections se règlent depuis l'onglet <b>Protections</b> de ce dashboard, en direct, sans redémarrer le serveur.</div></div>
+    </section>
+
+    <!-- MEMBERS -->
+    <section class="view content" data-view="members">
+      <div class="section-head" style="margin-top:0"><h2>Qui a accès à ce dashboard</h2><div class="grow"></div><button class="btn btn-green btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Ajouter un compte</button></div>
+      <div class="card" id="memberList"></div>
+      <div class="notice" style="margin-top:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Un <b>Modérateur</b> voit les joueurs et peut bannir, mais ne touche ni aux protections ni à la facturation.</div></div>
+      <div class="section-head"><h2>Qui accède à quoi</h2><div class="grow"></div></div>
+      <div class="card"><div style="overflow-x:auto"><table class="permtbl" id="permTbl"></table></div></div>
+    </section>
+
+    <!-- JOUEURS : RENSEIGNEMENT -->
+    <section class="view content" data-view="players">
+      <div class="search" style="margin-bottom:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="plSearch" placeholder="Rechercher un joueur, un identifiant…"></div>
+      <div class="toolbar"><div class="chip on" data-plf="all">Tous</div><div class="chip" data-plf="recent">Recherches récentes</div><div class="chip" data-plf="flagged">Récemment signalés</div></div>
+      <div class="card"><table class="tbl"><thead><tr><th>Joueur</th><th>Confiance inter‑serveur</th><th>Comptes liés</th><th>Bans</th><th>Fiche</th></tr></thead><tbody id="plRows"></tbody></table></div>
+    </section>
+
+    <!-- MULTI-VUE (spectate serveur) -->
+    <section class="view content" data-view="multiview">
+      <div class="notice" style="margin-bottom:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div><b>Spectate serveur</b> : la caméra se place sur le joueur <b>dans le jeu</b> pour le surveiller — on ne capture pas l'écran de son PC. Surveille un ou plusieurs joueurs à la fois.</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" id="mvGrid"></div>
+    </section>
+
+    <!-- SIGNATURES -->
+    <section class="view content" data-view="signatures">
+      <div class="notice" style="margin-bottom:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Signatures de détection et leur déploiement. Une signature déployée est active sur tous tes serveurs ; en <b>canary</b>, elle est testée sur un serveur avant généralisation.</div></div>
+      <div class="search" style="margin-bottom:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="sigSearch" placeholder="Rechercher une signature…"></div>
+      <div class="card"><table class="tbl"><thead><tr><th>Signature</th><th>Version</th><th>Catégorie</th><th>Fiabilité</th><th>Déploiement</th></tr></thead><tbody id="sigRows"></tbody></table></div>
+    </section>
+
+    <!-- TERMINAL -->
+    <section class="view content" data-view="terminal">
+      <div class="notice" style="margin-bottom:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Exécute des commandes Z‑Shield à distance. Tape <span class="mono">help</span> pour la liste. Chaque commande est journalisée.</div></div>
+      <div class="term" id="termOut"></div>
+      <div class="term-in"><span class="mono" style="color:var(--green)">z-shield&gt;</span><input id="termIn" autocomplete="off" placeholder="ex. ban 244 aimbot · protections status · kick 160"></div>
+    </section>
+
+    <!-- MEMBERS end -->
+  </div>
+</div>
+<div id="drawerMount"></div>
+
+<script>
+function initials(n){return n.replace(/[^A-Za-zÀ-ÿ ]/g,'').split(/[ _]/).filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase()||'??';}
+function riskColor(r){return r>=70?'var(--red)':r>=35?'var(--warn)':'var(--green)';}
+
+// Bornes du monde serveur : les positions viennent des vraies coordonnées X/Y.
+const WORLD={minX:-3500,maxX:3500,minY:-3500,maxY:3500};
+function worldToPct(gx,gy){
+  const lx=((gx-WORLD.minX)/(WORLD.maxX-WORLD.minX))*100;
+  const ly=((WORLD.maxY-gy)/(WORLD.maxY-WORLD.minY))*100;
+  return {lx:Math.max(2.5,Math.min(97.5,lx)),ly:Math.max(2.5,Math.min(97.5,ly))};
+}
+const players=[
+ {n:"xX_Sniper_92",risk:88,lvl:"hi",ping:34,hp:100,wp:"Sniper lourd",flag:"Précision anormale (aimbot probable)",gx:280,gy:-1650},
+ {n:"ProDriver",risk:71,lvl:"hi",ping:52,hp:100,wp:"—",flag:"Vitesse véhicule impossible",gx:150,gy:-200},
+ {n:"Lucas_M",risk:12,lvl:"lo",ping:28,hp:87,wp:"Pistolet",flag:"Rien à signaler",gx:-2100,gy:-400},
+ {n:"Kevin_LS",risk:44,lvl:"me",ping:61,hp:100,wp:"Fusil",flag:"Cadence de tir élevée",gx:2100,gy:-950},
+ {n:"Marie_RP",risk:6,lvl:"lo",ping:22,hp:95,wp:"—",flag:"Rien à signaler",gx:600,gy:-1500},
+ {n:"Ghost404",risk:79,lvl:"hi",ping:88,hp:100,wp:"—",flag:"Passage à travers un mur",gx:60,gy:900},
+ {n:"Sofia_B",risk:18,lvl:"lo",ping:31,hp:74,wp:"Couteau",flag:"Rien à signaler",gx:1750,gy:1100},
+ {n:"Hugo_92",risk:33,lvl:"me",ping:47,hp:100,wp:"SMG",flag:"Munitions ajoutées",gx:400,gy:-2000},
+ {n:"Nina",risk:9,lvl:"lo",ping:19,hp:100,wp:"—",flag:"Rien à signaler",gx:-1650,gy:1800},
+ {n:"Théo_Dev",risk:15,lvl:"lo",ping:40,hp:60,wp:"Pistolet",flag:"Rien à signaler",gx:-350,gy:150},
+ {n:"Jade",risk:52,lvl:"me",ping:55,hp:100,wp:"Fusil",flag:"Argent : variation brutale",gx:1600,gy:1300},
+ {n:"Sam_LS",risk:4,lvl:"lo",ping:25,hp:88,wp:"—",flag:"Rien à signaler",gx:-1150,gy:-1750},
+ {n:"Léo_RP",risk:11,lvl:"lo",ping:33,hp:100,wp:"—",flag:"Rien à signaler",gx:250,gy:-2300},
+ {n:"Emma",risk:7,lvl:"lo",ping:29,hp:92,wp:"Couteau",flag:"Rien à signaler",gx:820,gy:-2400},
+];
+const bans=[
+ {n:"ProGamer_92",id:"steam:110000112abc1",reason:"Téléportation répétée",cat:"Mouvement",type:"auto",when:"il y a 2 min",risk:94,det:"movement.teleport",pending:false,rec:true},
+ {n:"xX_HvH_Xx",id:"steam:110000198def4",reason:"Précision anormale (aimbot)",cat:"Aimbot",type:"auto",when:"il y a 14 min",risk:88,det:"aim.accuracy",pending:false,rec:true},
+ {n:"ToxicKid",id:"license:9f2c7a11b0",reason:"Spawn massif de véhicules",cat:"Entités",type:"auto",when:"il y a 1 h",risk:83,det:"entity.storm",pending:false,rec:false},
+ {n:"Hacker404",id:"license:44ab90ee12",reason:"Création d'argent illégitime",cat:"Économie",type:"manual",when:"il y a 3 h",risk:77,det:"economy.money",pending:false,rec:false},
+ {n:"NoClipper",id:"steam:110000133aa77",reason:"Passage à travers les murs (no-clip)",cat:"Mouvement",type:"auto",when:"hier · 23:12",risk:90,det:"movement.noclip",pending:false,rec:true},
+ {n:"Kevin_LS",id:"steam:110000133bb01",reason:"Cadence de tir élevée",cat:"Armes",type:"auto",when:"il y a 3 min",risk:58,det:"weapon.firerate",pending:true,rec:true},
+ {n:"Jade",id:"license:33aa22bb44",reason:"Variation brutale de solde",cat:"Économie",type:"auto",when:"il y a 9 min",risk:52,det:"economy.balance",pending:true,rec:false},
+ {n:"Hugo_92",id:"license:88cc11dd22",reason:"Munitions ajoutées",cat:"Armes",type:"auto",when:"il y a 21 min",risk:44,det:"weapon.ammo",pending:true,rec:true},
+ {n:"Sofia_B",id:"steam:110000177ee55",reason:"Rotation caméra anormale",cat:"Aimbot",type:"auto",when:"il y a 32 min",risk:41,det:"aim.camera",pending:true,rec:false},
+];
+
+const protections=[
+ {g:"Déplacement",icon:'<path d="M5 12h14M13 6l6 6-6 6"/>',items:[
+   {nm:"Anti téléportation",ds:"Bloque les sauts de position impossibles.",on:true,mode:"block"},
+   {nm:"Anti no-clip",ds:"Empêche de traverser murs et sol.",on:true,mode:"block"},
+   {nm:"Anti super-saut",ds:"Détecte les sauts anormaux.",on:true,mode:"block"},
+   {nm:"Anti vol / déplacement aérien",ds:"Repère les déplacements en l'air sans véhicule.",on:true,mode:"block"},
+   {nm:"Vitesse impossible",ds:"Vitesse plus élevée que le jeu ne permet.",on:true,mode:"watch"},
+   {nm:"Accélération anormale",ds:"Changements de vitesse brutaux.",on:true,mode:"watch"},
+   {nm:"Position sans événement",ds:"La position change sans action légitime.",on:true,mode:"block"},
+   {nm:"Téléport vers un joueur",ds:"Se téléporte successivement sur des joueurs.",on:true,mode:"block"},
+ ]},
+ {g:"Joueur",icon:'<path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6l-7-3Z"/>',items:[
+   {nm:"Anti invincibilité",ds:"Bloque l'invincibilité persistante.",on:true,mode:"block"},
+   {nm:"Vie au-dessus du maximum",ds:"Vie qui dépasse les valeurs normales.",on:true,mode:"block"},
+   {nm:"Armure anormale",ds:"Armure impossible.",on:true,mode:"block"},
+   {nm:"Régénération instantanée",ds:"Se soigne d'un coup ou en boucle.",on:true,mode:"watch"},
+   {nm:"Anti invisibilité",ds:"Détecte les joueurs rendus invisibles.",on:true,mode:"watch"},
+   {nm:"Résistance aux dégâts",ds:"Prend anormalement peu de dégâts.",on:true,mode:"watch"},
+   {nm:"Suppression du ragdoll",ds:"Ne tombe jamais au sol.",on:false,mode:"watch"},
+ ]},
+ {g:"Armes",icon:'<path d="M3 21l9-9M14 4l6 6-4 2-4-4 2-4Z"/>',items:[
+   {nm:"Arme sans source valable",ds:"Arme obtenue sans autorisation serveur.",on:true,mode:"block"},
+   {nm:"Munitions illégitimes",ds:"Munitions ajoutées sans raison.",on:true,mode:"block"},
+   {nm:"Munitions impossibles",ds:"Quantité de munitions irréaliste.",on:true,mode:"block"},
+   {nm:"Cadence de tir",ds:"Tirs trop rapides.",on:true,mode:"block"},
+   {nm:"Rechargement instantané",ds:"Recharge d'un coup ou en boucle.",on:true,mode:"block"},
+   {nm:"Absence de recul",ds:"Aucun recul anormal.",on:true,mode:"watch"},
+   {nm:"Dégâts truqués",ds:"Dégâts incompatibles avec l'arme.",on:true,mode:"block"},
+   {nm:"Tir à travers les murs",ds:"Tirs qui traversent les obstacles.",on:true,mode:"block"},
+   {nm:"Nombre de tirs impossible",ds:"Trop de tirs sur un court instant.",on:true,mode:"watch"},
+ ]},
+ {g:"Véhicules",icon:'<path d="M3 13l2-5h11l3 5M5 13h14v4H5zM7 17v2M17 17v2"/>',items:[
+   {nm:"Spawn non autorisé",ds:"Véhicule créé sans autorisation.",on:true,mode:"block"},
+   {nm:"Anti-spam de véhicules",ds:"Création massive de véhicules.",on:true,mode:"block"},
+   {nm:"Zones interdites",ds:"Création dans des zones bloquées.",on:true,mode:"block"},
+   {nm:"Véhicule invincible",ds:"Véhicule rendu indestructible.",on:true,mode:"watch"},
+   {nm:"Vitesse / accélération impossible",ds:"Véhicule trop rapide.",on:true,mode:"watch"},
+   {nm:"Téléport du véhicule",ds:"Le véhicule saute de position.",on:true,mode:"block"},
+   {nm:"Réparation instantanée",ds:"Réparé d'un coup en boucle.",on:true,mode:"watch"},
+   {nm:"Changement de modèle",ds:"Modèle modifié anormalement.",on:false,mode:"watch"},
+ ]},
+ {g:"Réseau",icon:'<path d="M4 12a8 8 0 0 1 16 0M7 12a5 5 0 0 1 10 0M12 12h.01"/>',items:[
+   {nm:"Événements serveur protégés",ds:"Empêche d'appeler des events serveur depuis le client.",on:true,mode:"block"},
+   {nm:"Paramètres impossibles",ds:"Event appelé avec des valeurs aberrantes.",on:true,mode:"block"},
+   {nm:"Anti-flood",ds:"Limite les appels trop fréquents.",on:true,mode:"block"},
+   {nm:"Fréquence anormale",ds:"Un même event appelé en boucle.",on:true,mode:"block"},
+   {nm:"Événements admin protégés",ds:"Bloque les tentatives d'events admin.",on:true,mode:"block"},
+   {nm:"Argent/inventaire via event",ds:"Modif d'argent par un event non autorisé.",on:true,mode:"block"},
+   {nm:"Items sans transaction",ds:"Items donnés sans transaction.",on:true,mode:"watch"},
+   {nm:"Permissions via event",ds:"Changement de permissions par event.",on:true,mode:"block"},
+ ]},
+ {g:"Argent",icon:'<circle cx="12" cy="12" r="8"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/>',items:[
+   {nm:"Création d'argent",ds:"Argent apparu sans transaction.",on:true,mode:"block"},
+   {nm:"Variation brutale de solde",ds:"Le solde change d'un coup.",on:true,mode:"watch"},
+   {nm:"Items sans source",ds:"Objets apparus sans origine.",on:true,mode:"block"},
+   {nm:"Quantités impossibles",ds:"Quantités négatives ou irréalistes.",on:true,mode:"block"},
+   {nm:"Duplication d'items",ds:"Objets dupliqués.",on:true,mode:"block"},
+   {nm:"Fréquence achat/vente",ds:"Transactions à une vitesse impossible.",on:true,mode:"watch"},
+   {nm:"Item non possédé",ds:"Utilise un item qu'il n'a pas.",on:true,mode:"block"},
+ ]},
+ {g:"Aimbot / ESP",icon:'<circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',items:[
+   {nm:"Précision suspecte",ds:"Précision anormale sur la durée. Reste en Surveiller au début.",on:true,mode:"watch"},
+   {nm:"Temps de réaction",ds:"Réactions trop rapides pour un humain.",on:true,mode:"watch"},
+   {nm:"Changements de cible",ds:"Cibles changées instantanément en boucle.",on:true,mode:"watch"},
+   {nm:"Tracking à travers les murs",ds:"Suit des joueurs derrière un obstacle.",on:true,mode:"watch"},
+   {nm:"Rotation caméra anormale",ds:"Rotations de vue impossibles.",on:false,mode:"watch"},
+   {nm:"Taux de headshots",ds:"Taux de tirs à la tête anormal.",on:false,mode:"watch"},
+ ]},
+ {g:"Spam & abus",icon:'<path d="M4 5h16M4 12h16M4 19h10"/>',items:[
+   {nm:"Spam d'événements",ds:"Envoie des events en masse.",on:true,mode:"block"},
+   {nm:"Spam de commandes",ds:"Répète des commandes en boucle.",on:true,mode:"block"},
+   {nm:"Création massive d'entités",ds:"Vague d'entités d'un coup.",on:true,mode:"block"},
+   {nm:"Peds en masse",ds:"Création massive de PNJ.",on:true,mode:"block"},
+   {nm:"Objets en masse",ds:"Création massive d'objets.",on:true,mode:"block"},
+   {nm:"Explosions répétées",ds:"Explosions / effets en boucle.",on:true,mode:"block"},
+   {nm:"Suppression massive",ds:"Supprime beaucoup d'entités d'un coup.",on:true,mode:"watch"},
+   {nm:"Flood de requêtes",ds:"Inonde le serveur de requêtes.",on:true,mode:"block"},
+ ]},
+ {g:"Listes & modèles",icon:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',items:[
+   {nm:"Blacklist de peds",ds:"Refuse la création de modèles de PNJ interdits (peds « monstres », animaux de grief).",on:true,mode:"block"},
+   {nm:"Blacklist d'objets",ds:"Refuse la création de props interdits (objets géants qui bloquent une zone).",on:true,mode:"block"},
+   {nm:"Types d'explosion interdits",ds:"Bloque à la source certains types d'explosion (canon orbital, obus de char…).",on:true,mode:"block"},
+ ]},
+ {g:"Connexion",icon:'<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>',items:[
+   {nm:"Pseudos interdits",ds:"Refuse les pseudos usurpant le staff ou une marque.",on:true,mode:"block"},
+   {nm:"Longueur de pseudo",ds:"Signale les pseudos vides ou anormalement longs.",on:true,mode:"watch"},
+   {nm:"Anti-relog",ds:"Repère une reconnexion trop rapide après un départ (évasion de kick).",on:true,mode:"watch"},
+ ]},
+];
+
+/* nav */
+const titles={overview:"Vue d'ensemble",players:"Joueurs — renseignement",map:"Carte live",multiview:"Multi‑vue",bans:"Bans & sanctions",prot:"Configuration",blacklist:"Blacklist",signatures:"Signatures",servers:"Serveurs & licence",install:"Installation",terminal:"Terminal",members:"Comptes & accès"};
+const nav=document.getElementById('nav');
+document.querySelectorAll('.navitem').forEach(it=>it.addEventListener('click',()=>{
+  const v=it.dataset.view;
+  document.querySelectorAll('.navitem').forEach(x=>x.classList.toggle('on',x===it));
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.dataset.view===v));
+  document.getElementById('pageTitle').textContent=titles[v];nav.classList.remove('open');window.scrollTo(0,0);
+}));
+document.getElementById('burger').addEventListener('click',()=>nav.classList.toggle('open'));
+/* segmented selectors (plage de temps) */
+document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));}));
+
+/* overview */
+const feedData=[
+ {s:"hi",h:"Ban automatique — <b>xX_HvH_Xx</b>",m:"Précision anormale sur 42 tirs · corrélé sur 3 min",t:"now"},
+ {s:"me",h:"Alerte — <b>Kevin_LS</b>",m:"Cadence de tir élevée · mis en surveillance",t:"1 min"},
+ {s:"ok",h:"Menace bloquée — <b>ToxicKid</b>",m:"Spawn de 60 véhicules empêché · aucun impact",t:"4 min"},
+ {s:"lo",h:"Nouveau joueur — <b>Emma</b>",m:"Réputation neutre · aucune anomalie",t:"6 min"},
+ {s:"hi",h:"Ban automatique — <b>NoClipper</b>",m:"Passage à travers un mur · preuve enregistrée",t:"12 min"},
+ {s:"me",h:"Alerte — <b>Jade</b>",m:"Variation brutale de solde · en revue",t:"18 min"},
+];
+document.getElementById('liveFeed').innerHTML=feedData.map(f=>`<div class="row"><span class="sev ${f.s}"></span><div class="msg"><div>${f.h}</div><div class="meta">${f.m}</div></div><span class="t">${f.t}</span></div>`).join('');
+const barVals=[8,14,11,19,24,17,22,58,31,26,20,15];
+document.getElementById('bars').innerHTML=barVals.map(v=>`<div class="b ${v>45?'hot':''}" style="height:${Math.round(v/58*100)}%" title="${v}"></div>`).join('');
+
+/* map */
+const mapwrap=document.getElementById('mapwrap'),pcEmpty=document.getElementById('pcEmpty'),pcBody=document.getElementById('pcBody');
+function placeDot(p){const q=worldToPct(p.gx,p.gy);p._el.style.left=q.lx+'%';p._el.style.top=q.ly+'%';}
+players.forEach((p,i)=>{const d=document.createElement('div');d.className='pdot '+p.lvl;d.title=p.n;d.addEventListener('click',()=>selectPlayer(i,d));mapwrap.appendChild(d);p._el=d;placeDot(p);});
+function selectPlayer(i,el){
+  document.querySelectorAll('.pdot').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');
+  const p=players[i];pcEmpty.hidden=true;pcBody.hidden=false;
+  pcBody.innerHTML=`<div class="phead"><div class="pav">${initials(p.n)}</div><div style="flex:1;min-width:0"><div style="font-weight:800">${p.n}</div><div style="color:var(--muted);font-size:12.5px">${p.wp} · ping ${p.ping} ms</div></div></div>
+   <div class="pinfo"><div class="rowline"><span class="l">Niveau de risque</span><span class="v" style="color:${riskColor(p.risk)}">${p.risk}/100</span></div>
+   <div class="riskbar"><i style="width:${p.risk}%;background:${riskColor(p.risk)}"></i></div>
+   <div class="rowline"><span class="l">Vie</span><span class="v num">${p.hp} %</span></div>
+   <div class="rowline"><span class="l">Position (X · Y)</span><span class="v mono">${Math.round(p.gx)}, ${Math.round(p.gy)}</span></div>
+   <div class="rowline"><span class="l">Signal</span><span class="v" style="max-width:170px">${p.flag}</span></div></div>
+   <div class="pactions"><button class="btn btn-sm" onclick="toast('Avertissement envoyé à ${p.n}')">Avertir</button>
+   <button class="btn btn-sm" onclick="toast('${p.n} expulsé')">Kick</button>
+   <button class="btn btn-sm btn-ghost" onclick="openPlayerDrawer(${i})">Fiche</button>
+   <button class="btn btn-sm btn-red" onclick="toast('${p.n} banni','red')">Bannir</button></div>`;
+}
+if(!matchMedia('(prefers-reduced-motion: reduce)').matches){setInterval(()=>{players.forEach(p=>{if(Math.random()<.5)return;p.gx=Math.max(-3400,Math.min(3400,p.gx+(Math.random()*160-80)));p.gy=Math.max(-3400,Math.min(3400,p.gy+(Math.random()*160-80)));placeDot(p);});},1600);}
+
+/* bans */
+const banRows=document.getElementById('banRows');let banFilter='all',banQuery='',banSub='sanctions';
+function catColor(c){return {Aimbot:'red',Mouvement:'red',Joueur:'red',Entités:'amb',Économie:'amb',Réseau:''}[c]||'';}
+function banState(b){
+  if(b.pending)return '<span class="tag amb">Sanction en attente</span>';
+  return b.type==='auto'?'<span class="tag grn">Banni · Z-Shield</span>':'<span class="tag">Banni · Manuel</span>';
+}
+function banProof(b){return b.rec?'<span class="tag grn">▶ Clip</span>':'<span class="tag">Capture</span>';}
+function renderBans(){
+  const rows=bans.filter(b=>(banSub==='sanctions'?b.pending:!b.pending)&&(banFilter==='all'||b.type===banFilter)&&(b.n+b.id+b.reason).toLowerCase().includes(banQuery));
+  banRows.innerHTML=rows.map(b=>`<tr onclick="openBanDrawer(${bans.indexOf(b)})"><td><div class="pl"><div class="mini">${initials(b.n)}</div><div><div class="who">${b.n}</div><div class="id mono">${b.id}</div></div></div></td><td>${b.reason}<div style="margin-top:4px"><span class="tag ${catColor(b.cat)}">${b.cat}</span></div></td><td>${banState(b)}</td><td style="color:var(--sub)">${b.when}</td><td>${banProof(b)}</td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">${banSub==='sanctions'?'Aucune sanction en attente':'Aucun bannissement'}</td></tr>`;
+}
+document.getElementById('banSearch').addEventListener('input',e=>{banQuery=e.target.value.toLowerCase();renderBans();});
+document.querySelectorAll('.chip[data-filter]').forEach(c=>c.addEventListener('click',()=>{document.querySelectorAll('.chip[data-filter]').forEach(x=>x.classList.toggle('on',x===c));banFilter=c.dataset.filter;renderBans();}));
+document.querySelectorAll('#banSub button').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('#banSub button').forEach(x=>x.classList.toggle('on',x===btn));banSub=btn.dataset.bs;renderBans();}));
+renderBans();
+
+function sceneSVG(){return `<svg viewBox="0 0 320 180" style="width:100%;height:100%"><rect width="320" height="180" fill="#040605"/><g stroke="#12261a" stroke-width="1"><path d="M0 60H320M0 120H320M80 0V180M160 0V180M240 0V180"/></g><rect x="150" y="82" width="16" height="16" rx="3" fill="#e0655c"/><circle cx="158" cy="90" r="22" fill="none" stroke="#e0655c" stroke-width="1.5" opacity=".5"/><g fill="#33e58a"><circle cx="60" cy="130" r="4"/><circle cx="250" cy="50" r="4"/><circle cx="210" cy="140" r="4"/></g><path d="M158 90 L250 50" stroke="#e0655c" stroke-width="1.4" stroke-dasharray="4 3"/><text x="12" y="168" fill="#5c675d" font-family="monospace" font-size="9">reconstitution serveur · t = ban − 0.2 s</text></svg>`;}
+function openBanDrawer(i){const b=bans[i];document.getElementById('drawerMount').innerHTML=`<div class="scrim" onclick="closeDrawer()"></div><div class="drawer" role="dialog"><div class="dh"><div class="pav">${initials(b.n)}</div><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:16px">${b.n}</div><div class="mono" style="color:var(--faint);font-size:12px">${b.id}</div></div><div class="close" onclick="closeDrawer()">✕</div></div><div class="db"><div><span class="tag red">${b.reason}</span><div class="kv" style="margin-top:12px"><span class="l">Détecteur</span><span class="v mono">${b.det}</span><span class="l">Catégorie</span><span class="v">${b.cat}</span><span class="l">Type</span><span class="v">${b.type==='auto'?'Automatique (Z-Shield)':'Manuel (admin)'}</span><span class="l">Confiance</span><span class="v" style="color:${riskColor(b.risk)}">${b.risk}/100</span><span class="l">Quand</span><span class="v">${b.when}</span></div></div><div class="evidence"><div class="cap"><span>${b.rec?'Clip du jeu · avant / pendant la sanction':'Capture du jeu · instant de la sanction'}</span><span style="color:var(--faint);font-weight:600">déclarée aux joueurs</span></div><div class="shot">${sceneSVG()}${b.rec?'<div class="reclab"><span class="recdot"></span>REC · 0:06</div>':''}<div class="zbadge"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M52 122 200 40 150 104 116 152 100 126Z"/><path d="M150 150 214 122 128 224Z"/></svg> Protégé par Z-Shield</div></div></div><div><div style="font-weight:700;margin-bottom:10px">Ce qui s'est passé</div><div class="timeline"><div class="ev"><span class="pt" style="background:var(--muted)"></span><div class="txt">Comportement normal<div class="tt">t − 8 s</div></div></div><div class="ev"><span class="pt" style="background:var(--warn)"></span><div class="txt">Premier signal faible<div class="tt">t − 3 s</div></div></div><div class="ev"><span class="pt" style="background:var(--warn)"></span><div class="txt">Corrélation de 3 signaux<div class="tt">t − 1 s</div></div></div><div class="ev"><span class="pt" style="background:var(--red)"></span><div class="txt">Preuve capturée + sanction<div class="tt">t = 0</div></div></div></div></div>${b.pending?'<div class="learnnote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg><span>Chaque décision entraîne l\'anticheat : un « faux positif » ajuste le seuil du détecteur <b class="mono">'+b.det+'</b> pour éviter de re-sanctionner ce comportement.</span></div>':''}</div><div class="dactions">${b.pending?`<button class="btn btn-green" onclick="toast('Ban confirmé pour ${b.n}');closeDrawer()">Confirmer le ban</button><button class="btn" onclick="toast('${b.n} réduit en kick');closeDrawer()">Réduire en kick</button><button class="btn btn-ghost" onclick="toast('Faux positif — l\\'anticheat apprend');closeDrawer()">Faux positif</button>`:`<button class="btn" onclick="toast('${b.n} débanni');closeDrawer()">Débannir</button><button class="btn btn-red" onclick="toast('Ban définitif','red');closeDrawer()">Ban définitif</button>`}</div></div>`;}
+function openPlayerDrawer(i){const p=players[i];document.getElementById('drawerMount').innerHTML=`<div class="scrim" onclick="closeDrawer()"></div><div class="drawer" role="dialog"><div class="dh"><div class="pav">${initials(p.n)}</div><div style="flex:1"><div style="font-weight:800;font-size:16px">${p.n}</div><div class="mono" style="color:var(--faint);font-size:12px">en jeu · ping ${p.ping} ms</div></div><div class="close" onclick="closeDrawer()">✕</div></div><div class="db"><div class="kv"><span class="l">Risque</span><span class="v" style="color:${riskColor(p.risk)}">${p.risk}/100</span><span class="l">Arme</span><span class="v">${p.wp}</span><span class="l">Vie</span><span class="v num">${p.hp}%</span><span class="l">Signal</span><span class="v" style="max-width:180px">${p.flag}</span></div><div class="notice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Ce joueur est <b>en jeu</b>. Une preuve sera capturée automatiquement en cas de ban.</div></div></div><div class="dactions"><button class="btn" onclick="toast('${p.n} expulsé');closeDrawer()">Kick</button><button class="btn btn-red" onclick="toast('${p.n} banni','red');closeDrawer()">Bannir</button></div></div>`;}
+function closeDrawer(){document.getElementById('drawerMount').innerHTML='';}
+
+/* ===== Configuration : 165 réglages, 7 onglets ===== */
+const TG=(n,on)=>({n,t:'tg',on:on!==false});
+const FD=(n,v)=>({n,t:'fd',v:v||''});
+const SL=(n)=>({n,t:'sl'});
+const LS=(n,c)=>({n,t:'ls',c:c||0});
+const CONFIG=[
+ {tab:'Général',groups:[
+   {g:'EZ Action',items:[SL('EZ Action')]},
+   {g:'Détections Santé',items:[TG('Anti Health Regeneration'),TG('Anti Health Stat Modification'),TG('Anti Invincibility'),TG('Anti Damage Immunity'),FD('Revive Event Name','esx:revive')]},
+   {g:'Détections Événements',items:[TG('AI Server Event Protection'),TG('AI Client Event Protection'),TG('AI Export Protection'),TG('Trigger Blacklist'),LS('Blacklisted Triggers',3),TG('Trigger Rate Limiter'),LS('Trigger Rate Limiter Rules',2),LS('Event Protection Exceptions',0)]},
+   {g:'Joueur',items:[TG('Anti Invisibility'),TG('Anti Super Jump'),TG('Anti Infinite Combat Roll'),FD('Combat Roll Limit','3'),TG('Anti Infinite Stamina'),TG('Anti Model Change'),TG('Anti Night Vision'),TG('Anti AFK Bypass'),TG('Anti LUA Input')]},
+   {g:'Divers',items:[TG('Anti Resource Stop'),TG('Anti Resource Injection'),TG('Passive Injection Observation'),SL('Passive Injection Action'),TG('Anti Clear Tasks'),TG('Anti Dev Tools'),TG('Anti Spoofer'),TG('Anti Voice Exploits'),TG('Anti Crash Exploits')]},
+ ]},
+ {tab:'Armes',groups:[
+   {g:'Détections Armes',items:[TG('Anti Weapon Spawn'),LS('Add-On Weapons',0),TG('Anti Give Weapons'),TG('Anti Remove Weapons'),TG('Anti Spoofed Bullets'),TG('Anti Kill Exploits'),TG('Enable Weapons Blacklist'),LS('Blacklisted Weapons',6)]},
+   {g:'Triches Armes',items:[TG('Anti Aimbot'),TG('Anti Weapon Component Modifier'),TG('Anti Weapon Damage Modifier'),TG('Anti Ammo Cheats'),TG('Anti Infinite Ammo'),TG('Anti No Reload'),TG('Anti Explosive Bullets'),TG('Anti Super Punch'),TG('Anti Hitbox Modifier'),TG('Anti No Recoil')]},
+   {g:'Projectiles',items:[TG('Enable Projectiles Whitelist',false),LS('Whitelisted Projectiles',0),TG('Enable Projectiles Limiter'),FD('Projectiles Spawn Limit','10'),TG('Log Projectile Spawns (Console)',false)]},
+ ]},
+ {tab:'Entités',groups:[
+   {g:'Détections Véhicules',items:[TG('AI Anti Vehicle Spawn'),TG('Anti AI Vehicle Spawn'),TG('Anti Isolated Vehicle Spawn'),TG('Enable Vehicle Blacklist'),LS('Blacklisted Vehicles',3),TG('Enable Vehicle Whitelist',false),LS('Whitelisted Vehicles',0),TG('Enable Vehicle Spawn Limiter'),FD('Vehicle Spawn Limit','5'),TG('Log Vehicle Spawns (Console)',false),TG('Log Vehicle Blacklist Blocks (Console)'),TG('Anti Vehicle Throwing'),TG('Anti Vehicle Deletion'),TG('Anti Vehicle Hijacking'),TG('Anti Vehicle Speed Modifier'),TG('Anti Vehicle Handling Modifier'),TG('Anti Vehicle Plate Changer'),TG('Disable Vehicle Damage to Players',false),TG('Auto-Delete Destroyed Vehicles',false)]},
+   {g:'Détections PNJ',items:[TG('Disable NPC Population',false),TG('AI Anti Ped Spawn'),TG('Anti AI Ped Spawn'),TG('Enable Ped Blacklist'),LS('Blacklisted Peds',0),TG('Enable Ped Whitelist',false),LS('Whitelisted Peds',0),TG('Enable Ped Spawn Limiter'),FD('Ped Spawn Limit','10'),TG('Log Ped Spawns (Console)',false)]},
+   {g:'Détections Objets',items:[TG('AI Anti Object Spawn'),TG('Enable Object Blacklist'),LS('Blacklisted Objects',0),TG('Enable Object Whitelist',false),LS('Whitelisted Objects',0),TG('Enable Object Spawn Limiter'),FD('Object Spawn Limit','20'),TG('Anti Pickup Spawn'),TG('Log Object Spawns (Console)',false)]},
+ ]},
+ {tab:'Explosions',groups:[
+   {g:'Détections Explosions',items:[TG('AI Anti Explosion'),TG('Enable Explosion Blacklist'),FD('Blacklisted Explosions','TANKSHELL, HI_OCTANE…'),TG('Anti Invisible Explosions'),TG('Anti Inaudible Explosions'),TG('Enable Explosion Limiter'),FD('Explosion Limit','6'),TG('Cancel All Explosions',false),TG('Cancel All Fires',false),TG('Log Explosion Spawns (Console)',false)]},
+   {g:'Détections Particules',items:[TG('AI Anti Particle'),TG('Enable Particle Whitelist',false),LS('Whitelisted Particles',0),TG('Anti Attached Particles'),FD('Particle Scale Limit','10'),TG('Log Particle Spawns (Console)',false)]},
+ ]},
+ {tab:'Premium',groups:[
+   {g:'Fonctions Premium',items:[TG('Anti Synaps'),TG('Anti Vehicle Control Request'),TG('Anti Sound Exploits'),TG('Anti Forced Ragdoll'),TG('Anti Vehicle Bombing'),TG('Anti Cheat Traces')]},
+ ]},
+ {tab:'Bêta',groups:[
+   {g:'Fonctions expérimentales',items:[TG('Anti Unisolated Injection',false),LS('Execution Patterns Exceptions',0),TG('Anti Magneto',false),TG('Anti Vehicle Attachment',false),TG('Anti Silent Aim',false)]},
+ ]},
+ {tab:'Détection avancée',groups:[
+    {g:'Visée — analyse statistique',items:[TG('Moteur Statistique de Visée'),FD('Seuil Ratio Headshot','0.70'),FD('Snap Angulaire Moyen Max (°)','45'),FD('Réaction Minimale (ms)','90'),FD('Échantillon Minimum','30')]},
+    {g:'Mouvement — cinématique verticale',items:[TG('Anti Vol / Noclip'),FD('Vitesse Ascension Max (m/s)','20'),FD('Distance Blink (m)','75'),FD('Altitude Max Hors-Aéronef (m)','1500')]},
+    {g:'Dégâts — intégrité par arme',items:[TG('Intégrité Dégâts par Arme'),FD('Tolérance Dégâts (%)','25'),FD('Portée Max Défaut (m)','120'),FD('Cadence Minimale Défaut (ms)','80')]},
+    {g:'Économie — provenance des gains',items:[TG('Provenance des Gains'),FD('Fenêtre Source Légitime (ms)','8000'),FD('Montant Minimum Contrôlé','100')]},
+    {g:'Freecam & spectate',items:[TG('Anti Freecam / Spectate'),FD('Durée Fige Freecam (ms)','4000'),FD('Activité Min Freecam','5')]},
+    {g:'Séquences causales',items:[TG('Anti Action en Étant Mort'),TG('Provenance des Armes'),TG('Anti Action Pré-Spawn')]},
+    {g:'Désync & réseau',items:[TG('Anti Désync Origine de Tir'),FD('Désync Max (m)','8'),TG('Anti Lag-Switch'),FD('Gel Min Lag-Switch (ms)','1500')]},
+    {g:'ESP & radar',items:[TG('Anti ESP Indirect'),FD('Portée Streaming (m)','300'),FD('Requêtes Lointaines Max','12')]},
+    {g:'Portée des actions',items:[TG('Anti Reach / Distance'),FD('Portée Mêlée Max (m)','4'),FD('Portée Interaction Max (m)','6')]},
+    {g:'God mode (serveur)',items:[TG('Anti God Mode (Dégâts Non Appliqués)'),TG('Anti Réparation Véhicule Injectée'),FD('Dégât Minimum Contrôlé','5')]},
+    {g:'Entités & ownership',items:[TG('Anti Churn Ownership'),FD('Ownership Max / Fenêtre','25'),TG('Anti Flood Création Entités'),FD('Créations Max / Fenêtre','20')]},
+    {g:'Corrélation (méta)',items:[TG('Signature de Trainer / Menu'),FD('Détecteurs Distincts Min','3'),FD('Fenêtre Corrélation (ms)','15000')]},
+    {g:'Comportement',items:[TG('Anti Bot / Macro'),FD('Actions Min Analysées','12')]},
+    {g:'Spawn',items:[TG('Anti Spawn-Kill'),FD('Protection Spawn (ms)','5000')]},
+    {g:'Chat & commandes',items:[TG('Anti-Spam Chat / Commandes'),FD('Messages Max / Fenêtre','8')]},
+    {g:'Téléportation',items:[TG('Anti Téléport (menu)'),FD('Saut Min Téléport (m)','100'),FD('Téléports Min','3')]},
+    {g:'Auto-protection',items:[TG('Anti-Stop Ressources (protégées)'),TG('Anti-Stop Anticheat'),TG('Anti-Bypass Anticheat'),FD('Ressources Protégées','zshield-ac, zshield-agent')]},
+    {g:'Anti-executor & injection',items:[TG('Anti-Executor'),TG('Allowlist Ressources Stricte'),FD('Signatures Bloquées','executor, injectlua')]},
+    {g:'Anti-menu de triche',items:[TG('Anti-Menu de Triche'),FD('Rafale Max Actions','5')]},
+    {g:'Anti-crash',items:[TG('Anti-Crash Entités Malformées'),FD('Coordonnée Max','1000000')]},
+    {g:'Réputation joueur',items:[TG('Réputation Persistante'),FD('Décroissance par Heure','5'),FD('Seuil de Signalement','60')]},
+    {g:'Serveur-autoritatif (réconciliation)',items:[TG('Réconciliation Serveur-Autoritative'),TG('Correction Santé'),TG('Correction Argent'),TG('Correction Munitions'),FD('Tolérance Réconciliation','1')]},
+    {g:'Invariants durs',items:[TG('Invariants Durs (registre)'),TG('Invariant · Santé ≤ Max'),TG('Invariant · Armure ≤ Max'),TG('Invariant · Santé ≥ 0'),TG('Invariant · Argent ≥ 0'),TG('Invariant · Argent ≤ Plafond'),TG('Invariant · Vitesse ≤ Max'),TG('Invariant · Munitions ≤ Capacité'),TG('Invariant · Dégâts ≤ Base'),TG('Invariant · Coordonnées dans le Monde'),TG('Invariant · Altitude dans les Bornes'),TG('Invariant · Échelle Valide'),TG('Invariant · Endurance ≤ Max'),TG('Invariant · Entités ≤ Quota')]},
+    {g:'Enveloppes de débit',items:[TG('Enveloppes de Débit'),FD('Quota Tir / Fenêtre','120'),FD('Quota Spawn / Fenêtre','20'),FD('Quota Messages / Fenêtre','8')]},
+    {g:'Statistique avancée (SPRT / z-score)',items:[TG('Test Séquentiel SPRT (Wald)'),FD('SPRT · alpha (faux positif max)','0.01'),FD('SPRT · beta (faux négatif max)','0.05'),TG('Test Binomial Headshots'),FD('Base Headshot (%)','20'),TG('Ligne de Base Adaptative (z-score)'),FD('Z-Max','3.5')]},
+    {g:'Validation de tir (compensation latence)',items:[TG('Validation de Tir Serveur (rewind)'),FD('Fenêtre Rewind (ms)','1000'),FD('Tolérance Angle Visée (°)','12'),FD('Portée Défaut (m)','120')]},
+    {g:'Fusion & séquences',items:[TG('Fusion Bayésienne Multi-Signaux'),FD('Seuil Composite (cote)','4.0'),TG('Analyse de Séquences (Markov)'),FD('Entropie Minimale','0.25'),TG('Cohérence Horloge (anti-speedhack)'),FD('Ratio Horloge Max','1.15')]},
+  ]},
+  {tab:'Réglages',groups:[
+   {g:'Intégration Discord',items:[TG('Enable Discord Logging'),TG('Show IP Addresses in Logs',false),FD('Main Webhook','https://discord.com/api/webhooks/…'),FD('Entities Webhook',''),FD('Explosions Webhook',''),FD('Weapons Webhook',''),FD('Unbans Webhook',''),FD('Connections Webhook',''),FD('Public Logs Webhook','')]},
+   {g:'Réglages système',items:[TG('Anti Backdoor'),TG('Stop Server on Backdoor'),FD('Command Prefix','/zshield'),LS('Ignored Scripts',0)]},
+   {g:'Système de bans',items:[TG('Enable Ban System'),TG('Enable Screenshot System'),TG('Enable Gameplay Recording'),FD('Ban Duration (seconds)','0'),TG('Ban IP Address',false),FD('Ban Message','Banni par Z-Shield.'),TG('Log Unbans to Discord')]},
+   {g:'Gestion des connexions',items:[TG('Log Connections to Discord'),TG('Log Connections to Console',false),TG('Enable Connect Logs'),TG('Enable Disconnect Logs'),FD('Max Threat Score','100'),TG('Anti VPN',false),TG('Anti XSS Injection'),TG('Anti Connection Duplication'),TG('Require Discord Linked',false),TG('Require Alphanumeric Name',false),TG('Force Beta Channel',false)]},
+ ]},
+];
+const CFG_TOTAL=CONFIG.reduce((a,tb)=>a+tb.groups.reduce((b,g)=>b+g.items.length,0),0);
+let cfgTab=0, cfgQuery='', cfgDirty=false;
+
+function ctrlHTML(it){
+  if(it.t==='tg') return `<div class="sw ${it.on?'on':''}" role="switch" aria-checked="${it.on}" onclick="cfgToggle(this)"></div>`;
+  if(it.t==='fd') return `<input class="fld" value="${(it.v||'').replace(/"/g,'&quot;')}" placeholder="…" oninput="cfgTouch()">`;
+  if(it.t==='sl') return `<select class="fld" onchange="cfgTouch()"><option>Texte</option><option>Nombre</option><option>Liste</option></select>`;
+  if(it.t==='ls') return `<button class="listbtn" onclick="cfgTouch();toast('Éditer la liste (démo)')">Gérer <span class="cnt">${it.c}</span></button>`;
+  return '';
+}
+// Explication de chaque réglage, affichée au survol du « ? ». En clair, pour un
+// gérant de serveur non technique.
+const CFG_HELP={
+  "Fusion Bayésienne Multi-Signaux": "Combine TOUS les indices des détecteurs en une seule cote (log-odds) par joueur, façon Bayes naïf, avec décroissance. Un faisceau d'indices moyens convergents produit une confiance composite élevée — bien plus robuste qu'un détecteur seul.",
+  "Seuil Composite (cote)": "Cote combinée à partir de laquelle un signal composite haute-confiance est émis.",
+  "Analyse de Séquences (Markov)": "Modélise le flux d'actions en transitions (chaîne de Markov). Une entropie CONDITIONNELLE très basse (séquence quasi déterministe) trahit un script/macro ; les transitions interdites (séquences impossibles) sont aussi signalées.",
+  "Entropie Minimale": "Entropie conditionnelle en dessous de laquelle la séquence est jugée scriptée.",
+  "Cohérence Horloge (anti-speedhack)": "Compare l'écoulement du temps côté client à celui du serveur ; un temps client qui avance nettement plus vite (ratio > tolérance) trahit un speedhack par accélération d'horloge.",
+  "Ratio Horloge Max": "Ratio temps-client / temps-serveur au-delà duquel l'horloge est jugée accélérée.",
+  "Test Séquentiel SPRT (Wald)": "Technique statistique réelle (Wald 1945, utilisée pour tester les moteurs d'échecs) : au lieu d'un seuil arbitraire, on accumule la preuve tir après tir et on ne décide que quand la confiance est suffisante — avec des taux d'erreur BORNÉS par construction (faux positif ≤ alpha, faux négatif ≤ beta). Le contraire d'un seuil au doigt mouillé.",
+  "SPRT · alpha (faux positif max)": "Taux de faux positif maximal garanti par le test séquentiel.",
+  "SPRT · beta (faux négatif max)": "Taux de faux négatif maximal garanti par le test séquentiel.",
+  "Test Binomial Headshots": "Compare le ratio de headshots observé à une base humaine via une loi binomiale ; une p-value infime (ratio quasi impossible) lève un signal. Méthode de comparaison de distribution (Yu & Hammerla, IEEE).",
+  "Base Headshot (%)": "Ratio de headshots attendu d'un joueur humain, servant de référence au test binomial.",
+  "Ligne de Base Adaptative (z-score)": "Apprend la distribution NORMALE de chaque métrique PAR JOUEUR (moyenne/variance en ligne, Welford) et signale un écart-type soutenu. La base n'est mise à jour que par les valeurs non-aberrantes (anti-empoisonnement).",
+  "Z-Max": "Nombre d'écarts-types au-delà duquel une valeur est considérée aberrante.",
+  "Validation de Tir Serveur (rewind)": "Rembobine la position de la victime au moment du tir (position − latence, bornée) et vérifie que la touche est géométriquement possible : à portée et dans la ligne de visée. Une touche impossible même après compensation est rejetée (standard des jeux serveur-autoritaires).",
+  "Fenêtre Rewind (ms)": "Durée maximale de rembobinage pour compenser la latence.",
+  "Tolérance Angle Visée (°)": "Écart angulaire maximal entre la visée et la cible rembobinée ; au-delà, touche sans ligne de visée = silent-aim.",
+  "Portée Défaut (m)": "Portée appliquée à la validation de tir quand l'arme n'a pas de portée dédiée.",
+  "Réconciliation Serveur-Autoritative": "La couche la plus coriace : le serveur tient la VÉRITÉ (santé/armure/argent/munitions). Une valeur client au-dessus de la vérité serveur est rejetée et corrigée — modifier son client ne sert à rien, la valeur trichée n'est jamais acceptée.",
+  "Correction Santé": "Réconcilie la santé rapportée par le client avec la vérité serveur (dégâts appliqués / soins accordés).",
+  "Correction Argent": "Réconcilie le solde avec la vérité serveur (paies/achats enregistrés) — l'argent injecté est rejeté.",
+  "Correction Munitions": "Réconcilie les munitions par arme avec la vérité serveur (dotations/tirs) — munitions infinies rejetées.",
+  "Tolérance Réconciliation": "Marge tolérée avant de rejeter une valeur au-dessus de la vérité (latence/arrondis).",
+  "Invariants Durs (registre)": "Registre de règles TOUJOURS vraies (bornes physiques du jeu). Une violation n'est pas une probabilité : la valeur est hors bornes, point. Extensible à volonté.",
+  "Enveloppes de Débit": "Plafond de cadence par classe d'événement (tir, spawn, message, achat…). Au-delà du quota, les events sont bridés à la source — borne dure côté serveur.",
+  "Quota Tir / Fenêtre": "Nombre de tirs autorisés par fenêtre avant bridage.",
+  "Quota Spawn / Fenêtre": "Nombre de spawns d'entités autorisés par fenêtre avant bridage.",
+  "Quota Messages / Fenêtre": "Nombre de messages de chat autorisés par fenêtre avant bridage.",
+  "Invariant · Santé ≤ Max": "La santé d'un joueur ne peut jamais dépasser le maximum ; toute valeur supérieure est une violation dure.",
+  "Invariant · Armure ≤ Max": "L'armure ne peut jamais dépasser son maximum.",
+  "Invariant · Santé ≥ 0": "La santé ne peut pas être négative.",
+  "Invariant · Argent ≥ 0": "Le solde d'un joueur ne peut pas être négatif.",
+  "Invariant · Argent ≤ Plafond": "Le solde ne peut pas dépasser un plafond configurable (anti-injection massive).",
+  "Invariant · Vitesse ≤ Max": "La vitesse ne peut pas dépasser le maximum du mode (à pied / véhicule).",
+  "Invariant · Munitions ≤ Capacité": "Les munitions ne peuvent pas dépasser une réserve plausible.",
+  "Invariant · Dégâts ≤ Base": "Les dégâts d'un tir ne peuvent pas dépasser la base de l'arme (+ tolérance).",
+  "Invariant · Coordonnées dans le Monde": "Les coordonnées doivent être finies et dans les bornes du monde (anti hors-carte / NaN).",
+  "Invariant · Altitude dans les Bornes": "L'altitude doit rester dans les bornes plausibles hors aéronef.",
+  "Invariant · Échelle Valide": "L'échelle d'une entité doit rester dans une plage saine (anti gigantisme / crash).",
+  "Invariant · Endurance ≤ Max": "L'endurance ne peut pas dépasser son maximum.",
+  "Invariant · Entités ≤ Quota": "Le nombre d'entités possédées par un joueur ne peut pas dépasser son quota.",
+  "Anti-Stop Ressources (protégées)": "Empêche l'arrêt des ressources déclarées protégées par une source non autorisée (seule la console/les admins déclarés peuvent les stopper).",
+  "Anti-Stop Anticheat": "Cas particulier : toute tentative d'arrêt du cœur anticheat par une source non autorisée est bloquée et traitée en incident CRITIQUE.",
+  "Anti-Bypass Anticheat": "Un client qui émet un event INTERNE de l'AC (préfixe réservé) tente d'usurper le protocole — signalé. Un watchdog détecte aussi l'arrêt/neutralisation du cœur (plus de battement).",
+  "Ressources Protégées": "Liste des ressources dont l'arrêt est interdit hors admin (le cœur AC, l'agent et le module client le sont par défaut).",
+  "Anti-Executor": "Détecte les injecteurs de script Lua : un event émis par une ressource non déclarée (allowlist) ou correspondant à une signature connue = script injecté.",
+  "Allowlist Ressources Stricte": "Quand activée, seules les ressources listées peuvent émettre des events ; toute autre = injection (défense la plus robuste, car indépendante du nom).",
+  "Signatures Bloquées": "Fragments de noms de ressources/events d'outils de triche connus. Utile contre les setups non modifiés ; renommables, d'où l'allowlist en défense principale.",
+  "Anti-Menu de Triche": "Repère les menus par le nom de leurs events (godmode, giveall, noclip…) ET par la rafale d'actions puissantes enchaînées en quelques secondes. La corrélation multi-signaux tranche.",
+  "Rafale Max Actions": "Nombre d'actions « puissantes » (spawn/give/god/tp) par fenêtre au-delà duquel c'est un usage de menu.",
+  "Anti-Crash Entités Malformées": "Valide les attributs numériques d'entité avant propagation : NaN, infini ou valeurs hors bornes = crasher, entité rejetée à la source.",
+  "Coordonnée Max": "Borne absolue des coordonnées/vitesses ; au-delà, l'entité est considérée malformée.",
+  "Réputation Persistante": "Le risque survit à la reconnexion : accumulé par identifiant (license/HWID), il décroît lentement et ré-amorce le risque de session d'un récidiviste à la connexion.",
+  "Décroissance par Heure": "Points de réputation perdus par heure (un vieux fait pèse moins).",
+  "Seuil de Signalement": "Au-delà de ce score, l'identifiant est signalé (surveillance renforcée dès la connexion).",
+  "Signature de Trainer / Menu": "Méta-détecteur : quand plusieurs détecteurs SÉRIEUX distincts frappent le même joueur dans une courte fenêtre (ex. noclip + god mode + injection d'arme), c'est une signature de menu de triche — confiance élevée. Corrèle, ne bannit pas seul.",
+  "Détecteurs Distincts Min": "Nombre de détecteurs sérieux DISTINCTS concomitants requis pour lever la signature de menu.",
+  "Fenêtre Corrélation (ms)": "Durée pendant laquelle les signaux sont combinés.",
+  "Anti Bot / Macro": "Détecte une cadence métronomique : des actions répétées à intervalles quasi identiques (coefficient de variation très bas) trahissent un macro/bot, pas une main humaine.",
+  "Actions Min Analysées": "Nombre minimal d'actions avant d'évaluer la régularité (évite les faux positifs).",
+  "Anti Spawn-Kill": "Le serveur connaît l'instant de spawn : infliger des dégâts à une victime encore protégée au spawn est signalé (spawn-kill / bypass de protection).",
+  "Protection Spawn (ms)": "Durée de la fenêtre de protection au spawn.",
+  "Anti-Spam Chat / Commandes": "Borne le débit de messages/commandes par fenêtre et repère la répétition du même texte (bots de pub, flood).",
+  "Messages Max / Fenêtre": "Nombre de messages par fenêtre au-delà duquel c'est du spam.",
+  "Anti Téléport (menu)": "Repère le MOTIF d'un menu de TP : des téléports longue distance répétés (un lag isolé fait un saut ; un menu en fait plusieurs). Les téléports de confiance serveur sont exclus.",
+  "Saut Min Téléport (m)": "Distance minimale d'un saut pour être compté comme téléport.",
+  "Téléports Min": "Nombre de téléports longue distance dans la fenêtre au-delà duquel un signal est levé.",
+  "Anti ESP Indirect": "Détecte un ESP/radar par ses REQUÊTES : un joueur qui réclame la synchro/ownership d'entités hors de sa portée de streaming, en volume, « voit » ce qu'il ne devrait pas. Serveur-autoritatif, corrélant.",
+  "Portée Streaming (m)": "Distance au-delà de laquelle une entité réclamée est considérée « hors portée » et comptée.",
+  "Requêtes Lointaines Max": "Nombre de requêtes hors portée par fenêtre au-delà duquel un signal ESP est levé.",
+  "Anti Reach / Distance": "Action (mêlée, loot, ramassage, interaction) au-delà de la portée légitime du type d'action = reach hack. Le serveur connaît la distance acteur↔cible.",
+  "Portée Mêlée Max (m)": "Distance maximale d'un coup de mêlée légitime.",
+  "Portée Interaction Max (m)": "Distance maximale d'une interaction/loot/ramassage légitime.",
+  "Anti God Mode (Dégâts Non Appliqués)": "Invincibilité vue par la conséquence : le joueur encaisse des dégâts (event serveur) mais sa santé ne baisse pas (voire remonte). 100 % serveur.",
+  "Anti Réparation Véhicule Injectée": "La santé d'un véhicule remonte fortement SANS event de réparation légitime = réparation injectée (provenance).",
+  "Dégât Minimum Contrôlé": "Seuil de dégât en dessous duquel on n'analyse pas l'application (bruit).",
+  "Anti Churn Ownership": "Prise d'ownership réseau d'un grand nombre d'entités en très peu de temps — motif de crasher / manipulation d'entités.",
+  "Ownership Max / Fenêtre": "Nombre de prises d'ownership par fenêtre au-delà duquel un signal est levé.",
+  "Anti Flood Création Entités": "Création d'entités (véhicules/objets/props) à cadence impossible manuellement — spam / trainer.",
+  "Créations Max / Fenêtre": "Nombre de créations d'entités par fenêtre au-delà duquel un signal est levé.",
+  "Anti Freecam / Spectate": "Heuristique SERVEUR : la caméra libre laisse le ped FIGÉ pendant que le joueur reste actif (aim/tir). Ped immobile + activité soutenue au-delà du seuil = freecam probable. Réel côté serveur, corrélant (ne bannit pas seul) ; le module client le précise.",
+  "Durée Fige Freecam (ms)": "Durée minimale d'immobilité du ped, joueur actif, avant de lever un signal freecam.",
+  "Activité Min Freecam": "Nombre minimum d'events non-idle (aim/tir/interaction) pendant l'immobilité pour distinguer freecam d'un simple AFK.",
+  "Anti Action en Étant Mort": "Provenance causale : un tir/dégât alors que l'état SERVEUR du joueur est « mort » n'a pas de cause légitime -> signal.",
+  "Provenance des Armes": "Une arme utilisée doit avoir été ACCORDÉE par le serveur. Tirer avec une arme jamais donnée = injection d'inventaire.",
+  "Anti Action Pré-Spawn": "Toute action offensive avant le spawn effectif du joueur est impossible légitimement -> signal.",
+  "Anti Désync Origine de Tir": "Compare l'origine d'un tir/dégât à la dernière position connue du serveur. Frapper depuis très loin = teleport-shoot / godmode par désynchronisation.",
+  "Désync Max (m)": "Distance maximale tolérée entre la position serveur et l'origine d'une action avant de lever un signal de désync.",
+  "Anti Lag-Switch": "Détecte un gel volontaire de la connexion (aucun rapport) corrélé à un effet monde — signature d'un lag-switch.",
+  "Gel Min Lag-Switch (ms)": "Durée minimale de gel de connexion, avec effet monde, pour lever un signal de lag-switch.",
+  "Moteur Statistique de Visée": "Analyse la DISTRIBUTION des tirs par joueur sur une fenêtre glissante (ratio de headshots, vitesse de recentrage angulaire « snap », temps de réaction). Un aimbot se trahit sur le volume, pas sur un tir. Émet un signal corrélant quand plusieurs indicateurs surhumains concordent — jamais un ban sur un seul tir.",
+  "Seuil Ratio Headshot": "Au-delà de ce ratio de headshots soutenu sur l'échantillon, l'indicateur « headshots » est levé. Un seul indicateur ne suffit pas : il en faut au moins deux concordants.",
+  "Snap Angulaire Moyen Max (°)": "Amplitude moyenne de recentrage juste avant le tir. Au-delà, recentrage instantané typique d'un aimbot.",
+  "Réaction Minimale (ms)": "Plancher de réaction humaine. Des tirs répétés sous ce délai sont physiologiquement improbables.",
+  "Échantillon Minimum": "Nombre minimum de tirs avant tout verdict statistique — évite les faux positifs sur peu de données.",
+  "Anti Vol / Noclip": "Cinématique VERTICALE serveur : détecte une vitesse d'ascension impossible (fly hack), une altitude hors-monde, et un « blink » (téléport instantané sur un tick). Complète l'analyse horizontale de mouvement. Les téléports de confiance serveur et les aéronefs sont ignorés.",
+  "Vitesse Ascension Max (m/s)": "Au-delà de cette vitesse de montée hors aéronef, un signal de vol est levé.",
+  "Distance Blink (m)": "Distance parcourue en un seul tick au-delà de laquelle, sans téléport de confiance, c'est un blink.",
+  "Altitude Max Hors-Aéronef (m)": "Plafond d'altitude plausible à pied/en véhicule. Au-delà (hors aéronef), position aberrante.",
+  "Intégrité Dégâts par Arme": "Valide chaque tir contre le MODÈLE de l'arme : dégâts vs base (+tolérance) → dégâts modifiés ; cadence min → tir rapide ; portée max → touche hors portée (corroboration serveur d'un silent-aim). Complète le plafond de dégâts global.",
+  "Tolérance Dégâts (%)": "Marge au-dessus de la base de l'arme avant de lever « dégâts modifiés » (armure/critiques tolérés).",
+  "Portée Max Défaut (m)": "Portée max appliquée aux armes sans modèle dédié. Une touche au-delà est un signal.",
+  "Cadence Minimale Défaut (ms)": "Intervalle minimal entre deux tirs pour les armes sans modèle dédié. En-dessous : tir rapide.",
+  "Provenance des Gains": "Anti-duplication/injection économique : tout gain d'argent/objet doit être précédé d'une SOURCE légitime enregistrée par le serveur (shop, paie, coffre) dans une fenêtre. Un gain inexpliqué = injection. Une source consommée ne se rejoue pas.",
+  "Fenêtre Source Légitime (ms)": "Durée pendant laquelle une source enregistrée peut couvrir un gain.",
+  "Montant Minimum Contrôlé": "Les gains sous ce montant sont ignorés (bruit des petits gains passifs).",
+ "EZ Action":"Choisit l'action par défaut quand une triche est détectée (surveiller, kick, ou bannir).",
+ "Anti Health Regeneration":"Bloque la régénération de vie anormale : un joueur qui se soigne tout seul sans raison.",
+ "Anti Health Stat Modification":"Empêche de modifier sa vie ou son armure côté client (godmode partiel).",
+ "Anti Invincibility":"Détecte et bloque l'invincibilité (le joueur ne perd jamais de vie).",
+ "Anti Damage Immunity":"Bloque l'immunité aux dégâts (les balles ne font rien au joueur).",
+ "Revive Event Name":"Nom de l'événement de réanimation de ton framework, pour ne pas confondre un soin légitime avec une triche.",
+ "AI Server Event Protection":"Rejette les événements réseau serveur qui ne font pas partie du contrat déclaré (events fantômes).",
+ "AI Client Event Protection":"Rejette les événements client injectés qui n'existent pas normalement.",
+ "AI Export Protection":"Bloque l'appel d'exports de ressources qui ne devraient pas être accessibles au client.",
+ "Trigger Blacklist":"Active une liste d'événements totalement interdits.",
+ "Blacklisted Triggers":"La liste des événements interdits : toute tentative de les déclencher est bloquée.",
+ "Trigger Rate Limiter":"Limite la fréquence à laquelle un joueur peut déclencher un même événement (anti-flood).",
+ "Trigger Rate Limiter Rules":"Règles fines de fréquence par événement (combien de fois par seconde au maximum).",
+ "Event Protection Exceptions":"Événements légitimes à exclure des contrôles ci-dessus (pour éviter les faux positifs).",
+ "Anti Invisibility":"Détecte un joueur rendu invisible pour tricher.",
+ "Anti Super Jump":"Bloque le saut anormalement haut (super-saut).",
+ "Anti Infinite Combat Roll":"Empêche la roulade de combat en boucle (déplacement exploit).",
+ "Combat Roll Limit":"Nombre de roulades autorisées d'affilée avant de considérer que c'est une triche.",
+ "Anti Infinite Stamina":"Bloque l'endurance infinie (courir sans jamais se fatiguer).",
+ "Anti Model Change":"Empêche un joueur de changer de modèle de personnage à volonté.",
+ "Anti Night Vision":"Détecte l'activation de la vision nocturne pour avoir un avantage.",
+ "Anti AFK Bypass":"Empêche de contourner le système anti-absence (rester connecté en trichant).",
+ "Anti LUA Input":"Bloque l'exécution d'entrées Lua injectées côté client (menu de triche).",
+ "Anti Resource Stop":"Alerte et bloque si quelqu'un tente d'arrêter une ressource protégée (dont l'anticheat).",
+ "Anti Resource Injection":"Détecte l'injection d'une ressource ou d'un script non déclaré.",
+ "Passive Injection Observation":"Observe discrètement les signes d'injection sans agir tout de suite (collecte de preuves).",
+ "Passive Injection Action":"Action à prendre quand l'observation passive confirme une injection.",
+ "Anti Clear Tasks":"Empêche l'annulation forcée des animations/tâches d'autres joueurs (exploit de gêne).",
+ "Anti Dev Tools":"Détecte l'usage d'outils de développement/débogage en jeu.",
+ "Anti Spoofer":"Bloque l'usurpation d'identifiants (faux Steam/licence pour échapper aux bans).",
+ "Anti Voice Exploits":"Bloque les abus du système vocal (voix à distance infinie, saturation).",
+ "Anti Crash Exploits":"Bloque les valeurs impossibles (infinies, absurdes) envoyées pour faire planter le serveur.",
+ "Anti Weapon Spawn":"Empêche l'apparition d'armes non légitimes.",
+ "Add-On Weapons":"Déclare tes armes add-on pour qu'elles ne soient pas prises pour des armes trichées.",
+ "Anti Give Weapons":"Bloque le fait de se donner une arme sans passer par le jeu.",
+ "Anti Remove Weapons":"Empêche de retirer de force les armes d'autres joueurs.",
+ "Anti Spoofed Bullets":"Détecte des balles falsifiées (origine ou trajectoire impossibles).",
+ "Anti Kill Exploits":"Bloque les kills instantanés/à distance impossibles.",
+ "Enable Weapons Blacklist":"Active la liste d'armes interdites sur ton serveur.",
+ "Blacklisted Weapons":"La liste des armes refusées : équipement/dégât bloqués à la source.",
+ "Anti Aimbot":"Détecte une visée automatique anormale (précision surhumaine).",
+ "Anti Weapon Component Modifier":"Empêche d'ajouter des composants d'arme illégitimes (viseur, chargeur trafiqué).",
+ "Anti Weapon Damage Modifier":"Bloque la modification des dégâts d'une arme au-delà du plausible.",
+ "Anti Ammo Cheats":"Détecte l'ajout de munitions illégitime.",
+ "Anti Infinite Ammo":"Bloque les munitions infinies.",
+ "Anti No Reload":"Détecte le tir sans jamais recharger.",
+ "Anti Explosive Bullets":"Bloque les balles explosives illégitimes.",
+ "Anti Super Punch":"Détecte les coups de poing aux dégâts/à la portée impossibles.",
+ "Anti Hitbox Modifier":"Empêche l'agrandissement des zones de touche (toucher plus facilement).",
+ "Anti No Recoil":"Détecte l'absence totale de recul (aide à la visée).",
+ "Enable Projectiles Whitelist":"N'autorise QUE les projectiles d'une liste (le reste est bloqué).",
+ "Whitelisted Projectiles":"La liste des projectiles autorisés.",
+ "Enable Projectiles Limiter":"Limite le nombre de projectiles qu'un joueur peut lancer.",
+ "Projectiles Spawn Limit":"Nombre maximum de projectiles autorisés dans un court laps de temps.",
+ "Log Projectile Spawns (Console)":"Écrit chaque apparition de projectile dans la console (débogage).",
+ "AI Anti Vehicle Spawn":"Détection intelligente d'apparitions de véhicules anormales.",
+ "Anti AI Vehicle Spawn":"Bloque les véhicules apparus par des scripts d'IA non prévus.",
+ "Anti Isolated Vehicle Spawn":"Détecte un véhicule apparu loin de tout joueur (spawn caché).",
+ "Enable Vehicle Blacklist":"Active la liste de véhicules interdits.",
+ "Blacklisted Vehicles":"La liste des véhicules refusés à l'apparition.",
+ "Enable Vehicle Whitelist":"N'autorise QUE les véhicules d'une liste.",
+ "Whitelisted Vehicles":"La liste des véhicules autorisés.",
+ "Enable Vehicle Spawn Limiter":"Limite le nombre de véhicules qu'un joueur peut faire apparaître.",
+ "Vehicle Spawn Limit":"Nombre maximum de véhicules par joueur sur une courte période.",
+ "Log Vehicle Spawns (Console)":"Écrit chaque apparition de véhicule dans la console.",
+ "Log Vehicle Blacklist Blocks (Console)":"Écrit dans la console chaque véhicule bloqué par la blacklist.",
+ "Anti Vehicle Throwing":"Empêche de projeter des véhicules sur les joueurs (grief).",
+ "Anti Vehicle Deletion":"Bloque la suppression forcée des véhicules d'autrui.",
+ "Anti Vehicle Hijacking":"Détecte le vol de véhicule à distance/impossible.",
+ "Anti Vehicle Speed Modifier":"Bloque les vitesses de véhicule impossibles.",
+ "Anti Vehicle Handling Modifier":"Empêche la modification du comportement (handling) d'un véhicule.",
+ "Anti Vehicle Plate Changer":"Empêche le changement de plaque à la volée pour brouiller les pistes.",
+ "Disable Vehicle Damage to Players":"Option : les véhicules ne blessent pas les joueurs (serveurs pacifiques).",
+ "Auto-Delete Destroyed Vehicles":"Supprime automatiquement les épaves pour alléger le serveur.",
+ "Disable NPC Population":"Option : désactive les PNJ ambiants du jeu.",
+ "AI Anti Ped Spawn":"Détection intelligente d'apparitions de PNJ anormales.",
+ "Anti AI Ped Spawn":"Bloque les PNJ apparus par des scripts non prévus.",
+ "Enable Ped Blacklist":"Active la liste de modèles de PNJ interdits.",
+ "Blacklisted Peds":"La liste des modèles de PNJ refusés (peds « monstres », grief).",
+ "Enable Ped Whitelist":"N'autorise QUE les modèles de PNJ d'une liste.",
+ "Whitelisted Peds":"La liste des modèles de PNJ autorisés.",
+ "Enable Ped Spawn Limiter":"Limite le nombre de PNJ qu'un joueur peut faire apparaître.",
+ "Ped Spawn Limit":"Nombre maximum de PNJ par joueur sur une courte période.",
+ "Log Ped Spawns (Console)":"Écrit chaque apparition de PNJ dans la console.",
+ "AI Anti Object Spawn":"Détection intelligente d'apparitions d'objets anormales.",
+ "Enable Object Blacklist":"Active la liste d'objets/props interdits.",
+ "Blacklisted Objects":"La liste des objets refusés (props géants de grief).",
+ "Enable Object Whitelist":"N'autorise QUE les objets d'une liste.",
+ "Whitelisted Objects":"La liste des objets autorisés.",
+ "Enable Object Spawn Limiter":"Limite le nombre d'objets qu'un joueur peut faire apparaître.",
+ "Object Spawn Limit":"Nombre maximum d'objets par joueur sur une courte période.",
+ "Anti Pickup Spawn":"Bloque l'apparition d'objets ramassables illégitimes (armes/argent au sol).",
+ "Log Object Spawns (Console)":"Écrit chaque apparition d'objet dans la console.",
+ "AI Anti Explosion":"Détection intelligente d'explosions anormales.",
+ "Enable Explosion Blacklist":"Active la liste de types d'explosion interdits.",
+ "Blacklisted Explosions":"Les types d'explosion refusés à la source (canon orbital, obus de char…).",
+ "Anti Invisible Explosions":"Détecte les explosions invisibles (grief discret).",
+ "Anti Inaudible Explosions":"Détecte les explosions sans son (grief discret).",
+ "Enable Explosion Limiter":"Limite le nombre d'explosions qu'un joueur peut déclencher.",
+ "Explosion Limit":"Nombre maximum d'explosions par joueur sur une courte période.",
+ "Cancel All Explosions":"Option radicale : annule TOUTES les explosions (serveurs très pacifiques).",
+ "Cancel All Fires":"Option radicale : annule TOUS les feux.",
+ "Log Explosion Spawns (Console)":"Écrit chaque explosion dans la console.",
+ "AI Anti Particle":"Détection intelligente d'effets de particules abusifs.",
+ "Enable Particle Whitelist":"N'autorise QUE les effets de particules d'une liste.",
+ "Whitelisted Particles":"La liste des effets de particules autorisés.",
+ "Anti Attached Particles":"Bloque les particules attachées aux joueurs pour gêner (écran saturé).",
+ "Particle Scale Limit":"Taille maximale d'un effet de particule (au-delà = grief).",
+ "Log Particle Spawns (Console)":"Écrit chaque effet de particule dans la console.",
+ "Anti Synaps":"Bloque un exécuteur de triche connu (Synaps) et ses variantes.",
+ "Anti Vehicle Control Request":"Empêche de prendre de force le contrôle du véhicule d'un autre.",
+ "Anti Sound Exploits":"Bloque les abus sonores (sons forcés, saturation).",
+ "Anti Forced Ragdoll":"Empêche de faire tomber (ragdoll) les joueurs de force.",
+ "Anti Vehicle Bombing":"Bloque le bombardement depuis un véhicule (grief de masse).",
+ "Anti Cheat Traces":"Traque les traces laissées par les menus de triche connus.",
+ "Anti Unisolated Injection":"Détecte une injection qui contourne l'isolation des ressources (expérimental).",
+ "Execution Patterns Exceptions":"Motifs d'exécution légitimes à ignorer (éviter les faux positifs).",
+ "Anti Magneto":"Bloque l'exploit « magneto » (attraction/collage d'objets ou véhicules).",
+ "Anti Vehicle Attachment":"Empêche d'attacher des véhicules entre eux pour grief (expérimental).",
+ "Anti Silent Aim":"Détecte la visée silencieuse (toucher sans viser précisément).",
+ "Enable Discord Logging":"Envoie les journaux de sécurité sur ton Discord.",
+ "Show IP Addresses in Logs":"Affiche les adresses IP dans les journaux (attention à la vie privée).",
+ "Main Webhook":"Le webhook Discord principal où arrivent les alertes.",
+ "Entities Webhook":"Webhook Discord dédié aux apparitions d'entités.",
+ "Explosions Webhook":"Webhook Discord dédié aux explosions.",
+ "Weapons Webhook":"Webhook Discord dédié aux armes.",
+ "Unbans Webhook":"Webhook Discord dédié aux débans.",
+ "Connections Webhook":"Webhook Discord dédié aux connexions/déconnexions.",
+ "Public Logs Webhook":"Webhook Discord pour un salon public (journaux allégés).",
+ "Anti Backdoor":"Détecte les portes dérobées (backdoors) cachées dans des ressources.",
+ "Stop Server on Backdoor":"Arrête le serveur si une porte dérobée est détectée (sécurité maximale).",
+ "Command Prefix":"Le préfixe des commandes de l'anticheat en jeu (ex. /zshield).",
+ "Ignored Scripts":"Ressources de confiance à ne pas analyser (réduit les faux positifs).",
+ "Enable Ban System":"Active le système de bannissement de Z-Shield.",
+ "Enable Screenshot System":"Capture une image du JEU au moment de la sanction (déclarée aux joueurs, jamais l'écran du PC).",
+ "Enable Gameplay Recording":"Enregistre un court clip du jeu autour de la sanction comme preuve.",
+ "Ban Duration (seconds)":"Durée du ban par défaut en secondes (0 = définitif).",
+ "Ban IP Address":"Bannit aussi l'adresse IP (attention aux IP partagées).",
+ "Ban Message":"Le message affiché au joueur banni.",
+ "Log Unbans to Discord":"Envoie chaque déban sur Discord.",
+ "Log Connections to Discord":"Envoie les connexions sur Discord.",
+ "Log Connections to Console":"Écrit les connexions dans la console.",
+ "Enable Connect Logs":"Journalise les connexions.",
+ "Enable Disconnect Logs":"Journalise les déconnexions.",
+ "Max Threat Score":"Score de menace à la connexion au-delà duquel la connexion est refusée.",
+ "Anti VPN":"Ajoute de la méfiance (voire refuse) les connexions via VPN/proxy.",
+ "Anti XSS Injection":"Bloque les tentatives d'injection de code via les champs de connexion.",
+ "Anti Connection Duplication":"Refuse deux connexions simultanées avec le même identifiant.",
+ "Require Discord Linked":"Exige un compte Discord lié pour se connecter.",
+ "Require Alphanumeric Name":"Refuse les pseudos avec des caractères d'exploit ou invisibles.",
+ "Force Beta Channel":"Force l'utilisation de la version bêta de l'anticheat."
+};
+/* Statut d'impact réel : 1 = branché (impact serveur), 2 = partiel (câblage à finir),
+   0 = à venir / hors portée serveur-autoritatif. Voir docs/AUDIT_CONFIG.md. */
+const CFG_STATUS={"EZ Action":1,"Anti Health Regeneration":1,"Anti Health Stat Modification":1,"Anti Invincibility":1,"Anti Damage Immunity":1,"Revive Event Name":1,"AI Server Event Protection":1,"AI Client Event Protection":1,"AI Export Protection":1,"Trigger Blacklist":1,"Blacklisted Triggers":1,"Trigger Rate Limiter":1,"Trigger Rate Limiter Rules":1,"Event Protection Exceptions":1,"Anti Invisibility":3,"Anti Super Jump":1,"Anti Infinite Combat Roll":1,"Combat Roll Limit":1,"Anti Infinite Stamina":1,"Anti Model Change":1,"Anti Night Vision":3,"Anti AFK Bypass":3,"Anti LUA Input":1,"Anti Resource Stop":1,"Anti Resource Injection":1,"Passive Injection Observation":1,"Passive Injection Action":1,"Anti Clear Tasks":3,"Anti Dev Tools":3,"Anti Spoofer":1,"Anti Voice Exploits":3,"Anti Crash Exploits":1,"Anti Weapon Spawn":1,"Add-On Weapons":1,"Anti Give Weapons":1,"Anti Remove Weapons":1,"Anti Spoofed Bullets":1,"Anti Kill Exploits":1,"Enable Weapons Blacklist":1,"Blacklisted Weapons":1,"Anti Aimbot":1,"Anti Weapon Component Modifier":3,"Anti Weapon Damage Modifier":1,"Anti Ammo Cheats":1,"Anti Infinite Ammo":1,"Anti No Reload":1,"Anti Explosive Bullets":1,"Anti Super Punch":1,"Anti Hitbox Modifier":3,"Anti No Recoil":3,"Enable Projectiles Whitelist":1,"Whitelisted Projectiles":1,"Enable Projectiles Limiter":1,"Projectiles Spawn Limit":1,"Log Projectile Spawns (Console)":1,"AI Anti Vehicle Spawn":1,"Anti AI Vehicle Spawn":1,"Anti Isolated Vehicle Spawn":1,"Enable Vehicle Blacklist":1,"Blacklisted Vehicles":1,"Enable Vehicle Whitelist":1,"Whitelisted Vehicles":1,"Enable Vehicle Spawn Limiter":1,"Vehicle Spawn Limit":1,"Log Vehicle Spawns (Console)":1,"Log Vehicle Blacklist Blocks (Console)":1,"Anti Vehicle Throwing":1,"Anti Vehicle Deletion":1,"Anti Vehicle Hijacking":1,"Anti Vehicle Speed Modifier":1,"Anti Vehicle Handling Modifier":3,"Anti Vehicle Plate Changer":1,"Disable Vehicle Damage to Players":1,"Auto-Delete Destroyed Vehicles":1,"Disable NPC Population":1,"AI Anti Ped Spawn":1,"Anti AI Ped Spawn":1,"Enable Ped Blacklist":1,"Blacklisted Peds":1,"Enable Ped Whitelist":1,"Whitelisted Peds":1,"Enable Ped Spawn Limiter":1,"Ped Spawn Limit":1,"Log Ped Spawns (Console)":1,"AI Anti Object Spawn":1,"Enable Object Blacklist":1,"Blacklisted Objects":1,"Enable Object Whitelist":1,"Whitelisted Objects":1,"Enable Object Spawn Limiter":1,"Object Spawn Limit":1,"Anti Pickup Spawn":1,"Log Object Spawns (Console)":1,"AI Anti Explosion":1,"Enable Explosion Blacklist":1,"Blacklisted Explosions":1,"Anti Invisible Explosions":1,"Anti Inaudible Explosions":1,"Enable Explosion Limiter":1,"Explosion Limit":1,"Cancel All Explosions":1,"Cancel All Fires":1,"Log Explosion Spawns (Console)":1,"AI Anti Particle":3,"Enable Particle Whitelist":3,"Whitelisted Particles":3,"Anti Attached Particles":3,"Particle Scale Limit":3,"Log Particle Spawns (Console)":3,"Anti Synaps":1,"Anti Vehicle Control Request":1,"Anti Sound Exploits":3,"Anti Forced Ragdoll":1,"Anti Vehicle Bombing":1,"Anti Cheat Traces":1,"Anti Unisolated Injection":1,"Execution Patterns Exceptions":1,"Anti Magneto":3,"Anti Vehicle Attachment":1,"Anti Silent Aim":1,"Enable Discord Logging":1,"Show IP Addresses in Logs":1,"Main Webhook":1,"Entities Webhook":1,"Explosions Webhook":1,"Weapons Webhook":1,"Unbans Webhook":1,"Connections Webhook":1,"Public Logs Webhook":1,"Anti Backdoor":1,"Stop Server on Backdoor":1,"Command Prefix":1,"Ignored Scripts":1,"Enable Ban System":1,"Enable Screenshot System":1,"Enable Gameplay Recording":1,"Ban Duration (seconds)":1,"Ban IP Address":1,"Ban Message":1,"Log Unbans to Discord":1,"Log Connections to Discord":1,"Log Connections to Console":1,"Enable Connect Logs":1,"Enable Disconnect Logs":1,"Max Threat Score":1,"Anti VPN":1,"Anti XSS Injection":1,"Anti Connection Duplication":1,"Require Discord Linked":1,"Require Alphanumeric Name":1,"Force Beta Channel":2,"Moteur Statistique de Visée":1,"Seuil Ratio Headshot":1,"Snap Angulaire Moyen Max (°)":1,"Réaction Minimale (ms)":1,"Échantillon Minimum":1,"Anti Vol / Noclip":1,"Vitesse Ascension Max (m/s)":1,"Distance Blink (m)":1,"Altitude Max Hors-Aéronef (m)":1,"Intégrité Dégâts par Arme":1,"Tolérance Dégâts (%)":1,"Portée Max Défaut (m)":1,"Cadence Minimale Défaut (ms)":1,"Provenance des Gains":1,"Fenêtre Source Légitime (ms)":1,"Montant Minimum Contrôlé":1,"Anti Freecam / Spectate":1,"Durée Fige Freecam (ms)":1,"Activité Min Freecam":1,"Anti Action en Étant Mort":1,"Provenance des Armes":1,"Anti Action Pré-Spawn":1,"Anti Désync Origine de Tir":1,"Désync Max (m)":1,"Anti Lag-Switch":1,"Gel Min Lag-Switch (ms)":1,"Anti ESP Indirect":1,"Portée Streaming (m)":1,"Requêtes Lointaines Max":1,"Anti Reach / Distance":1,"Portée Mêlée Max (m)":1,"Portée Interaction Max (m)":1,"Anti God Mode (Dégâts Non Appliqués)":1,"Anti Réparation Véhicule Injectée":1,"Dégât Minimum Contrôlé":1,"Anti Churn Ownership":1,"Ownership Max / Fenêtre":1,"Anti Flood Création Entités":1,"Créations Max / Fenêtre":1,"Signature de Trainer / Menu":1,"Détecteurs Distincts Min":1,"Fenêtre Corrélation (ms)":1,"Anti Bot / Macro":1,"Actions Min Analysées":1,"Anti Spawn-Kill":1,"Protection Spawn (ms)":1,"Anti-Spam Chat / Commandes":1,"Messages Max / Fenêtre":1,"Anti Téléport (menu)":1,"Saut Min Téléport (m)":1,"Téléports Min":1,"Anti-Stop Ressources (protégées)":1,"Anti-Stop Anticheat":1,"Anti-Bypass Anticheat":1,"Ressources Protégées":1,"Anti-Executor":1,"Allowlist Ressources Stricte":1,"Signatures Bloquées":1,"Anti-Menu de Triche":1,"Rafale Max Actions":1,"Anti-Crash Entités Malformées":1,"Coordonnée Max":1,"Réputation Persistante":1,"Décroissance par Heure":1,"Seuil de Signalement":1,"Réconciliation Serveur-Autoritative":1,"Correction Santé":1,"Correction Argent":1,"Correction Munitions":1,"Tolérance Réconciliation":1,"Invariants Durs (registre)":1,"Enveloppes de Débit":1,"Quota Tir / Fenêtre":1,"Quota Spawn / Fenêtre":1,"Quota Messages / Fenêtre":1,"Invariant · Santé ≤ Max":1,"Invariant · Armure ≤ Max":1,"Invariant · Santé ≥ 0":1,"Invariant · Argent ≥ 0":1,"Invariant · Argent ≤ Plafond":1,"Invariant · Vitesse ≤ Max":1,"Invariant · Munitions ≤ Capacité":1,"Invariant · Dégâts ≤ Base":1,"Invariant · Coordonnées dans le Monde":1,"Invariant · Altitude dans les Bornes":1,"Invariant · Échelle Valide":1,"Invariant · Endurance ≤ Max":1,"Invariant · Entités ≤ Quota":1,"Test Séquentiel SPRT (Wald)":1,"SPRT · alpha (faux positif max)":1,"SPRT · beta (faux négatif max)":1,"Test Binomial Headshots":1,"Base Headshot (%)":1,"Ligne de Base Adaptative (z-score)":1,"Z-Max":1,"Validation de Tir Serveur (rewind)":1,"Fenêtre Rewind (ms)":1,"Tolérance Angle Visée (°)":1,"Portée Défaut (m)":1,"Fusion Bayésienne Multi-Signaux":1,"Seuil Composite (cote)":1,"Analyse de Séquences (Markov)":1,"Entropie Minimale":1,"Cohérence Horloge (anti-speedhack)":1,"Ratio Horloge Max":1};
+const CFG_STATUS_META={1:{c:'var(--green)',l:'Branché — impact réel sur le serveur'},3:{c:'#4aa3ff',l:'Module client — détection côté joueur, corroborée (heartbeat signé + intégrité)'},2:{c:'var(--warn)',l:'Partiel — capacité présente, câblage à finir'},0:{c:'var(--muted)',l:'À venir / non couvert'}};
+function statusDot(name){
+  // Pastilles de statut retirées du dashboard (choix produit). L'audit réel/client/
+  // partiel reste dans docs/AUDIT_CONFIG.md. On garde l'aide « ? » sur chaque réglage.
+  return '';
+}
+function helpHTML(name){
+  const t=(CFG_HELP[name]||'Réglage de protection Z-Shield.').replace(/"/g,'&quot;');
+  return `<span class="help" title="${t}" onclick="event.stopPropagation();toast('${t.replace(/'/g,"\\'")}')">?</span>`;
+}
+function groupHTML(g,showTab,tabName){
+  return `<div class="card cfggroup"><div class="pad" style="padding:14px 16px 4px"><div class="gh">${showTab?`<span class="cat">${tabName}</span>`:''}<h3>${g.g}</h3><span class="gc">${g.items.length}</span></div></div>
+   ${g.items.map(it=>`<div class="crow"><div class="ct"><div class="nm">${statusDot(it.n)}${it.n}${helpHTML(it.n)}</div></div>${ctrlHTML(it)}</div>`).join('')}</div>`;
+}
+function renderCfgTabs(){
+  const el=document.getElementById('protTabs');
+  el.style.display=cfgQuery?'none':'flex';
+  el.innerHTML=CONFIG.map((tb,i)=>`<button type="button" class="tab" aria-pressed="${i===cfgTab}" onclick="cfgSetTab(${i})">${tb.tab}<span class="n">${tb.groups.reduce((a,g)=>a+g.items.length,0)}</span></button>`).join('');
+}
+function renderCfgPanel(){
+  const panel=document.getElementById('protPanel');
+  if(cfgQuery){
+    const q=cfgQuery.toLowerCase();let html='';
+    CONFIG.forEach(tb=>tb.groups.forEach(g=>{
+      const hits=g.items.filter(it=>it.n.toLowerCase().includes(q));
+      if(hits.length)html+=groupHTML({g:g.g,items:hits},true,tb.tab);
+    }));
+    panel.innerHTML=html||`<div class="empty" style="padding:30px;text-align:center;color:var(--muted)">Aucun réglage trouvé</div>`;
+  }else{
+    panel.innerHTML=CONFIG[cfgTab].groups.map(g=>groupHTML(g,false)).join('');
+  }
+}
+function cfgSetTab(i){cfgTab=i;renderCfgTabs();renderCfgPanel();window.scrollTo(0,0);}
+function cfgTouch(){if(!cfgDirty){cfgDirty=true;document.getElementById('cfgSaveBar').hidden=false;}}
+function cfgToggle(el){el.classList.toggle('on');el.setAttribute('aria-checked',el.classList.contains('on'));cfgTouch();}
+function cfgSave(){cfgDirty=false;document.getElementById('cfgSaveBar').hidden=true;toast('Configuration enregistrée','grn');}
+function cfgCancel(){cfgDirty=false;document.getElementById('cfgSaveBar').hidden=true;renderCfgPanel();toast('Modifications annulées');}
+document.getElementById('protSearch').addEventListener('input',e=>{cfgQuery=e.target.value.trim();renderCfgTabs();renderCfgPanel();});
+renderCfgTabs();renderCfgPanel();
+(function(){const b=document.getElementById('cfgBadge');if(b)b.textContent=CFG_TOTAL;})();
+
+/* Garde « quitter sans enregistrer » : intercepte la navigation si des réglages sont modifiés */
+function showUnsaved(onLeave){
+  const m=document.createElement('div');m.className='modal-scrim';
+  m.innerHTML=`<div class="modal"><h3>Quitter sans enregistrer ?</h3><p>Tu as des modifications de configuration non enregistrées. Que veux-tu faire ?</p><div class="row"><button class="btn btn-ghost btn-sm" id="uStay">Rester</button><button class="btn btn-ghost btn-sm" id="uLeave">Quitter sans enregistrer</button><button class="btn btn-green btn-sm" id="uSave">Enregistrer</button></div></div>`;
+  document.body.appendChild(m);
+  const close=()=>m.remove();
+  m.querySelector('#uStay').onclick=close;
+  m.querySelector('#uLeave').onclick=()=>{cfgDirty=false;document.getElementById('cfgSaveBar').hidden=true;close();onLeave();};
+  m.querySelector('#uSave').onclick=()=>{cfgSave();close();onLeave();};
+}
+document.getElementById('nav').addEventListener('click',e=>{
+  const it=e.target.closest('.navitem');if(!it)return;
+  const cur=document.querySelector('.navitem.on');
+  if(cfgDirty && cur && cur.dataset.view==='prot' && it.dataset.view!=='prot'){
+    e.preventDefault();e.stopPropagation();
+    showUnsaved(()=>it.click());
+  }
+},true);
+
+/* servers */
+let servers=[{nm:"Los Santos RP",ds:"142 joueurs · protection active",active:true,key:"ZS-LSRP-7788-A1"},{nm:"Nouveau serveur",ds:"En attente d'une clé de licence",active:false,key:""}];
+function renderServers(){document.getElementById('serverList').innerHTML=servers.map((s,i)=>s.active?`<div class="card wm srvcard"><div class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6l-7-3Z"/><path d="M9 12l2 2 4-4"/></svg></div><div class="meta"><div class="nm">${s.nm} <span class="tag grn" style="margin-left:6px">Actif</span></div><div class="ds">${s.ds}</div><div class="mono" style="color:var(--faint);font-size:12px;margin-top:4px">Licence ${s.key}</div></div><button class="btn btn-sm">Gérer</button></div>`:`<div class="card srvcard locked"><div class="si" style="opacity:.6"><svg viewBox="0 0 24 24" fill="none" stroke="#d2a44a" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div><div class="meta" style="flex:1"><div class="nm">${s.nm} <span class="tag amb" style="margin-left:6px">Verrouillé</span></div><div class="ds" style="margin-bottom:10px">Entre ta clé de licence pour activer ce serveur.</div><div class="keyrow"><input placeholder="ZS-XXXX-XXXX-XX" id="keyIn${i}"><button class="btn btn-green" onclick="activate(${i})">Activer</button><button class="btn btn-ghost btn-sm" onclick="toast('Redirection paiement (démo)')">Acheter une clé</button></div></div></div>`).join('');}
+function activate(i){const v=(document.getElementById('keyIn'+i)||{}).value||'';if(v.trim().length<6){toast('Entre une clé valide','red');return;}servers[i].active=true;servers[i].ds="Protection active";servers[i].key=v.trim().toUpperCase();renderServers();toast('Serveur activé','grn');}
+function addServer(){servers.push({nm:"Serveur "+(servers.length+1),ds:"En attente d'une clé",active:false,key:""});renderServers();}
+renderServers();
+
+/* members */
+const members=[{n:"Dagos",email:"toi@exemple.com",role:"Propriétaire"},{n:"Kylian",email:"modo1@exemple.com",role:"Modérateur"},{n:"Ines",email:"modo2@exemple.com",role:"Modérateur"}];
+document.getElementById('memberList').innerHTML=members.map(m=>`<div class="member"><div class="avatar">${initials(m.n)}</div><div style="flex:1"><div style="font-weight:700">${m.n}</div><div style="color:var(--muted);font-size:12.5px">${m.email}</div></div><span class="role">${m.role}</span></div>`).join('');
+
+/* blacklist : icônes ORIGINALES par type (aucun rendu de jeu) */
+const BLICON={
+ pistol:'<path d="M4 9h13l3 3h-4l-2 4h-4l-1-3H4z"/><path d="M8 16v3"/>',
+ smg:'<path d="M3 9h14l4 2v2h-5l-1 3H8l-1-4H3z"/><path d="M10 15v4"/>',
+ rifle:'<path d="M2 10h18l2 2h-4v2h-3l-1 3H9l-1-5H2z"/><path d="M11 15v4"/>',
+ shotgun:'<path d="M2 10h20v2h-4l-1 3h-4l-1-3H2z"/><path d="M6 12v4"/>',
+ sniper:'<path d="M2 11h20M17 8v6"/><path d="M3 10h6v3H3z"/><path d="M9 14v4"/>',
+ mg:'<path d="M2 9h16l4 2v3h-6l-1 3H8l-1-5H2z"/><path d="M4 14v4M9 15v4"/>',
+ explosive:'<path d="M12 3l2 4 4 1-3 3 1 4-4-2-4 2 1-4-3-3 4-1z"/>',
+ melee:'<path d="M4 20l10-10M14 4l6 6-4 1-3-3z"/>',
+ car:'<path d="M3 14l2-5h11l3 5M4 14h16v3H4z"/><circle cx="8" cy="18" r="1.6"/><circle cx="16" cy="18" r="1.6"/>',
+ sport:'<path d="M2 15l3-4h12l4 3M3 15h18v2H3z"/><circle cx="8" cy="18" r="1.6"/><circle cx="16" cy="18" r="1.6"/>',
+ suv:'<path d="M3 13l1-5h13l3 5M3 13h18v4H3z"/><circle cx="8" cy="18" r="1.7"/><circle cx="16" cy="18" r="1.7"/>',
+ moto:'<circle cx="6" cy="16" r="3"/><circle cx="18" cy="16" r="3"/><path d="M6 16l4-6h5l2 6M8 10h5"/>',
+ truck:'<path d="M2 8h11v9H2zM13 11h5l3 3v3h-8z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>',
+ heli:'<path d="M4 6h16M12 6v3M6 12h9l3 2v2H6z"/><path d="M18 16h3M9 18h6"/>',
+ plane:'<path d="M2 12l20-3-9 6 2 4-3-2-4 2 1-4z"/>',
+ boat:'<path d="M3 15h18l-2 4H5zM6 15V8l9 3-9 4"/>',
+ tank:'<path d="M3 15h16v3H3zM5 15v-2h9v2M12 12l7-2"/><circle cx="7" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/>',
+ ped:'<circle cx="12" cy="7" r="3.2"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+ animal:'<path d="M4 15c0-4 3-6 6-6h4c3 0 4 2 6 3M4 15l-1 4M20 12l1 5M8 9l-1-3M14 9l1-3"/>',
+ object:'<path d="M12 3l8 4v10l-8 4-8-4V7z"/><path d="M12 3v18M4 7l8 4 8-4"/>',
+ prop:'<rect x="4" y="10" width="16" height="9"/><path d="M4 10l3-4h10l3 4"/>',
+};
+const TYPE_LABEL={pistol:'Pistolet',smg:'Mitraillette',rifle:'Fusil',shotgun:'Fusil à pompe',sniper:'Sniper',mg:'Mitrailleuse',explosive:'Explosif',melee:'Corps à corps',car:'Voiture',sport:'Sportive',suv:'SUV',moto:'Moto',truck:'Camion',heli:'Hélicoptère',plane:'Avion',boat:'Bateau',tank:'Blindé',ped:'PNJ / personnage',animal:'Animal',object:'Objet',prop:'Prop / décor'};
+// Armes = identifiants natifs FiveM (données fonctionnelles). Le vrai produit livre la
+// liste complète ; ici un large échantillon par catégorie. Les véhicules réels (addons
+// compris) sont énumérés depuis le serveur — ici des catégories + ajout manuel.
+const W=(type,names,danger)=>names.map(nm=>({nm,type,on:danger===true,hs:""}));
+const blacklist={
+ weapon:[].concat(
+  W('explosive',["WEAPON_RPG","WEAPON_GRENADELAUNCHER","WEAPON_GRENADELAUNCHER_SMOKE","WEAPON_HOMINGLAUNCHER","WEAPON_COMPACTLAUNCHER","WEAPON_STICKYBOMB","WEAPON_PROXMINE","WEAPON_PIPEBOMB","WEAPON_GRENADE","WEAPON_MOLOTOV","WEAPON_FIREWORK","WEAPON_FLARE","WEAPON_BZGAS","WEAPON_SMOKEGRENADE"],true),
+  W('mg',["WEAPON_MINIGUN","WEAPON_RAILGUN","WEAPON_MG","WEAPON_COMBATMG","WEAPON_COMBATMG_MK2","WEAPON_GUSENBERG"],true),
+  W('sniper',["WEAPON_HEAVYSNIPER","WEAPON_HEAVYSNIPER_MK2","WEAPON_SNIPERRIFLE","WEAPON_MARKSMANRIFLE","WEAPON_MARKSMANRIFLE_MK2","WEAPON_PRECISIONRIFLE"],false),
+  W('rifle',["WEAPON_ASSAULTRIFLE","WEAPON_ASSAULTRIFLE_MK2","WEAPON_CARBINERIFLE","WEAPON_CARBINERIFLE_MK2","WEAPON_ADVANCEDRIFLE","WEAPON_SPECIALCARBINE","WEAPON_BULLPUPRIFLE","WEAPON_COMPACTRIFLE","WEAPON_MILITARYRIFLE","WEAPON_HEAVYRIFLE"],false),
+  W('shotgun',["WEAPON_PUMPSHOTGUN","WEAPON_PUMPSHOTGUN_MK2","WEAPON_SAWNOFFSHOTGUN","WEAPON_ASSAULTSHOTGUN","WEAPON_BULLPUPSHOTGUN","WEAPON_HEAVYSHOTGUN","WEAPON_DBSHOTGUN","WEAPON_AUTOSHOTGUN","WEAPON_COMBATSHOTGUN"],false),
+  W('smg',["WEAPON_MICROSMG","WEAPON_SMG","WEAPON_SMG_MK2","WEAPON_ASSAULTSMG","WEAPON_COMBATPDW","WEAPON_MACHINEPISTOL","WEAPON_MINISMG"],false),
+  W('pistol',["WEAPON_PISTOL","WEAPON_PISTOL_MK2","WEAPON_COMBATPISTOL","WEAPON_APPISTOL","WEAPON_PISTOL50","WEAPON_SNSPISTOL","WEAPON_HEAVYPISTOL","WEAPON_VINTAGEPISTOL","WEAPON_REVOLVER","WEAPON_DOUBLEACTION","WEAPON_CERAMICPISTOL","WEAPON_STUNGUN","WEAPON_FLAREGUN"],false),
+  W('melee',["WEAPON_KNIFE","WEAPON_BAT","WEAPON_CROWBAR","WEAPON_HAMMER","WEAPON_HATCHET","WEAPON_MACHETE","WEAPON_KNUCKLE","WEAPON_NIGHTSTICK","WEAPON_WRENCH","WEAPON_BATTLEAXE","WEAPON_DAGGER","WEAPON_GOLFCLUB","WEAPON_SWITCHBLADE","WEAPON_BOTTLE"],false)
+ ),
+ vehicle:[
+  {nm:"Blindé / char",hs:"classe: military",type:"tank",on:true},
+  {nm:"Hélicoptère d'attaque",hs:"classe: heli",type:"heli",on:true},
+  {nm:"Avion de chasse",hs:"classe: plane",type:"plane",on:true},
+  {nm:"Supersport",hs:"classe: super",type:"sport",on:false},
+  {nm:"Moto rapide",hs:"classe: motorcycle",type:"moto",on:false},
+  {nm:"SUV blindé",hs:"classe: suv",type:"suv",on:false},
+  {nm:"Camion",hs:"classe: truck",type:"truck",on:false},
+  {nm:"Bateau rapide",hs:"classe: boat",type:"boat",on:false},
+ ],
+ ped:[
+  {nm:"a_c_shark",hs:"animal · requin",type:"animal",on:true},
+  {nm:"a_c_rottweiler",hs:"animal · chien",type:"animal",on:false},
+  {nm:"a_c_cow",hs:"animal · vache",type:"animal",on:true},
+  {nm:"s_m_y_swat_01",hs:"ped · SWAT",type:"ped",on:false},
+  {nm:"u_m_y_zombie_01",hs:"ped · zombie",type:"ped",on:true},
+ ],
+ object:[
+  {nm:"prop_beachball_02",hs:"prop · ballon géant",type:"prop",on:true},
+  {nm:"prop_offroad_ramp_02",hs:"prop · rampe",type:"prop",on:false},
+  {nm:"prop_container_01a",hs:"prop · conteneur",type:"object",on:true},
+  {nm:"prop_mp_ramp_01",hs:"prop · rampe MP",type:"object",on:false},
+ ],
+};
+const TAB_TYPES={weapon:['pistol','smg','rifle','shotgun','sniper','mg','explosive','melee'],vehicle:['car','sport','suv','moto','truck','heli','plane','boat','tank'],ped:['ped','animal'],object:['object','prop']};
+let blTab='weapon',blQuery='';
+function blFillTypes(){document.getElementById('blAddType').innerHTML=TAB_TYPES[blTab].map(t=>`<option value="${t}">${TYPE_LABEL[t]}</option>`).join('');}
+function blAdd(){const el=document.getElementById('blAddName');const nm=el.value.trim();if(!nm){toast('Entre un nom ou un identifiant','red');return;}const type=document.getElementById('blAddType').value;blacklist[blTab].unshift({nm,type,on:true,hs:blTab==='weapon'?'ajouté':'perso'});el.value='';renderBlacklist();toast('Ajouté à la blacklist','grn');}
+function renderBlacklist(){
+ const list=blacklist[blTab].filter(x=>(x.nm+' '+x.hs+' '+TYPE_LABEL[x.type]).toLowerCase().includes(blQuery));
+ const nOn=Object.keys(blacklist).reduce((s,k)=>s+blacklist[k].filter(x=>x.on).length,0);
+ document.getElementById('blCount').textContent='· '+nOn+' entrées bloquées';
+ document.getElementById('blList').innerHTML=list.map((x,i)=>`<div class="blrow ${x.on?'on':''}" data-i="${blacklist[blTab].indexOf(x)}">
+  <div class="blicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${BLICON[x.type]||''}</svg></div>
+  <div class="bt"><div class="nm">${x.nm}</div><div class="hs">${TYPE_LABEL[x.type]}${x.hs?(' · '+x.hs):''}</div></div>
+  <span class="blstate">${x.on?'Bloqué':'Autorisé'}</span>
+  <div class="sw ${x.on?'on':''}" data-i="${blacklist[blTab].indexOf(x)}" role="switch" aria-checked="${x.on}"></div>
+ </div>`).join('')||`<div style="padding:30px;text-align:center;color:var(--muted)">Aucun résultat</div>`;
+ document.querySelectorAll('#blList .sw').forEach(sw=>sw.addEventListener('click',()=>{const it=blacklist[blTab][+sw.dataset.i];it.on=!it.on;renderBlacklist();}));
+}
+document.getElementById('blTabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;document.querySelectorAll('#blTabs button').forEach(x=>x.classList.toggle('on',x===b));blTab=b.dataset.b;blFillTypes();renderBlacklist();});
+document.getElementById('blSearch').addEventListener('input',e=>{blQuery=e.target.value.toLowerCase();renderBlacklist();});
+blFillTypes();renderBlacklist();
+
+/* copy buttons */
+document.addEventListener('click',e=>{const c=e.target.closest('.copy');if(!c)return;const txt=(c.getAttribute('data-copy')||'').replace(/&#10;/g,'\n');const done=()=>{c.textContent='Copié ✓';setTimeout(()=>c.textContent='Copier',1500);};try{navigator.clipboard.writeText(txt).then(done,done);}catch(_){done();}});
+
+/* ===== Comptes & accès : matrice de permissions ===== */
+const PERM_ROLES=['Propriétaire','Admin','Modérateur','Lecteur'];
+const PERM_FEATURES=['Voir les joueurs','Bannir / sanctionner','Configuration','Blacklist','Terminal','Licences & facturation','Comptes & accès'];
+// matrice par défaut : [feature][role] booléen
+const PERM=PERM_FEATURES.map((f,fi)=>PERM_ROLES.map((r,ri)=>{
+  if(ri===0)return true;                        // Propriétaire : tout
+  if(ri===1)return fi<=5;                        // Admin : tout sauf comptes&accès
+  if(ri===2)return fi===0||fi===1;               // Modérateur : voir + bannir
+  return fi===0;                                 // Lecteur : voir seulement
+}));
+function renderPerm(){
+  const t=document.getElementById('permTbl');if(!t)return;
+  t.innerHTML=`<thead><tr><th>Fonctionnalité</th>${PERM_ROLES.map(r=>`<th class="center">${r}</th>`).join('')}</tr></thead>`+
+   `<tbody>${PERM_FEATURES.map((f,fi)=>`<tr><td>${f}</td>${PERM_ROLES.map((r,ri)=>`<td class="center"><span class="permchk ${PERM[fi][ri]?'on':''}" data-f="${fi}" data-r="${ri}">✓</span></td>`).join('')}</tr>`).join('')}</tbody>`;
+  t.querySelectorAll('.permchk').forEach(c=>c.addEventListener('click',()=>{const fi=+c.dataset.f,ri=+c.dataset.r;if(ri===0)return;PERM[fi][ri]=!PERM[fi][ri];renderPerm();}));
+}
+renderPerm();
+
+/* ===== Joueurs : renseignement (fiches inter‑serveurs) ===== */
+let plFilter='all',plQuery='';
+function trust(p){return Math.max(2,100-p.risk);}
+const plExtra={};
+players.forEach((p,i)=>{plExtra[i]={alts:(p.risk>60?2:p.risk>30?1:0),bans:(p.risk>70?3:p.risk>40?1:0),recent:i<3,flagged:p.risk>60};});
+function renderPlayers(){
+  const rows=players.map((p,i)=>({p,i}))
+    .filter(({p,i})=>(plFilter==='all'||(plFilter==='recent'&&plExtra[i].recent)||(plFilter==='flagged'&&plExtra[i].flagged))
+      && (p.n+p.wp+p.flag).toLowerCase().includes(plQuery));
+  document.getElementById('plRows').innerHTML=rows.map(({p,i})=>{const tr=trust(p);return `<tr onclick="openDossier(${i})">
+    <td><div class="pl"><div class="mini">${initials(p.n)}</div><div><div class="who">${p.n}</div><div class="id mono">ping ${p.ping} ms</div></div></div></td>
+    <td><div class="risk"><div class="risk__track"><div class="risk__fill" style="width:${tr}%;background:${tr>60?'var(--green)':tr>35?'var(--warn)':'var(--red)'}"></div></div><span class="risk__num">${tr}</span></div></td>
+    <td>${plExtra[i].alts>0?`<span class="tag amb">${plExtra[i].alts} lié(s)</span>`:'<span class="tag grn">aucun</span>'}</td>
+    <td>${plExtra[i].bans>0?`<span class="tag red">${plExtra[i].bans}</span>`:'<span style="color:var(--faint)">0</span>'}</td>
+    <td><span class="tag">Voir</span></td></tr>`;}).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">Aucun joueur</td></tr>`;
+}
+document.getElementById('plSearch').addEventListener('input',e=>{plQuery=e.target.value.toLowerCase();renderPlayers();});
+document.querySelectorAll('[data-plf]').forEach(c=>c.addEventListener('click',()=>{document.querySelectorAll('[data-plf]').forEach(x=>x.classList.toggle('on',x===c));plFilter=c.dataset.plf;renderPlayers();}));
+function openDossier(i){const p=players[i],x=plExtra[i],tr=trust(p);
+  document.getElementById('drawerMount').innerHTML=`<div class="scrim" onclick="closeDrawer()"></div><div class="drawer" role="dialog">
+   <div class="dh"><div class="pav">${initials(p.n)}</div><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:16px">${p.n}</div><div class="mono" style="color:var(--faint);font-size:12px">dossier inter‑serveurs</div></div><div class="close" onclick="closeDrawer()">✕</div></div>
+   <div class="db">
+     <div class="kv"><span class="l">Confiance inter‑serveur</span><span class="v" style="color:${tr>60?'var(--green)':tr>35?'var(--warn)':'var(--red)'}">${tr}/100</span>
+       <span class="l">Risque actuel</span><span class="v" style="color:${riskColor(p.risk)}">${p.risk}/100</span>
+       <span class="l">Comptes alternatifs</span><span class="v">${x.alts} détecté(s) par identifiants</span>
+       <span class="l">Signal</span><span class="v" style="max-width:180px">${p.flag}</span></div>
+     <div><div style="font-weight:700;margin-bottom:8px">Historique de bans (${x.bans})</div>${x.bans>0?`<div class="timeline">${Array.from({length:x.bans}).map((_,k)=>`<div class="ev"><span class="pt" style="background:var(--red)"></span><div class="txt">Ban — ${['Aimbot','No‑clip','Spawn massif'][k%3]}<div class="tt">serveur ${String.fromCharCode(65+k)} · il y a ${k+1} sem.</div></div></div>`).join('')}</div>`:'<div style="color:var(--muted);font-size:13px">Aucun ban connu sur le réseau.</div>'}</div>
+     <div class="notice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>La réputation inter‑serveurs est <b>opt‑in</b> et anonymisée : partage de fingerprints et de faux positifs corrigés, jamais de données personnelles diffusées.</div></div>
+   </div>
+   <div class="dactions"><button class="btn" onclick="toast('${p.n} averti');closeDrawer()">Avertir</button><button class="btn btn-red" onclick="toast('${p.n} banni','red');closeDrawer()">Bannir</button></div></div>`;
+}
+renderPlayers();
+
+/* ===== Signatures ===== */
+let sigQuery='';
+const signatures=[
+ {n:'movement.teleport',v:'v4',cat:'Mouvement',rel:98,dep:'déployée'},
+ {n:'aim.accuracy',v:'v3',cat:'Aimbot',rel:82,dep:'canary'},
+ {n:'weapon.firerate',v:'v2',cat:'Armes',rel:95,dep:'déployée'},
+ {n:'injection.phantom_event',v:'v1',cat:'Injection',rel:99,dep:'déployée'},
+ {n:'entity.storm',v:'v5',cat:'Entités',rel:97,dep:'déployée'},
+ {n:'vehicle.repair',v:'v1',cat:'Véhicule',rel:88,dep:'canary'},
+ {n:'connection.vpn',v:'v2',cat:'Connexion',rel:74,dep:'observation'},
+ {n:'economy.money',v:'v3',cat:'Économie',rel:91,dep:'déployée'},
+];
+function depTag(d){return d==='déployée'?'<span class="tag grn">déployée</span>':d==='canary'?'<span class="tag amb">canary</span>':'<span class="tag">observation</span>';}
+function renderSig(){
+  const rows=signatures.filter(s=>(s.n+s.cat).toLowerCase().includes(sigQuery));
+  document.getElementById('sigRows').innerHTML=rows.map(s=>`<tr><td class="mono">${s.n}</td><td>${s.v}</td><td>${s.cat}</td><td><div class="risk"><div class="risk__track"><div class="risk__fill" style="width:${s.rel}%;background:${s.rel>90?'var(--green)':s.rel>75?'var(--warn)':'var(--red)'}"></div></div><span class="risk__num">${s.rel}</span></div></td><td>${depTag(s.dep)}</td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">Aucune signature</td></tr>`;
+}
+document.getElementById('sigSearch').addEventListener('input',e=>{sigQuery=e.target.value.toLowerCase();renderSig();});
+renderSig();
+
+/* ===== Terminal ===== */
+const termOut=document.getElementById('termOut'),termIn=document.getElementById('termIn');
+function termLine(cls,txt){const d=document.createElement('div');d.className='ln '+cls;d.textContent=txt;termOut.appendChild(d);termOut.scrollTop=termOut.scrollHeight;}
+termLine('mut','Z‑Shield terminal — tape "help" pour la liste des commandes.');
+const TERM_HELP=['help — liste des commandes','status — état de la protection','protections status — nombre de protections actives','players — joueurs connectés','ban <id> <raison> — bannir un joueur','kick <id> [raison] — expulser','unban <id> — lever un ban','lockdown <off|relaxed|strict> — verrouillage OneSync','say <message> — message serveur'];
+function termRun(raw){
+  const cmd=raw.trim();if(!cmd)return;termLine('cmd','z-shield> '+cmd);
+  const a=cmd.split(/\s+/),c=a[0].toLowerCase();
+  if(c==='help'){TERM_HELP.forEach(l=>termLine('out',l));}
+  else if(c==='status'){termLine('ok','Protection ACTIVE · mode ENFORCE · impact 0.3 ms/tick');}
+  else if(c==='protections'&&a[1]==='status'){termLine('ok','151 réglages · 138 actifs · 0 détecteur en panne');}
+  else if(c==='players'){termLine('out','142 joueurs connectés (voir l\'onglet Joueurs).');}
+  else if(c==='ban'){a[1]?termLine('ok','Joueur '+a[1]+' banni'+(a[2]?' — '+a.slice(2).join(' '):'')+' (preuve capturée).'):termLine('err','usage: ban <id> <raison>');}
+  else if(c==='kick'){a[1]?termLine('ok','Joueur '+a[1]+' expulsé'+(a[2]?' — '+a.slice(2).join(' '):'')+'.'):termLine('err','usage: kick <id> [raison]');}
+  else if(c==='unban'){a[1]?termLine('ok','Ban de '+a[1]+' levé.'):termLine('err','usage: unban <id>');}
+  else if(c==='lockdown'){['off','relaxed','strict'].includes(a[1])?termLine('ok','Verrouillage OneSync -> '+a[1]):termLine('err','usage: lockdown <off|relaxed|strict>');}
+  else if(c==='say'){termLine('ok','[serveur] '+a.slice(1).join(' '));}
+  else if(c==='clear'){termOut.innerHTML='';}
+  else termLine('err','commande inconnue : '+c+' (tape "help")');
+}
+termIn.addEventListener('keydown',e=>{if(e.key==='Enter'){termRun(termIn.value);termIn.value='';}});
+
+/* ===== Multi‑vue (spectate serveur) ===== */
+(function(){
+  const grid=document.getElementById('mvGrid');if(!grid)return;
+  const watch=[...players].sort((a,b)=>b.risk-a.risk).slice(0,3);
+  grid.innerHTML=watch.map(p=>`<div class="mvtile"><div class="mvhead">${initials(p.n)===''?'':''}<span>${p.n}</span><span class="ping">${p.ping} ms</span></div>
+    <div class="mvview"><span class="live"><span class="dot"></span>SPECTATE</span><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="2.5"/></svg></div>
+    <div class="mvact"><button class="btn btn-sm btn-ghost" onclick="toast('Vue caméra sur ${p.n}')">Suivre</button><button class="btn btn-sm btn-red" onclick="toast('${p.n} banni','red')">Bannir</button></div></div>`).join('')+
+    `<div class="mvtile" style="display:grid;place-items:center;min-height:200px;color:var(--muted);border-style:dashed"><div style="text-align:center"><div style="font-weight:700;color:var(--ink);margin-bottom:4px">+ Ajouter une vue</div><div style="font-size:12.5px">Choisis un joueur dans l'onglet Joueurs</div></div></div>`;
+})();
+
+/* notifications */
+let notifs=[
+ {tt:'Ban automatique — xX_HvH_Xx',ts:'Précision anormale (aimbot) · preuve enregistrée',when:'à l\'instant',read:false},
+ {tt:'Alerte — Kevin_LS',ts:'Cadence de tir élevée · mis en surveillance',when:'1 min',read:false},
+ {tt:'Trace d\'injection — Ghost404',ts:'Event serveur réservé appelé depuis le client',when:'6 min',read:false},
+ {tt:'Menace bloquée — ToxicKid',ts:'Spawn de 60 véhicules empêché',when:'12 min',read:true},
+ {tt:'Serveur activé',ts:'Los Santos RP · protection active',when:'1 h',read:true},
+];
+let bellOpen=false;
+function bellUnread(){return notifs.filter(n=>!n.read).length;}
+function refreshBellDot(){const d=document.getElementById('bellDot');if(d)d.hidden=bellUnread()===0;}
+function toggleBell(e){
+  if(e)e.stopPropagation();
+  bellOpen=!bellOpen;
+  let p=document.getElementById('bellPanel');
+  if(!bellOpen){if(p)p.remove();return;}
+  p=document.createElement('div');p.className='bell-panel';p.id='bellPanel';
+  p.innerHTML=`<div class="bh">Notifications <span class="mark" onclick="markAllRead()">Tout marquer lu</span></div>`+
+    notifs.map(n=>`<div class="bell-item" data-read="${n.read}"><span class="bi-dot"></span><div class="bi-t"><div class="tt">${n.tt}</div><div class="ts">${n.ts}</div></div><span class="bi-when">${n.when}</span></div>`).join('');
+  document.body.appendChild(p);
+  p.addEventListener('click',ev=>ev.stopPropagation());
+}
+function markAllRead(){notifs=notifs.map(n=>({...n,read:true}));refreshBellDot();if(bellOpen){bellOpen=false;toggleBell();bellOpen=false;const p=document.getElementById('bellPanel');if(p)p.remove();}toast('Notifications marquées comme lues','grn');}
+document.addEventListener('click',()=>{if(bellOpen){bellOpen=false;const p=document.getElementById('bellPanel');if(p)p.remove();}});
+refreshBellDot();
+
+/* toast */
+let toastT;function toast(msg,kind){clearTimeout(toastT);let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:200;background:var(--raise);border:1px solid var(--line2);color:var(--ink);font-weight:700;font-size:14px;padding:12px 18px;border-radius:12px;box-shadow:0 20px 40px rgba(0,0,0,.5)';document.body.appendChild(t);}t.style.borderColor=kind==='red'?'rgba(224,101,92,.5)':kind==='grn'?'var(--green-line)':'var(--line2)';t.textContent=msg;t.style.opacity='1';toastT=setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';},2200);}
+</script>
+<script>
+/* Garde d'authentification : si la session n'est pas valide, on renvoie vers /login.
+   En cas d'API injoignable, on laisse la console visible (non bloquant). */
+(async () => {
+  try {
+    const r = await fetch('/api/auth/me', { credentials: 'include' });
+    if (!r.ok) location.href = '/login';
+  } catch (e) { /* hors-ligne : on garde l'affichage */ }
+})();
+</script>

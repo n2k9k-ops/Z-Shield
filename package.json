@@ -18,6 +18,11 @@
     "migrate": "npm run migrate --workspace @zshield/api",
     "db:up": "docker compose -f docker-compose.dev.yml up -d postgres redis",
     "db:down": "docker compose -f docker-compose.dev.yml down",
+    "stack:up": "docker compose -f docker-compose.dev.yml up --build",
+    "stack:up:bg": "docker compose -f docker-compose.dev.yml up --build -d",
+    "stack:down": "docker compose -f docker-compose.dev.yml down",
+    "stack:reset": "docker compose -f docker-compose.dev.yml down -v",
+    "stack:logs": "docker compose -f docker-compose.dev.yml logs -f",
     "dev:api": "npm run dev --workspace @zshield/api",
     "dev:web": "npm run dev --workspace @zshield/web"
   }

@@ -5,3 +5,8 @@ dist/
 !.env.example
 *.log
 .DS_Store
+
+# ajouts
+.next/
+dump.rdb
+*.rdb

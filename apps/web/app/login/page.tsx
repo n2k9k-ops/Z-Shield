@@ -67,7 +67,7 @@ function LoginForm() {
         return;
       }
 
-      router.push('/');
+      window.location.assign('/console.html');
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Connexion impossible.');
     } finally {
