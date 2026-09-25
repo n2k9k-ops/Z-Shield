@@ -62,6 +62,8 @@ services:
         generateValue: true                   # ≥ 32 caractères aléatoires : OK
       - key: ZSHIELD_CREDENTIAL_KEY           # DOIT être `openssl rand -base64 32` : à saisir
         sync: false
+      - key: LICENSE_SIGNING_SECRET           # anti-vol : `openssl rand -base64 48` — MÊME valeur que `set zshield_license_secret` sur les serveurs clients
+        sync: false
       - key: CORS_ORIGINS                     # l'origine publique du web (le proxy Next passe par le serveur, mais on la déclare)
         sync: false
       - key: WEB_ORIGIN
