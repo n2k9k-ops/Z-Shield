@@ -10,7 +10,9 @@ import { useEffect } from 'react';
 
 export default function Home() {
   useEffect(() => {
-    window.location.replace('/console.html');
+    // Cache-busting : le navigateur met agressivement en cache le HTML statique,
+    // ce qui masque les mises à jour. Un paramètre horodaté force une version fraîche.
+    window.location.replace('/console.html?v=' + Date.now());
   }, []);
   return null;
 }

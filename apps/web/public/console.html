@@ -411,12 +411,12 @@ a{color:inherit}
   <aside class="nav" id="nav">
     <div class="brand">
       <svg viewBox="0 0 256 256" aria-hidden="true" style="filter:drop-shadow(0 0 5px rgba(51,229,138,.6))"><path fill="#fff" d="M52 122 L200 40 L150 104 L116 152 L100 126 Z"/><path fill="#fff" d="M150 150 L214 122 L128 224 Z"/></svg>
-      <span>Z-Shield</span><span class="vtag">v2.4.1</span>
+      <span>Z-Shield</span>
     </div>
 
-    <div class="srvswitch" onclick="toast('Changer de serveur (démo)')">
-      <div class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6l-7-3Z"/></svg><span class="on-dot"></span></div>
-      <div class="st"><div class="nm">Los Santos RP</div><div class="ds">142 joueurs · en ligne</div></div>
+    <div class="srvswitch" onclick="applyView('servers')">
+      <div class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6l-7-3Z"/></svg><span class="on-dot" id="swDot" style="display:none"></span></div>
+      <div class="st"><div class="nm" id="swName">Serveur</div><div class="ds" id="swSub">…</div></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"/></svg>
     </div>
 
@@ -659,7 +659,7 @@ a{color:inherit}
     <section class="view content" data-view="servers">
       <div class="section-head" style="margin-top:0"><h2>Tes serveurs</h2><div class="grow"></div><button class="btn btn-green btn-sm" onclick="addServer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Ajouter un serveur</button></div>
       <div id="serverList" class="grid" style="gap:14px"></div>
-      <div id="licGenCard" class="card wm" style="margin-top:18px">
+      <div id="licGenCard" class="card wm" style="margin-top:18px;padding:20px">
         <div class="section-head" style="margin-top:0"><h2>Générer une licence <span class="tag grn">admin</span></h2></div>
         <p style="color:var(--sub);font-size:13.5px;margin:0 0 14px">Crée une clé à donner au client. Il la colle dans son <b>server.cfg</b> : <span class="mono">set zshield_license_key "…"</span>. Lie-la à l'identifiant de SON serveur (affiché dans sa console au démarrage) et à une durée.</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
@@ -1971,7 +1971,7 @@ function zSetColor(hex){zApplyColor(hex);try{localStorage.setItem(zColorKey(),he
 function zInjectColorCard(){var host=document.querySelector('.view[data-view="servers"]');if(!host||document.getElementById('zColorCard'))return;
   var presets=['#33e58a','#4aa3ff','#b98bff','#ff8f4a','#ff5c8a','#f5c542','#2dd4bf','#e0655c'];
   var cur='';try{cur=localStorage.getItem(zColorKey())||'#33e58a';}catch(e){cur='#33e58a';}
-  var card=document.createElement('div');card.className='card wm';card.id='zColorCard';card.style.marginTop='18px';
+  var card=document.createElement('div');card.className='card wm';card.id='zColorCard';card.style.marginTop='18px';card.style.padding='20px';
   card.innerHTML='<div class="section-head" style="margin-top:0"><h2>Apparence du panel</h2></div><p style="color:var(--sub);font-size:13.5px;margin:0 0 12px">Couleur d\'accent de ton panel (verte par défaut). Elle est mémorisée sur ce navigateur.</p><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+presets.map(function(c){return '<button type="button" class="zsw" data-c="'+c+'" title="'+c+'" style="width:30px;height:30px;border-radius:8px;border:2px solid '+(c.toLowerCase()===cur.toLowerCase()?'#fff':'transparent')+';background:'+c+';cursor:pointer"></button>';}).join('')+'<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-left:6px">Perso <input type="color" id="zColorInput" value="'+cur+'" style="width:36px;height:30px;border:0;background:none;cursor:pointer"></label></div>';
   host.appendChild(card);
   card.querySelectorAll('.zsw').forEach(function(b){b.onclick=function(){zSetColor(b.dataset.c);};});
@@ -2196,6 +2196,18 @@ function zPopulateUser(){
   var av=document.getElementById('navUserAv');if(av)av.textContent=initials(u.display_name||u.email||'?');
   var nm=document.getElementById('navUserName');if(nm)nm.textContent=u.display_name||u.email||'Compte';
   var sb=document.getElementById('navUserSub');if(sb)sb.textContent=(typeof zRoleFr==='function'?zRoleFr(ZS.me.role||''):(ZS.me.role||''))+(ZS.me.is_platform_admin?' · Admin':'');
+  zPopulateSwitch();
+}
+/* Bloc serveur en haut de la barre latérale = serveur réel (plus de « Los Santos RP » démo). */
+function zPopulateSwitch(){
+  var nm=document.getElementById('swName'),sub=document.getElementById('swSub'),dot=document.getElementById('swDot');
+  if(!nm)return;
+  var s=(ZS.servers&&ZS.servers[0])||null;
+  if(!s){nm.textContent=(ZS.me&&ZS.me.user)?'Aucun serveur':'Serveur';if(sub)sub.textContent='Ajoute un serveur';if(dot)dot.style.display='none';return;}
+  nm.textContent=s.name||'Serveur';
+  var st=(typeof zServerState==='function')?zServerState(s.state):s.state;
+  if(sub)sub.textContent=(s.state==='ONLINE'?((s.players_online||0)+' joueurs · en ligne'):('État : '+st));
+  if(dot)dot.style.display=(s.state==='ONLINE')?'':'none';
 }
 var _acctOpen=false;
 function zCloseAcct(){var p=document.getElementById('acctPop');if(p)p.remove();_acctOpen=false;document.removeEventListener('click',zCloseAcctOnce,true);}
@@ -2213,6 +2225,7 @@ function zAccountMenu(e){
   items+='<div class="ai" onclick="zCloseAcct();applyView(\'install\')">'+zAcctIcon('<path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>')+'Installation</div>';
   items+='<div class="sep"></div>';
   items+='<div class="ai danger" onclick="zLogout()">'+zAcctIcon('<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l-5-5 5-5M5 12h12"/>')+'Se déconnecter</div>';
+  items+='<div style="padding:8px 10px 4px;font-size:10.5px;color:var(--faint);text-align:center">Version '+(window.ZS_BUILD||'—')+'</div>';
   var p=document.createElement('div');p.className='acct-pop';p.id='acctPop';
   p.innerHTML='<div class="ah"><div class="avatar">'+initials(u.display_name||u.email||'?')+'</div><div style="min-width:0;flex:1"><div style="font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+zesc(u.display_name||'Compte')+'</div><div style="color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+zesc(u.email||'')+'</div></div>'+((ZS.me&&ZS.me.role)?('<span class="rtag">'+zesc(typeof zRoleFr==='function'?zRoleFr(ZS.me.role):ZS.me.role)+'</span>'):'')+'</div>'+items;
   document.body.appendChild(p);
@@ -2231,9 +2244,12 @@ async function zAccountOrgs(){
 async function zSwitchOrg(id){try{await zapi('/api/auth/switch-organization',{method:'POST',body:{organization_id:id}});toast('Organisation changée','grn');location.reload();}catch(e){toast('Échec : '+(e.message||e),'red');}}
 /* Renseigne le bloc utilisateur dès que la session est chargée. */
 (function(){var _p=setInterval(function(){if(ZS&&ZS.me){zPopulateUser();clearInterval(_p);}},350);setTimeout(function(){clearInterval(_p);},20000);})();
+/* Met à jour le bloc serveur (haut de barre) après chaque chargement des serveurs. */
+(function(){if(typeof zServersLoad==='function'){var _s=zServersLoad;zServersLoad=async function(){var r=await _s.apply(this,arguments);zPopulateSwitch();return r;};}})();
 
 </script>
 
+<script>window.ZS_BUILD="2026-09-25 20:24 UTC";</script>
 <script>
 (async () => {
   try { const r = await fetch('/api/auth/me', { credentials: 'include' }); if (r.status === 401) location.href = '/login'; }

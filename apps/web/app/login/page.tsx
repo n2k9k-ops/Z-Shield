@@ -67,7 +67,7 @@ function LoginForm() {
         return;
       }
 
-      window.location.assign('/console.html');
+      window.location.assign('/console.html?v=' + Date.now());
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Connexion impossible.');
     } finally {
