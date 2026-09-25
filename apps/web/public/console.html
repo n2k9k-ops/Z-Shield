@@ -376,6 +376,35 @@ a{color:inherit}
 #adminTbl td .who{font-weight:700}
 #adminTbl tbody tr{transition:background .12s}
 #adminTbl tbody tr:hover{background:var(--panel2)}
+
+/* ===== Menu de compte (bas gauche) ===== */
+.acct-pop{position:fixed;z-index:400;background:var(--panel2);border:1px solid var(--line2);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.55);width:264px;padding:8px;font-size:13.5px;animation:acctIn .12s ease}
+@keyframes acctIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.acct-pop .ah{display:flex;align-items:center;gap:10px;padding:8px 8px 12px;border-bottom:1px solid var(--hair);margin-bottom:6px}
+.acct-pop .ai{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;cursor:pointer;color:var(--sub);font-weight:600}
+.acct-pop .ai:hover{background:var(--panel);color:var(--ink)}
+.acct-pop .ai svg{width:17px;height:17px;flex:0 0 auto;stroke:currentColor}
+.acct-pop .ai.danger{color:var(--red)}
+.acct-pop .ai.danger:hover{background:rgba(224,101,92,.08)}
+.acct-pop .sep{height:1px;background:var(--hair);margin:6px 4px}
+.acct-pop .rtag{margin-left:auto;font-size:10.5px;font-weight:800;color:var(--green);border:1px solid var(--green-line);border-radius:6px;padding:1px 6px}
+
+/* ===== Config : plus agréable ===== */
+.cfghead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.cfghead .sum{display:flex;gap:18px;align-items:center;margin-left:auto;font-size:12.5px;color:var(--muted)}
+.cfghead .sum b{color:var(--ink);font-size:15px;font-family:var(--disp)}
+.cfghead .sum .dot-g{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px}
+.cfghead .sum .dot-w{width:8px;height:8px;border-radius:50%;background:var(--warn);display:inline-block;margin-right:5px}
+#protTabs{gap:6px;flex-wrap:wrap}
+.tabs .tab{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:7px 12px}
+.tabs .tab[aria-pressed="true"]{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+.tabs .tab .n{margin-left:6px;opacity:.7}
+.cfggroup{border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.cfggroup .gh{padding:14px 16px 10px}
+.crow{padding:12px 16px}
+.crow .ct .nm{font-size:13.5px}
+.savebar{background:var(--panel2);border:1px solid var(--green-line);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.savebar .sb-txt{font-weight:700;color:var(--ink);margin-right:auto}
 </style>
 
 <div class="app">
@@ -413,7 +442,7 @@ a{color:inherit}
     <div class="navitem" data-view="admin" id="navAdmin" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5l7-3Z"/><path d="M9 11h6M12 8v6"/></svg>Admin — tous serveurs<span class="badge" id="adminBadge">0</span></div>
 
     <div class="spacer"></div>
-    <div class="navuser" onclick="toast('Menu du compte (démo)')"><div class="avatar">DA</div><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13.5px">Dagos</div><div style="color:var(--muted);font-size:11.5px">Licence active</div></div><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"/></svg></div>
+    <div class="navuser" id="navUser" onclick="zAccountMenu(event)"><div class="avatar" id="navUserAv">?</div><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13.5px" id="navUserName">…</div><div style="color:var(--muted);font-size:11.5px" id="navUserSub">&nbsp;</div></div><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"/></svg></div>
   </aside>
 
   <div class="main">
@@ -596,8 +625,11 @@ a{color:inherit}
 
     <!-- CONFIGURATION (165 réglages, 7 onglets) -->
     <section class="view content" data-view="prot">
+      <div class="cfghead">
+        <div><h2 style="font-size:16px;margin:0">Protections</h2><div style="color:var(--muted);font-size:12.5px;margin-top:2px">Active/désactive et choisis <b>Surveiller</b> ou <b>Bloquer</b>. L'anticheat recharge sa config en direct.</div></div>
+        <div class="sum"><div><span class="dot-g"></span><b id="cfgActive">0</b> actives</div><div><span class="dot-w"></span><b id="cfgWatch">0</b> surveillées</div><div><b id="cfgTot">0</b> au total</div></div>
+      </div>
       <div class="search" style="margin-bottom:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="protSearch" placeholder="Rechercher un réglage…"></div>
-      <div class="cfglegend" style="color:var(--faint)">Survole le “?” de chaque réglage pour son explication.</div>
       <div class="savebar" id="cfgSaveBar" hidden style="position:sticky;top:8px;z-index:40;margin-bottom:14px">
         <span class="dotpulse"></span>
         <span>Modifications non enregistrées</span>
@@ -629,7 +661,7 @@ a{color:inherit}
       <div id="serverList" class="grid" style="gap:14px"></div>
       <div id="licGenCard" class="card wm" style="margin-top:18px">
         <div class="section-head" style="margin-top:0"><h2>Générer une licence <span class="tag grn">admin</span></h2></div>
-        <p style="color:var(--sub);font-size:13.5px;margin:0 0 14px">Crée une clé à donner au client. Il la colle dans <b>zshield-ac/config/config.lua</b> (license.key). Lie-la à l'identifiant de SON serveur (affiché dans sa console au démarrage) et à une durée.</p>
+        <p style="color:var(--sub);font-size:13.5px;margin:0 0 14px">Crée une clé à donner au client. Il la colle dans son <b>server.cfg</b> : <span class="mono">set zshield_license_key "…"</span>. Lie-la à l'identifiant de SON serveur (affiché dans sa console au démarrage) et à une durée.</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
           <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)">Identifiant serveur (ou "any")
             <input id="licSrv" placeholder="ex. 7b9d6cd94dbfd140 / any" style="background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:9px 12px;color:var(--ink);font-family:var(--body);font-size:14px;min-width:220px"></label>
@@ -663,8 +695,7 @@ set zshield_server_id "srv_xxxxxxxx"
 set zshield_key_id "key_xxxxxxxx"
 set zshield_agent_secret "•••••• (affiché une seule fois)"</pre></div></div></div>
 
-        <div class="step"><div class="no">3</div><div class="sc"><h4>Colle le secret de licence + ta clé</h4><p>Le <b>secret</b> (identique à celui du dashboard) et ta <b>clé de licence</b> (onglet Serveurs &amp; licence). Anti-vol : voir <span class="mono">docs/PROTECTION.md</span>.</p><div class="code"><pre>set zshield_license_secret "ton-secret-identique-au-dashboard"
-set zshield_license_key "ZS-•••• (ta clé de licence)"</pre><button class="copy" data-copy='set zshield_license_secret "ton-secret-identique-au-dashboard"&#10;set zshield_license_key "ZS-•••• (ta clé de licence)"'>Copier</button></div></div></div>
+        <div class="step"><div class="no">3</div><div class="sc"><h4>Colle ta clé de licence</h4><p>La clé fournie par ton vendeur (elle est liée à CE serveur). Rien d'autre à configurer : la protection anti-triche est déjà réglée dans la ressource.</p><div class="code"><pre>set zshield_license_key "ZS-•••• (ta clé de licence)"</pre><button class="copy" data-copy='set zshield_license_key "ZS-•••• (ta clé de licence)"'>Copier</button></div></div></div>
 
         <div class="step"><div class="no">4</div><div class="sc"><h4>Ordre de démarrage</h4><p>Z-Shield démarre <b>en dernier</b>, après ton framework. OneSync doit être activé.</p><div class="code"><pre>set onesync on
 # ... ton framework (ESX/QBCore) et tes ressources ...
@@ -1576,8 +1607,7 @@ function downloadInstall(){
   "# Z-Shield — modele server.cfg (remplace les valeurs entre << >>)\n"+
   "# ================================================================\n\n"+
   "set onesync on\n\n"+
-  "# --- Anti-vol : secret de licence (IDENTIQUE au dashboard) ---\n"+
-  "set zshield_license_secret \"<<secret-identique-au-dashboard>>\"\n"+
+  "# --- Ta cle de licence (fournie par ton vendeur) ---\n"+
   "set zshield_license_key \"<<ta-cle-de-licence>>\"\n\n"+
   "# --- Identifiants d'agent (Dashboard > Serveurs > Identifiants d'agent) ---\n"+
   "set zshield_agent_id \"<<agt_...>>\"\n"+
@@ -1840,8 +1870,8 @@ ctrlHTML=function(it){
   }
   return _origCtrlHTML(it);
 };
-function ptToggle(el,id){var it=ZS.protIndex&&ZS.protIndex.get(id);if(!it)return;it.on=!it.on;el.classList.toggle('on',it.on);el.setAttribute('aria-checked',it.on);var wrap=el.closest('.ptctrl');if(wrap)wrap.classList.toggle('is-off',!it.on);cfgTouch();}
-function ptMode(btn,id,mode){var it=ZS.protIndex&&ZS.protIndex.get(id);if(!it)return;it.mode=mode;var wrap=btn.parentNode;wrap.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.m===mode);});cfgTouch();}
+function ptToggle(el,id){var it=ZS.protIndex&&ZS.protIndex.get(id);if(!it)return;it.on=!it.on;el.classList.toggle('on',it.on);el.setAttribute('aria-checked',it.on);var wrap=el.closest('.ptctrl');if(wrap)wrap.classList.toggle('is-off',!it.on);cfgTouch();if(typeof zCfgSummary==='function')zCfgSummary();}
+function ptMode(btn,id,mode){var it=ZS.protIndex&&ZS.protIndex.get(id);if(!it)return;it.mode=mode;var wrap=btn.parentNode;wrap.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.m===mode);});cfgTouch();if(typeof zCfgSummary==='function')zCfgSummary();}
 async function zConfigLoad(){
   if(!ZS.serverId)return;
   var data;try{data=await zapi('/api/servers/'+ZS.serverId+'/protection-settings');}catch(e){return;}
@@ -1852,8 +1882,17 @@ async function zConfigLoad(){
     CONFIG.push({tab:cat.label,groups:[{g:cat.label,items:items}]});
   });
   cfgTab=0;renderCfgTabs();renderCfgPanel();
-  var badge=document.getElementById('cfgBadge');if(badge)badge.textContent=(data.total||ZS.protIndex.size);
-  var nb=document.querySelector('.navitem[data-view="prot"] .badge');if(nb)nb.textContent=(data.total||ZS.protIndex.size);
+  ZS.cfgTotal=data.total||ZS.protIndex.size;
+  var badge=document.getElementById('cfgBadge');if(badge)badge.textContent=ZS.cfgTotal;
+  var nb=document.querySelector('.navitem[data-view="prot"] .badge');if(nb)nb.textContent=ZS.cfgTotal;
+  zCfgSummary();
+}
+function zCfgSummary(){
+  if(!ZS.protIndex)return;
+  var active=0,watch=0;
+  ZS.protIndex.forEach(function(it){if(it.on){active++;if(it.mode==='watch')watch++;}});
+  var a=document.getElementById('cfgActive'),w=document.getElementById('cfgWatch'),t=document.getElementById('cfgTot');
+  if(a)a.textContent=active; if(w)w.textContent=watch; if(t)t.textContent=(ZS.cfgTotal||ZS.protIndex.size);
 }
 cfgSave=async function(){
   if(ZS.serverId&&ZS.protIndex){
@@ -2145,6 +2184,53 @@ function zAdminManage(id,name){
 (function(){var s=document.getElementById('adminSearch');if(s)s.addEventListener('input',function(e){adminQuery=(e.target.value||'').toLowerCase();zAdminRender();});})();
 /* Affiche l'onglet Admin + charge les données pour les comptes vendeur. */
 (function(){if(typeof zLoadAll==='function'){var _l=zLoadAll;zLoadAll=async function(){await _l.apply(this,arguments);if(ZS.me&&ZS.me.is_platform_admin){var na=document.getElementById('navAdmin');if(na)na.style.display='';await zAdminLoad();}};}})();
+
+
+/* =========================================================================
+   BRANCHEMENT RÉEL 5 — Menu de compte (bas gauche) : profil, organisation,
+   accès, déconnexion. Alimenté par /api/auth/me et /api/organizations.
+   ========================================================================= */
+function zPopulateUser(){
+  if(!ZS.me||!ZS.me.user)return;
+  var u=ZS.me.user;
+  var av=document.getElementById('navUserAv');if(av)av.textContent=initials(u.display_name||u.email||'?');
+  var nm=document.getElementById('navUserName');if(nm)nm.textContent=u.display_name||u.email||'Compte';
+  var sb=document.getElementById('navUserSub');if(sb)sb.textContent=(typeof zRoleFr==='function'?zRoleFr(ZS.me.role||''):(ZS.me.role||''))+(ZS.me.is_platform_admin?' · Admin':'');
+}
+var _acctOpen=false;
+function zCloseAcct(){var p=document.getElementById('acctPop');if(p)p.remove();_acctOpen=false;document.removeEventListener('click',zCloseAcctOnce,true);}
+function zCloseAcctOnce(e){var p=document.getElementById('acctPop');var nu=document.getElementById('navUser');if(p&&!p.contains(e.target)&&nu&&!nu.contains(e.target))zCloseAcct();}
+function zAcctIcon(d){return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2">'+d+'</svg>';}
+function zAccountMenu(e){
+  if(e){e.stopPropagation();e.preventDefault();}
+  if(_acctOpen){zCloseAcct();return;}
+  var u=(ZS.me&&ZS.me.user)||{};
+  var perms=ZS.perms||[];
+  var items='';
+  if(perms.indexOf('member.read')>=0) items+='<div class="ai" onclick="zCloseAcct();applyView(\'members\')">'+zAcctIcon('<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 5.2a3.2 3.2 0 0 1 0 5.9M18.5 20a5.5 5.5 0 0 0-3-4.9"/>')+'Comptes &amp; accès</div>';
+  if(ZS.me&&ZS.me.is_platform_admin) items+='<div class="ai" onclick="zCloseAcct();applyView(\'admin\')">'+zAcctIcon('<path d="M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5l7-3Z"/>')+'Admin — tous serveurs</div>';
+  items+='<div class="ai" onclick="zAccountOrgs()">'+zAcctIcon('<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/>')+'Changer d\'organisation</div>';
+  items+='<div class="ai" onclick="zCloseAcct();applyView(\'install\')">'+zAcctIcon('<path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>')+'Installation</div>';
+  items+='<div class="sep"></div>';
+  items+='<div class="ai danger" onclick="zLogout()">'+zAcctIcon('<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l-5-5 5-5M5 12h12"/>')+'Se déconnecter</div>';
+  var p=document.createElement('div');p.className='acct-pop';p.id='acctPop';
+  p.innerHTML='<div class="ah"><div class="avatar">'+initials(u.display_name||u.email||'?')+'</div><div style="min-width:0;flex:1"><div style="font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+zesc(u.display_name||'Compte')+'</div><div style="color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+zesc(u.email||'')+'</div></div>'+((ZS.me&&ZS.me.role)?('<span class="rtag">'+zesc(typeof zRoleFr==='function'?zRoleFr(ZS.me.role):ZS.me.role)+'</span>'):'')+'</div>'+items;
+  document.body.appendChild(p);
+  var nu=document.getElementById('navUser');var r=nu?nu.getBoundingClientRect():{left:12,top:window.innerHeight-70};
+  p.style.left=Math.max(10,r.left)+'px';
+  p.style.bottom=(window.innerHeight-r.top+8)+'px';
+  _acctOpen=true;
+  setTimeout(function(){document.addEventListener('click',zCloseAcctOnce,true);},0);
+}
+async function zAccountOrgs(){
+  var list;try{list=(await zapi('/api/organizations')).organizations||[];}catch(e){toast('Organisations indisponibles','red');return;}
+  var p=document.getElementById('acctPop');if(!p)return;
+  if(list.length<=1){p.innerHTML='<div class="ah"><div style="font-weight:700;color:var(--ink)">Organisation</div></div><div style="padding:10px;color:var(--muted);font-size:12.5px">'+(list.length?zesc(list[0].name):'Une seule organisation')+' — c\'est la seule sur ce compte.</div><div class="sep"></div><div class="ai" onclick="zAccountMenu()">← Retour</div>';return;}
+  p.innerHTML='<div class="ah"><div style="font-weight:700;color:var(--ink)">Changer d\'organisation</div></div>'+list.map(function(o){var cur=o.id===(ZS.me&&ZS.me.organization_id);return '<div class="ai" onclick="zSwitchOrg('+zJs(o.id)+')">'+(cur?'<span style="color:var(--green)">●</span>':'<span style="color:var(--faint)">○</span>')+' '+zesc(o.name)+(cur?'<span class="rtag">actuelle</span>':'')+'</div>';}).join('')+'<div class="sep"></div><div class="ai" onclick="zAccountMenu()">← Retour</div>';
+}
+async function zSwitchOrg(id){try{await zapi('/api/auth/switch-organization',{method:'POST',body:{organization_id:id}});toast('Organisation changée','grn');location.reload();}catch(e){toast('Échec : '+(e.message||e),'red');}}
+/* Renseigne le bloc utilisateur dès que la session est chargée. */
+(function(){var _p=setInterval(function(){if(ZS&&ZS.me){zPopulateUser();clearInterval(_p);}},350);setTimeout(function(){clearInterval(_p);},20000);})();
 
 </script>
 
