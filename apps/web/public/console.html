@@ -552,7 +552,7 @@ a{color:inherit}
         <div class="card kpi"><div class="bgi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></svg></div><div class="k-lab">Bans · 24 h</div><div class="k-val num">37</div><div class="k-delta up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 17 10 11l4 4 6-7"/><path d="M15 8h5v5"/></svg>99 %<span class="mut">automatiques</span></div></div>
         <div class="card kpi"><div class="bgi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4"/></svg></div><div class="k-lab">Sanctions à revoir</div><div class="k-val num">4</div><div class="k-delta"><span class="mut">en attente de confirmation</span></div></div>
         <div class="card kpi"><div class="bgi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></div><div class="k-lab">Faux positifs (appris)</div><div class="k-val num">2</div><div class="k-delta"><span class="mut">l'anticheat s'ajuste</span></div></div>
-        <div class="card kpi"><div class="bgi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><div class="k-lab">Bans total</div><div class="k-val num">1 284</div><div class="k-delta"><span class="mut">depuis le début</span></div></div>
+        <div class="card kpi"><div class="bgi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><div class="k-lab">Bans actifs</div><div class="k-val num">0</div><div class="k-delta"><span class="mut">en vigueur</span></div></div>
       </div>
       <div class="seg" id="banSub" style="margin-bottom:16px"><button class="on" data-bs="sanctions">Sanctions</button><button data-bs="bannissements">Bannissements</button></div>
       <div class="toolbar">
@@ -597,7 +597,7 @@ a{color:inherit}
     <section class="view content" data-view="servers">
       <div class="section-head" style="margin-top:0"><h2>Tes serveurs</h2><div class="grow"></div><button class="btn btn-green btn-sm" onclick="addServer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Ajouter un serveur</button></div>
       <div id="serverList" class="grid" style="gap:14px"></div>
-      <div class="card wm" style="margin-top:18px">
+      <div id="licGenCard" class="card wm" style="margin-top:18px">
         <div class="section-head" style="margin-top:0"><h2>Générer une licence <span class="tag grn">admin</span></h2></div>
         <p style="color:var(--sub);font-size:13.5px;margin:0 0 14px">Crée une clé à donner au client. Il la colle dans <b>zshield-ac/config/config.lua</b> (license.key). Lie-la à l'identifiant de SON serveur (affiché dans sa console au démarrage) et à une durée.</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
@@ -1597,12 +1597,13 @@ async function zapi(path,opts){
 /* ---- Vue d'ensemble ---- */
 async function zOverview(){
   let o={};try{o=(await zapi('/api/overview')).overview||{};}catch(e){}
-  let blocked=0;try{const pr=await zapi('/api/protections');blocked=(pr.layers||[]).reduce(function(a,l){return a+Number(l.blocked_24h||0);},0);}catch(e){}
-  const cards=document.querySelectorAll('.kpis .kpi');
+  let blocked=0,perfMs=null;try{const pr=await zapi('/api/protections');blocked=(pr.layers||[]).reduce(function(a,l){return a+Number(l.blocked_24h||0);},0);if(pr.performance&&pr.performance.critical_ms!=null)perfMs=Number(pr.performance.critical_ms);}catch(e){}
+  const cards=document.querySelectorAll('.view[data-view="overview"] .kpi');
   function setK(i,val,delta){const c=cards[i];if(!c)return;const v=c.querySelector('.k-val');if(v){const unit=v.querySelector('span');v.textContent=val;if(unit)v.appendChild(unit);}const d=c.querySelector('.k-delta');if(d&&delta!=null)d.innerHTML=delta;}
   setK(0,zfmt(o.players_online),'<span class="mut">'+zfmt(o.servers_online)+' serveur(s) en ligne</span>');
   setK(1,zfmt(blocked),'<span class="mut">bloquées à la source · 24 h</span>');
   setK(2,zfmt(o.incidents_open),'<span class="mut">'+zfmt(o.alerts_critical)+' alerte(s) critique(s)</span>');
+  setK(3,(perfMs!=null?perfMs.toFixed(1).replace('.',','):'0'),'<span class="mut">par tick serveur</span>');
   try{
     const det=(await zapi('/api/detections?limit=8')).detections||[];
     const cls={BANNED:'hi',KICKED:'hi',FLAGGED:'me',OBSERVED:'lo',DISMISSED:'ok'};
@@ -1622,6 +1623,15 @@ async function zBansLoad(){
   let list;try{list=(await zapi('/api/bans')).bans||[];}catch(e){return;}
   bans.length=0;
   list.forEach(function(b){bans.push({_id:b.id,_status:b.status,n:b.player_name||b.identifier||'—',id:b.identifier||'',reason:b.reason||'—',cat:b.detection_category||'—',type:b.issued_by_auto?'auto':'manual',when:zAgo(b.created_at),risk:Number(b.risk!=null?b.risk:0),det:b.detector||'—',pending:b.status==='PENDING',rec:false});});
+  // KPI réels de la vue Bans (remplacent les valeurs de démo).
+  var now=Date.now();
+  var b24=list.filter(function(b){return b.created_at&&(now-new Date(b.created_at).getTime())<864e5;}).length;
+  var pending=list.filter(function(b){return b.status==='PENDING';}).length;
+  var fp=list.filter(function(b){return b.status==='DISMISSED';}).length;
+  var active=list.filter(function(b){return b.status==='ACTIVE';}).length;
+  var bc=document.querySelectorAll('.view[data-view="bans"] .kpi .k-val');
+  function setBk(i,v){if(bc[i]){var u=bc[i].querySelector('span');bc[i].textContent=zfmt(v);if(u)bc[i].appendChild(u);}}
+  setBk(0,b24);setBk(1,pending);setBk(2,fp);setBk(3,active);
   renderBans();
 }
 async function zBanAct(i,action){
@@ -1665,18 +1675,85 @@ async function zBanPlayer(i){var p=players[i];if(!p||!p._id){toast('Identifiant 
 
 /* ---- Serveurs & licence ---- */
 function zServerState(s){return{ONLINE:'en ligne',OFFLINE:'hors ligne',DEGRADED:'dégradé',UNKNOWN:'inconnu',BOOTING:'démarrage',HANDSHAKING:'connexion'}[s]||s||'inconnu';}
-async function zServersLoad(){
-  let list=ZS.servers;
-  if(!list||!list.length){try{list=(await zapi('/api/servers')).servers||[];ZS.servers=list;ZS.serverId=(list[0]||{}).id||ZS.serverId;}catch(e){return;}}
-  servers=list.map(function(s){return{nm:s.name,ds:(s.state==='ONLINE'?(zfmt(s.players_online||0)+' joueurs · protection active'):('État : '+zServerState(s.state))),active:(s.state==='ONLINE'||s.state==='DEGRADED'),key:s.id,_raw:s};});
-  if(!servers.length)servers=[{nm:'Aucun serveur',ds:"Ajoute un serveur pour obtenir ses identifiants d'agent.",active:false,key:''}];
-  renderServers();
+/* Littéral JS mono-quote, sûr dans un attribut HTML double-quote. */
+function zJs(s){return "'"+String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r/g,'').replace(/\n/g,'\\n').replace(/"/g,'&quot;').replace(/</g,'&lt;')+"'";}
+function zStateTag(st){var m={ONLINE:['grn','En ligne'],DEGRADED:['amb','Dégradé'],OFFLINE:['','Hors ligne'],BOOTING:['amb','Démarrage'],HANDSHAKING:['amb','Connexion'],UNKNOWN:['','En attente']};var x=m[st]||['','En attente'];return '<span class="tag '+x[0]+'">'+x[1]+'</span>';}
+function zLicChip(lic){
+  if(!lic||!lic.has_license)return '<span class="tag amb">Licence non activée</span>';
+  if(lic.expired)return '<span class="tag red">Licence expirée</span>';
+  var plan=(lic.plan||'').charAt(0).toUpperCase()+(lic.plan||'').slice(1);
+  return '<span class="tag grn">Licence '+zesc(plan)+' · '+lic.days_left+' j restants</span>';
 }
-addServer=async function(){var name=prompt('Nom du nouveau serveur ?');if(!name)return;try{await zapi('/api/servers',{method:'POST',body:{name:name,environment:'production'}});toast('Serveur créé','grn');ZS.servers=[];await zServersLoad();}catch(e){toast('Échec : '+(e.message||e),'red');}};
+var SHIELD='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6l-7-3Z"/><path d="M9 12l2 2 4-4"/></svg>';
+function zServerCard(s,lic){
+  var players=(s.players_online!=null?zfmt(s.players_online):'0')+(s.max_players?(' / '+zfmt(s.max_players)):'')+' joueurs';
+  var seen=s.last_heartbeat_at?(' · vu '+zAgo(s.last_heartbeat_at)):'';
+  return '<div class="card wm srvcard" style="align-items:flex-start">'
+    +'<div class="si">'+SHIELD+'</div>'
+    +'<div class="meta" style="flex:1;min-width:0">'
+    +'<div class="nm">'+zesc(s.name)+' '+zStateTag(s.state)+'</div>'
+    +'<div class="ds">'+players+' · '+zesc(s.environment||'production')+seen+'</div>'
+    +'<div style="margin-top:10px">'+zLicChip(lic)+'</div>'
+    +'<div class="mono" style="color:var(--faint);font-size:12px;margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">Identifiant : <span>'+zesc(s.id)+'</span><button class="btn btn-ghost btn-sm" onclick="zCopy('+zJs(s.id)+')">Copier</button></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'
+    +'<button class="btn btn-sm" onclick="zServerCreds('+zJs(s.id)+')">Identifiants d\'agent</button>'
+    +'<button class="btn btn-sm btn-green" onclick="zServerActivate('+zJs(s.id)+','+zJs(s.name)+')">'+((lic&&lic.has_license&&!lic.expired)?'Renouveler la licence':'Activer la licence')+'</button>'
+    +'</div></div></div>';
+}
+async function zServersLoad(){
+  var host=document.getElementById('serverList');if(!host)return;
+  var list;
+  try{list=(await zapi('/api/servers')).servers||[];}catch(e){return;}
+  ZS.servers=list;ZS.serverId=(list[0]||{}).id||ZS.serverId;
+  // Statut de licence réel par serveur (en parallèle).
+  var lics=await Promise.all(list.map(function(s){return zapi('/api/servers/'+s.id+'/license').catch(function(){return{has_license:false};});}));
+  if(!list.length){host.innerHTML='<div class="card wm" style="padding:24px;text-align:center;color:var(--muted)">Aucun serveur pour le moment. Clique sur « Ajouter un serveur ».</div>';}
+  else{host.innerHTML=list.map(function(s,i){return zServerCard(s,lics[i]);}).join('');}
+  // Le générateur de licences n'est utile qu'aux comptes qui facturent (vendeur/admin).
+  var gen=document.getElementById('licGenCard');
+  if(gen)gen.style.display=((ZS.perms&&ZS.perms.indexOf('billing.manage')>=0)||(ZS.me&&ZS.me.is_platform_admin))?'':'none';
+}
+addServer=async function(){
+  var name=prompt('Nom du nouveau serveur ?');if(!name)return;
+  try{await zapi('/api/servers',{method:'POST',body:{name:name.trim(),environment:'production'}});toast('Serveur créé','grn');await zServersLoad();}
+  catch(e){toast('Échec : '+(e.message||e),'red');}
+};
+/* Fenêtre : identifiants d'agent (générés une seule fois). */
+async function zServerCreds(id){
+  var m=document.createElement('div');m.id='zCredModal';
+  m.style.cssText='position:fixed;inset:0;z-index:340;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:20px;overflow:auto';
+  m.innerHTML='<div style="background:var(--panel2);border:1px solid var(--line2);border-radius:16px;max-width:560px;width:100%;padding:24px"><div style="font-family:var(--disp);font-weight:800;font-size:18px;margin-bottom:8px">Identifiants d\'agent</div><div id="zCredBody" style="color:var(--sub);font-size:13.5px">Génération…</div><div style="display:flex;justify-content:flex-end;margin-top:18px"><button class="btn btn-ghost btn-sm" onclick="var e=document.getElementById(\'zCredModal\');if(e)e.remove()">Fermer</button></div></div>';
+  m.addEventListener('click',function(e){if(e.target===m)m.remove();});
+  document.body.appendChild(m);
+  try{
+    var r=await zapi('/api/servers/'+id+'/credentials',{method:'POST',body:{}});
+    var lines=(r.installation&&r.installation.lines)||[];
+    var block=lines.join('\n');
+    document.getElementById('zCredBody').innerHTML='<p style="margin:0 0 12px;line-height:1.5">Colle ces lignes dans le <b>server.cfg</b> de ce serveur. Le secret n\'est affiché <b>qu\'une seule fois</b>.</p>'
+      +'<pre style="background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:12px;font-size:12px;overflow:auto;white-space:pre-wrap;word-break:break-all">'+zesc(block)+'</pre>'
+      +'<button class="btn btn-sm" style="margin-top:10px" onclick="zCopy('+zJs(block)+')">Copier les lignes</button>';
+    if(typeof zLog==='function')zLog('Identifiants d\'agent générés · '+id);
+  }catch(e){document.getElementById('zCredBody').innerHTML='<div style="color:var(--red)">Échec : '+zesc(e.message||String(e))+'</div>';}
+}
+/* Fenêtre : activer / renouveler la licence du serveur. */
+function zServerActivate(id,name){
+  var m=document.createElement('div');m.id='zActModal';
+  m.style.cssText='position:fixed;inset:0;z-index:340;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:20px;overflow:auto';
+  m.innerHTML='<div style="background:var(--panel2);border:1px solid var(--line2);border-radius:16px;max-width:460px;width:100%;padding:24px"><div style="font-family:var(--disp);font-weight:800;font-size:18px;margin-bottom:6px">Activer « '+zesc(name||'')+' »</div><p style="color:var(--sub);font-size:13px;margin:0 0 16px">Choisis le plan à appliquer à ce serveur.</p>'
+    +'<select id="zActPlan" style="width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;color:var(--ink);font-size:14px"><option value="trial">Essai</option><option value="starter">Starter</option><option value="pro" selected>Pro</option><option value="enterprise">Enterprise</option></select>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px"><button class="btn btn-ghost btn-sm" onclick="var e=document.getElementById(\'zActModal\');if(e)e.remove()">Annuler</button><button class="btn btn-green btn-sm" id="zActGo">Appliquer</button></div></div>';
+  m.addEventListener('click',function(e){if(e.target===m)m.remove();});
+  document.body.appendChild(m);
+  document.getElementById('zActGo').onclick=async function(){
+    var plan=document.getElementById('zActPlan').value;var b=this;b.disabled=true;b.textContent='…';
+    try{await zapi('/api/servers/'+id+'/license',{method:'POST',body:{plan:plan}});toast('Licence appliquée','grn');if(typeof zLog==='function')zLog('Licence '+plan+' appliquée · '+id);var e=document.getElementById('zActModal');if(e)e.remove();await zServersLoad();}
+    catch(err){toast('Échec : '+(err.message||err),'red');b.disabled=false;b.textContent='Appliquer';}
+  };
+}
 
 /* ---- Comptes & accès ---- */
 async function zMembersLoad(){
-  var roleFr={OWNER:'Propriétaire',ADMIN:'Admin',MODERATOR:'Modérateur',ANALYST:'Analyste',VIEWER:'Lecteur',BILLING:'Facturation'};
+  var roleFr={OWNER:'Propriétaire',ADMIN:'Administrateur',STAFF:'Modérateur',VIEWER:'Lecteur'};
   try{var m=(await zapi('/api/members')).members||[];var host=document.getElementById('memberList');if(host)host.innerHTML=(m.length?m:[{display_name:'—',email:'',role:''}]).map(function(x){return '<div class="member"><div class="avatar">'+initials(x.display_name||x.email||'?')+'</div><div style="flex:1"><div style="font-weight:700">'+zesc(x.display_name||x.email)+'</div><div style="color:var(--muted);font-size:12.5px">'+zesc(x.email||'')+'</div></div><span class="role">'+zesc(roleFr[x.role]||x.role||'')+'</span></div>';}).join('');}catch(e){}
   try{var rb=await zapi('/api/rbac/matrix');var t=document.getElementById('permTbl');if(t){var roles=rb.roles||[],perms=rb.permissions||[],grants=rb.grants||{};t.innerHTML='<thead><tr><th>Permission</th>'+roles.map(function(r){return '<th class="center">'+zesc(roleFr[r]||r)+'</th>';}).join('')+'</tr></thead><tbody>'+perms.map(function(p){return '<tr><td class="mono" style="font-size:12px">'+zesc(p)+'</td>'+roles.map(function(r){return '<td class="center"><span class="permchk '+(((grants[r]||[]).indexOf(p)>=0)?'on':'')+'">✓</span></td>';}).join('')+'</tr>';}).join('')+'</tbody>';}}catch(e){}
 }
@@ -1841,7 +1918,7 @@ zBoot=async function(){
   if(ZS.me&&ZS.me.user){var h=document.querySelector('.hello');if(h)h.textContent='Bon retour, '+(ZS.me.user.display_name||ZS.me.user.email||'');}
   await zRefreshServers();
   var licensed=false;
-  if(ZS.serverId){try{var l=await zapi('/api/servers/'+ZS.serverId+'/license');licensed=!!(l&&l.has_license&&!l.expired);}catch(e){}}
+  try{var lics=await Promise.all((ZS.servers||[]).map(function(s){return zapi('/api/servers/'+s.id+'/license').catch(function(){return{has_license:false};});}));licensed=lics.some(function(l){return l&&l.has_license&&!l.expired;});}catch(e){}
   // Le compte vendeur (admin plateforme) n'est jamais verrouillé : il gère les licences.
   if(licensed||(ZS.me&&ZS.me.is_platform_admin)){zHideGate();await zLoadAll();}
   else{zShowGate();}
@@ -1886,7 +1963,7 @@ async function zInviteGen(){
       +'<div class="mono" style="word-break:break-all;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:10px;font-size:12px">'+zesc(link)+'</div>'
       +'<div style="font-size:11px;color:var(--muted);margin:10px 0 4px">Code seul (si tu préfères le dicter)</div>'
       +'<div class="mono" style="word-break:break-all;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:10px;font-size:12px">'+zesc(j.code)+'</div>'
-      +'<button class="btn btn-sm" style="margin-top:12px" onclick="zCopy('+JSON.stringify(link)+')">Copier le lien</button>'
+      +'<button class="btn btn-sm" style="margin-top:12px" onclick="zCopy('+zJs(link)+')">Copier le lien</button>'
       +'</div>';
     document.getElementById('zInvGen').style.display='none';
     if(typeof zLog==='function')zLog('Invitation créée · '+email+' ('+role+')');
@@ -1901,7 +1978,7 @@ async function zInvitesLoad(){
     var list=(await zapi('/api/invitations')).invitations||[];
     var pending=list.filter(function(i){return !i.accepted_at;});
     card.innerHTML='<div class="pad" style="border-bottom:1px solid var(--hair)"><h2 style="font-size:15px">Invitations en attente</h2></div>'
-      +(pending.length?pending.map(function(i){return '<div class="member"><div class="avatar">@</div><div style="flex:1"><div style="font-weight:700">'+zesc(i.email)+'</div><div style="color:var(--muted);font-size:12.5px">'+zRoleFr(i.role)+' · expire le '+new Date(i.expires_at).toLocaleDateString('fr-FR')+'</div></div><button class="btn btn-ghost btn-sm" onclick="zInviteRevoke('+JSON.stringify(i.id)+')">Révoquer</button></div>';}).join(''):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Aucune invitation en attente.</div>');
+      +(pending.length?pending.map(function(i){return '<div class="member"><div class="avatar">@</div><div style="flex:1"><div style="font-weight:700">'+zesc(i.email)+'</div><div style="color:var(--muted);font-size:12.5px">'+zRoleFr(i.role)+' · expire le '+new Date(i.expires_at).toLocaleDateString('fr-FR')+'</div></div><button class="btn btn-ghost btn-sm" onclick="zInviteRevoke('+zJs(i.id)+')">Révoquer</button></div>';}).join(''):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Aucune invitation en attente.</div>');
   }catch(e){}
 }
 async function zInviteRevoke(id){try{await zapi('/api/invitations/'+id,{method:'DELETE'});toast('Invitation révoquée','grn');zInvitesLoad();}catch(e){toast('Échec : '+(e.message||e),'red');}}

@@ -59,7 +59,7 @@ function askCode(prefill){
     +'<label>Code d\'accès</label><input id="codeIn" placeholder="colle ton code ici" value="'+esc(prefill||'')+'">'
     +'<button class="btn" id="codeBtn">Continuer</button>'
     +'<div class="center"><a href="/login">J\'ai déjà un compte</a></div>';
-  document.getElementById('codeBtn').onclick=function(){var c=(document.getElementById('codeIn').value||'').trim();if(c.length<10){content.querySelector('.btn').insertAdjacentHTML('beforebegin','');return alertInline('Entre un code valide.');}location.search='?code='+encodeURIComponent(c);};
+  document.getElementById('codeBtn').onclick=function(){var c=(document.getElementById('codeIn').value||'').trim();if(c.length<10){alertInline('Entre un code valide.');return;}location.search='?code='+encodeURIComponent(c);};
 }
 function alertInline(m){var n=document.querySelector('.notice.err');if(n)n.textContent=m;else content.insertAdjacentHTML('afterbegin','<div class="notice err">'+esc(m)+'</div>');}
 
