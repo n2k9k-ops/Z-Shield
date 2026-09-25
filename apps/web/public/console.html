@@ -1851,8 +1851,18 @@ function zServerActivate(id,name){
 /* ---- Comptes & accès ---- */
 async function zMembersLoad(){
   var roleFr={OWNER:'Propriétaire',ADMIN:'Administrateur',STAFF:'Modérateur',VIEWER:'Lecteur'};
-  try{var m=(await zapi('/api/members')).members||[];var host=document.getElementById('memberList');if(host)host.innerHTML=(m.length?m:[{display_name:'—',email:'',role:''}]).map(function(x){return '<div class="member"><div class="avatar">'+initials(x.display_name||x.email||'?')+'</div><div style="flex:1"><div style="font-weight:700">'+zesc(x.display_name||x.email)+'</div><div style="color:var(--muted);font-size:12.5px">'+zesc(x.email||'')+'</div></div><span class="role">'+zesc(roleFr[x.role]||x.role||'')+'</span></div>';}).join('');}catch(e){}
+  var canManage=(ZS.perms&&ZS.perms.indexOf('member.manage')>=0);
+  var myId=(ZS.me&&ZS.me.user&&ZS.me.user.id)||null;
+  try{var m=(await zapi('/api/members')).members||[];var host=document.getElementById('memberList');if(host)host.innerHTML=(m.length?m:[{display_name:'—',email:'',role:''}]).map(function(x){var rm=(canManage&&x.id&&x.user_id&&x.user_id!==myId)?'<button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="zMemberRemove('+zJs(x.id)+','+zJs(x.display_name||x.email||'')+')">Retirer</button>':'';return '<div class="member"><div class="avatar">'+initials(x.display_name||x.email||'?')+'</div><div style="flex:1"><div style="font-weight:700">'+zesc(x.display_name||x.email)+'</div><div style="color:var(--muted);font-size:12.5px">'+zesc(x.email||'')+'</div></div><span class="role">'+zesc(roleFr[x.role]||x.role||'')+'</span>'+rm+'</div>';}).join('');}catch(e){}
   try{var rb=await zapi('/api/rbac/matrix');var t=document.getElementById('permTbl');if(t){var roles=rb.roles||[],perms=rb.permissions||[],grants=rb.grants||{};t.innerHTML='<thead><tr><th>Permission</th>'+roles.map(function(r){return '<th class="center">'+zesc(roleFr[r]||r)+'</th>';}).join('')+'</tr></thead><tbody>'+perms.map(function(p){return '<tr><td class="mono" style="font-size:12px">'+zesc(p)+'</td>'+roles.map(function(r){return '<td class="center"><span class="permchk '+(((grants[r]||[]).indexOf(p)>=0)?'on':'')+'">✓</span></td>';}).join('')+'</tr>';}).join('')+'</tbody>';}}catch(e){}
+}
+/* Retire un membre de l'organisation (DELETE /api/memberships/:id). Le serveur
+   applique les invariants (pas le dernier OWNER, un ADMIN ne retire pas un OWNER…) ;
+   l'UI se contente de demander confirmation et d'afficher les refus. */
+async function zMemberRemove(id,name){
+  if(!confirm('Retirer '+(name||'ce membre')+' de l\'organisation ?\nSon accès au dashboard sera révoqué immédiatement.'))return;
+  try{await zapi('/api/memberships/'+id,{method:'DELETE'});toast('Membre retiré','grn');await zMembersLoad();}
+  catch(e){var msg=(e&&e.data&&e.data.reason)||(e&&e.message)||'Échec';if(e&&e.status===403)msg='Action refusée : '+msg;toast(msg,'red');}
 }
 
 /* ---- Configuration (protections réelles, persistées, agent rechargé) ---- */
@@ -1983,25 +1993,37 @@ function zShowGate(){document.body.style.overflow='hidden';var g=document.getEle
 function zHideGate(){var g=document.getElementById('zGate');if(g)g.remove();document.body.style.overflow='';}
 function zRenderGate(){var g=document.getElementById('zGate');if(!g)return;
   var brand='<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><svg width="30" height="30" viewBox="0 0 256 256"><path fill="var(--green)" d="M52 122 200 40 150 104 116 152 100 126Z"/><path fill="#eaf0ea" d="M150 150 214 122 128 224Z"/></svg><span style="font-weight:800;font-size:18px">Z-Shield</span></div>';
-  var hasServer=!!(ZS.servers&&ZS.servers.length&&ZS.serverId);
-  var body;
-  if(!hasServer){
-    body='<h1 style="font-size:22px;margin:0 0 6px">Bienvenue sur Z-Shield</h1><p style="color:var(--sub);font-size:14px;margin:0 0 18px">Crée ton serveur pour commencer. Tu pourras ensuite l\'activer et régler tes protections.</p>'
-      +'<label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Nom du serveur</label>'
+  // Compte neuf = vide. On active avec la CLÉ DE LICENCE vendue au client : elle
+  // crée son serveur et débloque le panneau. Le plan vient de la clé signée (le
+  // client ne se l'attribue pas lui-même).
+  var body='<h1 style="font-size:22px;margin:0 0 6px">Active ton compte</h1><p style="color:var(--sub);font-size:14px;margin:0 0 18px">Colle la clé de licence que tu as reçue. Elle crée ton serveur et débloque ton panneau Z-Shield.</p>'
+      +'<label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Clé de licence</label>'
+      +'<input id="zgKey" placeholder="v1|…|…|…|…~…" spellcheck="false" autocapitalize="off" style="width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:11px 13px;color:var(--ink);font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace;margin-bottom:14px">'
+      +'<label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Nom de ton serveur <span style="color:var(--faint)">(optionnel)</span></label>'
       +'<input id="zgName" placeholder="Ex. Los Santos RP" style="width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:11px 13px;color:var(--ink);font-size:14px;margin-bottom:16px">'
-      +'<button class="btn btn-green" style="width:100%;justify-content:center" onclick="zGateCreate()">Créer mon serveur</button>';
-  }else{
-    var s=ZS.servers[0];
-    body='<h1 style="font-size:22px;margin:0 0 6px">Active « '+zesc(s.name)+' »</h1><p style="color:var(--sub);font-size:14px;margin:0 0 18px">Ton serveur n\'a pas encore de licence active. Active-le pour débloquer le panneau complet.</p>'
-      +'<label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Plan</label>'
-      +'<select id="zgPlan" style="width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:11px 13px;color:var(--ink);font-size:14px;margin-bottom:16px"><option value="trial">Essai</option><option value="starter">Starter</option><option value="pro" selected>Pro</option><option value="enterprise">Enterprise</option></select>'
-      +'<button class="btn btn-green" style="width:100%;justify-content:center" onclick="zGateActivate()">Activer mon serveur</button>'
-      +'<div style="display:flex;gap:10px;align-items:flex-start;margin-top:16px;padding:12px 14px;background:var(--green-soft,rgba(51,229,138,.07));border:1px solid var(--green-line);border-radius:12px;font-size:12.5px;color:var(--sub);line-height:1.5"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="flex:0 0 auto;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>La clé que ton anticheat lit se colle dans <b>zshield-ac/config/config.lua</b>. Ici, tu actives le <b>suivi de ce serveur</b> dans le dashboard.</div></div>';
-  }
+      +'<button class="btn btn-green" id="zgBtn" style="width:100%;justify-content:center" onclick="zActivateAccount()">Activer mon compte</button>'
+      +'<div style="display:flex;gap:10px;align-items:flex-start;margin-top:16px;padding:12px 14px;background:var(--green-soft,rgba(51,229,138,.07));border:1px solid var(--green-line);border-radius:12px;font-size:12.5px;color:var(--sub);line-height:1.5"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="flex:0 0 auto;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Pas encore de clé ? Demande-la à ton vendeur Z-Shield. La même clé se colle ensuite côté serveur FiveM (<b>set zshield_license_key</b>).</div></div>';
   g.innerHTML='<div style="max-width:520px;width:100%;background:var(--panel2,#0b1510);border:1px solid var(--line2,#1c2a20);border-radius:18px;padding:28px 26px;box-shadow:0 30px 70px rgba(0,0,0,.5)">'+brand+body+'<div style="text-align:center;margin-top:18px"><button type="button" onclick="zLogout()" style="background:none;border:0;color:var(--muted);font-size:12.5px;cursor:pointer;text-decoration:underline">Se déconnecter</button></div></div>';
 }
-async function zGateCreate(){var el=document.getElementById('zgName');var n=(el&&el.value||'').trim();if(!n){toast('Entre un nom de serveur','red');return;}try{await zapi('/api/servers',{method:'POST',body:{name:n,environment:'production'}});toast('Serveur créé','grn');await zRefreshServers();zRenderGate();}catch(e){toast('Échec : '+(e.message||e),'red');}}
-async function zGateActivate(){if(!ZS.serverId){toast('Aucun serveur','red');return;}var pl=document.getElementById('zgPlan');var plan=(pl&&pl.value)||'trial';try{await zapi('/api/servers/'+ZS.serverId+'/license',{method:'POST',body:{plan:plan}});toast('Serveur activé','grn');zHideGate();await zLoadAll();if(typeof applyView==='function')applyView('overview');}catch(e){toast('Échec de l\'activation : '+(e.message||e),'red');}}
+async function zActivateAccount(){
+  var k=(document.getElementById('zgKey')||{}).value||'';k=k.trim();
+  var n=((document.getElementById('zgName')||{}).value||'').trim();
+  if(!k){toast('Colle ta clé de licence','red');return;}
+  var btn=document.getElementById('zgBtn');if(btn){btn.disabled=true;btn.textContent='Activation…';}
+  try{
+    var body={license_key:k};if(n)body.server_name=n;
+    await zapi('/api/activate',{method:'POST',body:body});
+    toast('Compte activé','grn');
+    zHideGate();await zRefreshServers();await zLoadAll();
+    if(typeof applyView==='function')applyView('overview');
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='Activer mon compte';}
+    var msg=(e&&e.data&&e.data.message)||(e&&e.message)||'Échec de l\'activation';
+    if(e&&e.status===409)msg='Cette clé a déjà été activée sur un serveur.';
+    else if(e&&e.status===422)msg='Clé de licence invalide ou expirée.';
+    toast(msg,'red');
+  }
+}
 async function zLogout(){try{await zapi('/api/auth/logout',{method:'POST',body:{}});}catch(e){}location.href='/login';}
 
 /* ---- Terminal = journal des actions (audit réel + écho live) ---- */
@@ -2249,7 +2271,7 @@ async function zSwitchOrg(id){try{await zapi('/api/auth/switch-organization',{me
 
 </script>
 
-<script>window.ZS_BUILD="2026-09-25 20:24 UTC";</script>
+<script>window.ZS_BUILD="2026-09-25 22:19 UTC";</script>
 <script>
 (async () => {
   try { const r = await fetch('/api/auth/me', { credentials: 'include' }); if (r.status === 401) location.href = '/login'; }

@@ -61,5 +61,30 @@ async function shutdown(signal: string): Promise<void> {
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
 process.on('SIGINT', () => void shutdown('SIGINT'));
 
+// --- Admin plateforme SANS SQL (déclaratif) -------------------------------
+// Les e-mails listés dans BOOTSTRAP_ADMIN_EMAILS (séparés par des virgules)
+// deviennent admin plateforme ; tous les AUTRES comptes cessent de l'être.
+// Variable vide/absente = on ne touche à rien (sécurité anti-lockout). Comme
+// ça tourne à chaque démarrage : changer la variable sur Render + redéployer
+// suffit pour promouvoir un nouveau compte et rétrograder l'ancien.
+async function applyAdminBootstrap(): Promise<void> {
+  const raw = (process.env.BOOTSTRAP_ADMIN_EMAILS ?? '').trim();
+  if (!raw) return;
+  const emails = raw.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  if (emails.length === 0) return;
+  try {
+    const res = await pool.query(
+      `UPDATE users SET is_platform_admin = (lower(email::text) = ANY($1::text[]))`,
+      [emails],
+    );
+    logger.info('bootstrap admin appliqué', { admins: emails.length, updated: res.rowCount });
+  } catch (error) {
+    logger.error('échec du bootstrap admin', {
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+await applyAdminBootstrap();
+
 await app.listen({ port: config.PORT, host: '0.0.0.0' });
 logger.info('API démarrée', { port: config.PORT, env: config.NODE_ENV });

@@ -64,6 +64,10 @@ services:
         sync: false
       - key: LICENSE_SIGNING_SECRET           # anti-vol : `openssl rand -base64 48` — MÊME valeur que `set zshield_license_secret` sur les serveurs clients
         sync: false
+      - key: BOOTSTRAP_ADMIN_EMAILS           # e-mail(s) admin plateforme, séparés par virgules — ces comptes voient l'onglet Admin, les autres non
+        sync: false
+      - key: ALLOW_REGISTRATION               # "true" le temps de créer un compte, puis retire-la / "false"
+        sync: false
       - key: CORS_ORIGINS                     # l'origine publique du web (le proxy Next passe par le serveur, mais on la déclare)
         sync: false
       - key: WEB_ORIGIN

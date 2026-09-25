@@ -12,7 +12,7 @@ import type { Pool } from 'pg';
 import type { Redis } from 'ioredis';
 import { z } from 'zod';
 import { withTenant, withUser, withPlatformAdmin } from '../lib/db.ts';
-import { newId, newOpaqueToken, hmacSha256Hex, hashToken, hashPassword } from '../lib/crypto.ts';
+import { newId, newOpaqueToken, hmacSha256Hex, hashToken, hashPassword, constantTimeEqual } from '../lib/crypto.ts';
 import { env } from '../config/env.ts';
 import { organizationChannel } from '../lib/redis.ts';
 import type { AuthService } from '../auth/sessions.ts';
@@ -2418,6 +2418,33 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
     return { token, plan, issued, expires };
   }
 
+  // Vérifie une clé collée par le client (même format et même secret que
+  // signLicense et que le cœur anticheat). Renvoie le contenu vérifié, ou null
+  // si la signature est invalide, la structure incorrecte, ou la clé expirée.
+  // La comparaison de signature est en temps constant (constantTimeEqual).
+  function verifyLicenseKey(
+    key: string,
+  ): { binding: string; plan: string; issued: number; expires: number } | null {
+    const raw = key.trim();
+    const cut = raw.lastIndexOf('~');
+    if (cut <= 0) return null;
+    const payload = raw.slice(0, cut);
+    const signature = raw.slice(cut + 1);
+    if (!constantTimeEqual(signature, hmacSha256Hex(env().LICENSE_SIGNING_SECRET, payload))) {
+      return null;
+    }
+    const parts = payload.split('|');
+    if (parts.length !== 5 || parts[0] !== 'v1') return null;
+    const [, binding, plan, issuedStr, expiresStr] = parts;
+    const issued = Number(issuedStr);
+    const expires = Number(expiresStr);
+    if (!Number.isInteger(issued) || !Number.isInteger(expires)) return null;
+    if (!['trial', 'starter', 'pro', 'enterprise'].includes(plan!)) return null;
+    if (!/^([0-9a-f]{16}|any)$/.test(binding!)) return null;
+    if (expires * 1000 <= Date.now()) return null; // clé expirée
+    return { binding: binding!, plan: plan!, issued, expires };
+  }
+
   // Empreinte : 16 caractères hex (ce que le cœur affiche au démarrage), ou 'any'.
   const fingerprintSchema = z.string().regex(/^([0-9a-f]{16}|any)$/, 'empreinte invalide');
 
@@ -2528,6 +2555,134 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
       token: lic.token, plan, days,
       bound: binding !== 'any',
       expires_at: new Date(lic.expires * 1000).toISOString(),
+    };
+  }));
+
+  // -------------------------------------------------------------------------
+  // Activation d'un compte par clé de licence.
+  //
+  // Parcours voulu : un nouvel utilisateur s'inscrit → son compte est VIDE
+  // (aucun serveur). Il colle la clé de licence qu'on lui a vendue et son
+  // premier serveur est créé pour lui, avec la licence rattachée. La clé est
+  // vérifiée hors-ligne (signature HMAC + expiration) et ne peut servir qu'UNE
+  // fois : une clé déjà activée sur un serveur est refusée (anti-partage).
+  // -------------------------------------------------------------------------
+  const activateSchema = z
+    .object({
+      license_key: z.string().min(1).max(512),
+      server_name: z.string().min(1).max(120).optional(),
+    })
+    .strict();
+
+  app.post('/api/activate', handle(async (request, reply) => {
+    const actor = await guard.require(request, 'server.write');
+    const parsed = activateSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'validation' };
+    }
+
+    // 1) Vérifie la clé hors-ligne (signature + expiration). On ne révèle pas
+    //    quelle partie a échoué : une clé invalide reste une clé invalide.
+    const info = verifyLicenseKey(parsed.data.license_key);
+    if (!info) {
+      reply.status(422);
+      return { error: 'invalid_license', message: 'Clé de licence invalide ou expirée.' };
+    }
+    const token = parsed.data.license_key.trim();
+
+    // 2) Anti-partage : la même clé ne peut pas activer deux serveurs (même
+    //    entre organisations différentes). Contrôle transversal en lecture.
+    const alreadyUsed = await withPlatformAdmin(pool, async (client) => {
+      const { rowCount } = await client.query(
+        `SELECT 1 FROM licenses WHERE token = $1 LIMIT 1`,
+        [token],
+      );
+      return (rowCount ?? 0) > 0;
+    });
+    if (alreadyUsed) {
+      reply.status(409);
+      return { error: 'license_in_use', message: 'Cette clé a déjà été activée sur un serveur.' };
+    }
+
+    const serverName = parsed.data.server_name?.trim() || 'Mon serveur FiveM';
+
+    // 3) Rattache la licence, dans une seule transaction :
+    //    - si le compte a déjà un serveur SANS licence (créé avant activation),
+    //      on active CE serveur (pas de nouveau, pas de quota consommé) ;
+    //    - sinon si le compte est vide, on crée son premier serveur ;
+    //    - sinon (déjà un serveur licencié, quota atteint) on refuse proprement.
+    const outcome = await withTenant(pool, actor.organizationId, async (client) => {
+      const unlicensed = await client.query<{ id: string; name: string }>(
+        `SELECT s.id, s.name FROM servers s
+          WHERE s.organization_id = $1 AND s.deleted_at IS NULL
+            AND NOT EXISTS (SELECT 1 FROM licenses l
+                             WHERE l.organization_id = s.organization_id AND l.server_id = s.id)
+          ORDER BY s.created_at
+          LIMIT 1`,
+        [actor.organizationId],
+      );
+
+      let serverId: string;
+      let name: string;
+      let created = false;
+      if (unlicensed.rowCount && unlicensed.rows[0]) {
+        serverId = unlicensed.rows[0].id;
+        name = unlicensed.rows[0].name;
+      } else {
+        const { rows } = await client.query<{ used: string; allowed: string | null }>(
+          `SELECT (SELECT count(*)::text FROM servers
+                    WHERE organization_id = $1 AND deleted_at IS NULL) AS used,
+                  (SELECT COALESCE(
+                            (SELECT int_value FROM entitlements
+                              WHERE organization_id = $1 AND key = 'servers.max'),
+                            (SELECT pe.int_value FROM subscriptions sub
+                               JOIN plan_entitlements pe ON pe.plan_code = sub.plan_code
+                              WHERE sub.organization_id = $1 AND pe.key = 'servers.max')
+                          )::text) AS allowed`,
+          [actor.organizationId],
+        );
+        const used = Number(rows[0]?.used ?? '0');
+        const allowed = rows[0]?.allowed == null ? 1 : Number(rows[0].allowed);
+        if (used >= allowed) return { exceeded: true as const, used, allowed };
+
+        serverId = newId('srv');
+        name = serverName;
+        created = true;
+        await client.query(
+          `INSERT INTO servers (id, organization_id, name, environment, created_by)
+                VALUES ($1, $2, $3, 'production', $4)`,
+          [serverId, actor.organizationId, name, actor.user.userId],
+        );
+      }
+
+      // On stocke la clé TELLE QUELLE (le client l'a payée) avec son plan et sa
+      // date d'expiration vérifiés, sans la re-signer. L'empreinte se remplira
+      // au premier heartbeat de son serveur FiveM.
+      await client.query(
+        `INSERT INTO licenses (organization_id, server_id, token, plan, issued_at, expires_at, created_by)
+              VALUES ($1, $2, $3, $4, to_timestamp($5), to_timestamp($6), $7)`,
+        [actor.organizationId, serverId, token, info.plan, info.issued, info.expires, actor.user.userId],
+      );
+
+      return { exceeded: false as const, serverId, name, created };
+    });
+
+    if (outcome.exceeded) {
+      reply.status(402);
+      return { error: 'entitlement_exceeded', limit: outcome.allowed, used: outcome.used };
+    }
+
+    await audit(actor, 'account.activated', { kind: 'server', id: outcome.serverId },
+      { plan: info.plan, bound: info.binding !== 'any', created: outcome.created }, request.ip);
+
+    reply.status(201);
+    return {
+      status: 'ok',
+      server: { id: outcome.serverId, name: outcome.name },
+      plan: info.plan,
+      bound: info.binding !== 'any',
+      expires_at: new Date(info.expires * 1000).toISOString(),
     };
   }));
 
