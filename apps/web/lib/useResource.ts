@@ -22,20 +22,31 @@ export function useResource<T>(path: string | null): Resource<T> {
 
   const load = useCallback(async () => {
     if (path === null) return;
-    try {
-      setError(null);
-      const result = await api.get<T>(path);
-      setData(result);
-    } catch (cause) {
-      // Une erreur d'authentification renvoie vers la connexion : rester sur
-      // une page vide avec un message serait un cul-de-sac.
-      if (cause instanceof ApiError && cause.status === 401) {
-        window.location.href = '/login';
+    setError(null);
+    setLoading(true);
+    // Tolérance au « réveil » du serveur (plans qui s'endorment après inactivité) :
+    // une panne réseau ou un 5xx n'est PAS une déconnexion — on patiente et on
+    // réessaie plusieurs fois avant d'afficher une erreur. Seul un vrai 401 renvoie
+    // vers la connexion.
+    const attempts = 6;
+    for (let i = 0; i < attempts; i += 1) {
+      try {
+        const result = await api.get<T>(path);
+        setData(result);
+        setLoading(false);
         return;
+      } catch (cause) {
+        if (cause instanceof ApiError && cause.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        if (i === attempts - 1) {
+          setError(cause instanceof Error ? cause.message : 'Erreur inattendue.');
+          setLoading(false);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, i < 2 ? 1500 : 4000));
       }
-      setError(cause instanceof Error ? cause.message : 'Erreur inattendue.');
-    } finally {
-      setLoading(false);
     }
   }, [path]);
 

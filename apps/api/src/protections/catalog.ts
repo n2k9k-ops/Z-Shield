@@ -349,6 +349,68 @@ export const PROTECTION_CATALOG: ProtectionCategory[] = [
       def('rs_magneto', 'Anti magneto', 'Exploit d’attraction/collage d’objets ou véhicules.', 'watch', false),
     ],
   },
+  // ---------------------------------------------------------------------------
+  // Contre-mesures ciblées de menus de triche connus (noclip menus, bypass AC,
+  // manipulation d'autrui, construction, silent-kill…). Chaque entrée route vers
+  // un détecteur serveur-autoritatif via son préfixe de catégorie.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'exploits_joueur',
+    label: 'Exploits joueur (menus)',
+    items: [
+      def('pl_fake_handcuff', 'Anti fausses menottes', 'État « menotté » posé côté client sans action serveur légitime.'),
+      def('pl_revive_exploit', 'Anti revive-exploit', 'Réanimation/god-mode via un event de revive détourné.'),
+      def('rc_maxstats', 'Anti max skills / stats', 'Compétences ou stats poussées au-delà de la vérité serveur.'),
+      def('mv_parkour', 'Anti parkour / déplacement exploit', 'Déplacements scriptés impossibles (parkour, murs).'),
+      def('mv_sliderun', 'Anti slide-run', 'Glissade continue à vitesse anormale.', 'watch'),
+    ],
+  },
+  {
+    id: 'manip_autrui',
+    label: 'Manipulation d’autres joueurs',
+    items: [
+      def('nt_player_grab', 'Anti bring / launch / bug player', 'Tente de déplacer, éjecter ou bloquer un autre joueur via events.'),
+      def('nt_unjail', 'Anti unjail-exploit', 'Sortie de prison via un event serveur détourné.'),
+      def('nt_radio_join', 'Anti join-radio non autorisé', 'Rejoint une fréquence radio privée sans y avoir droit.'),
+      def('nt_dynamic_triggers', 'Anti triggers dynamiques / inject panel', 'Balayage/injection massifs d’events serveur (menus « dynamic triggers »).'),
+    ],
+  },
+  {
+    id: 'construction_entites',
+    label: 'Construction & entités',
+    items: [
+      def('sp_construct', 'Anti construction (murs/rampes/boucliers)', 'Création massive d’objets pour murs, rampes, tours, ailes.'),
+      def('sp_physgun', 'Anti physics-gun', 'Saisie/déplacement d’entités par prise d’ownership réseau.'),
+      def('vh_attach', 'Anti attach / carry de véhicules', 'Attache/empile des véhicules pour grief ou transport.'),
+      def('vh_spoof', 'Anti spoof de véhicule', 'Usurpation de modèle/plaque de véhicule.'),
+    ],
+  },
+  {
+    id: 'combat_deloyal',
+    label: 'Combat déloyal',
+    items: [
+      def('wp_silentkill', 'Anti silent / stealth kill', 'Kill sans trace d’origine (hors logs) — provenance de dégâts invalide.'),
+      def('av_triggerbot', 'Anti triggerbot', 'Tir déclenché automatiquement à la cible (réaction/pattern inhumains).', 'watch'),
+      def('av_no_spread', 'Anti no-spread / no-recoil forcé', 'Dispersion/recul supprimés côté client.', 'watch'),
+    ],
+  },
+  {
+    id: 'reseau_desync',
+    label: 'Réseau — désync forcée',
+    items: [
+      def('nw_fakelag', 'Anti fake-lag', 'Latence simulée pour esquiver la sanction (pas de rapport).'),
+      def('nw_forcedesync', 'Anti force-desync', 'Désynchronisation volontaire de l’état joueur.'),
+    ],
+  },
+  {
+    id: 'anti_contournement',
+    label: 'Anti-contournement de l’anticheat',
+    items: [
+      def('rs_ac_bypass', 'Anti bypass d’anticheat', 'Tentatives de neutraliser un anticheat (Felox/Quantum/…) : injection non déclarée détectée.'),
+      def('rs_screenshot_tamper', 'Anti blocage de capture', 'Blocage du système de screenshot serveur (perte de preuve).'),
+      def('rs_scan_evasion', 'Anti évasion de scan', 'Ressource qui masque sa présence au scan (allowlist stricte).'),
+    ],
+  },
 ];
 
 /** Index plat id → définition, pour valider les écritures. */
