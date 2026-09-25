@@ -1,18 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { ApiError, api } from '@/lib/api';
 
 /**
- * Inscription publique désactivée (dashboard sur invitation / compte démo).
- * On renvoie vers la connexion. Pour créer le compte admin initial, voir
- * docs : activer ALLOW_REGISTRATION le temps d'une inscription, puis désactiver.
+ * Inscription publique. Active seulement si ALLOW_REGISTRATION=true côté API
+ * (sinon l'API renvoie 403 registration_disabled, message géré ci-dessous).
+ *
+ * Parcours voulu : l'utilisateur crée son organisation (compte VIDE, aucun
+ * serveur), puis se connecte et active son compte avec sa clé de licence, ce
+ * qui crée son serveur. Aucun serveur e-mail n'étant branché, on ne prétend PAS
+ * envoyer de lien de vérification : le compte est utilisable dès la connexion.
  */
-function RegistrationDisabledRedirect() {
-  useEffect(() => { window.location.replace('/login'); }, []);
-  return null;
-}
 
 /** Logo Z-Shield (éclats blancs, halo vert), réutilisé depuis le rail. */
 function BrandMark() {
@@ -34,10 +34,6 @@ function DiscordMark() {
 }
 
 export default function RegisterPage() {
-  return <RegistrationDisabledRedirect />;
-}
-
-function RegisterPageDisabled() {
   const [form, setForm] = useState({
     organization_name: '',
     display_name: '',
@@ -59,7 +55,14 @@ function RegisterPageDisabled() {
       await api.post('/api/auth/register', form);
       setDone(true);
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : 'Création impossible.');
+      // Message clair quand l'inscription est désactivée côté serveur.
+      if (cause instanceof ApiError && /registration_disabled/i.test(cause.message)) {
+        setError(
+          'Les inscriptions sont fermées pour le moment. Demande un accès à l’administrateur.',
+        );
+      } else {
+        setError(cause instanceof ApiError ? cause.message : 'Création impossible.');
+      }
     } finally {
       setBusy(false);
     }
@@ -71,20 +74,19 @@ function RegisterPageDisabled() {
         <div className="auth__box">
           <div className="auth__brand">
             <BrandMark />
-            <h1>Vérifiez votre boîte e-mail</h1>
+            <h1>Compte créé</h1>
           </div>
           {/*
-            Message identique que l'adresse soit déjà prise ou non : l'API
-            répond la même chose dans les deux cas, pour ne pas transformer ce
-            formulaire en oracle d'énumération de comptes. L'interface ne doit
-            donc pas prétendre en savoir plus.
+            Réponse identique que l'adresse soit déjà prise ou non (l'API répond
+            la même chose dans les deux cas), pour ne pas transformer ce
+            formulaire en oracle d'énumération de comptes.
           */}
           <p className="page__lede" style={{ textAlign: 'center' }}>
-            Si cette adresse peut créer une organisation, un lien de vérification vient de
-            partir. Il expire dans une heure.
+            Ton compte est prêt. Connecte-toi avec ton e-mail et ton mot de passe, puis active-le
+            avec ta clé de licence pour créer ton serveur.
           </p>
-          <p className="auth__note">
-            <Link href="/login">Retour à la connexion</Link>
+          <p className="auth__note" style={{ textAlign: 'center' }}>
+            <Link href="/login">Se connecter</Link>
           </p>
         </div>
       </main>
@@ -97,8 +99,8 @@ function RegisterPageDisabled() {
         <div className="auth__brand">
           <BrandMark />
           <div>
-            <h1>Créer une organisation</h1>
-            <p className="page__lede">Vous en serez le propriétaire.</p>
+            <h1>Créer ton compte</h1>
+            <p className="page__lede">Compte vide au départ — tu l’actives ensuite avec ta clé.</p>
           </div>
         </div>
 
@@ -142,7 +144,7 @@ function RegisterPageDisabled() {
         </label>
 
         <button className="button" type="submit" disabled={busy}>
-          {busy ? 'Création…' : 'Créer l’organisation'}
+          {busy ? 'Création…' : 'Créer mon compte'}
         </button>
 
         <p className="auth__note">
