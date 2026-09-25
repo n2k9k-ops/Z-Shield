@@ -2087,6 +2087,45 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
    ========================================================================= */
 function zRoleFr(r){return({OWNER:'Propriétaire',ADMIN:'Administrateur',STAFF:'Modérateur',VIEWER:'Lecteur'})[r]||r;}
 function zCopy(t){try{navigator.clipboard.writeText(t);toast('Copié','grn');}catch(e){toast('Copie impossible','red');}}
+
+/* =========================================================================
+   Nouveautés (patch notes) — version client, affichée dans une modale depuis
+   le menu de compte. Pour publier une nouvelle version : ajoute une entrée EN
+   HAUT de ZS_NEWS. La plus récente porte la pastille « nouveau » tant que le
+   navigateur ne l'a pas ouverte (mémorisé en local, par version).
+   ========================================================================= */
+var ZS_NEWS=[
+  {v:'1.0.0',date:'26 septembre 2026',title:'Lancement en libre-service',items:[
+    ['🆕','Crée ton compte toi-même','Inscription directe sur Z-Shield, sans attendre d\'invitation. Ton compte démarre vide.'],
+    ['🔑','Active ton serveur avec ta clé','Colle ta clé de licence : ton serveur est créé automatiquement et ton panneau se débloque.'],
+    ['🛡️','189 protections réelles','Active-les une par une, en mode Surveiller ou Bloquer, selon ce que tu veux laisser passer.'],
+    ['👥','Comptes & accès','Invite ton staff avec un lien, choisis son rôle, et retire un membre en un clic.'],
+    ['🔒','Anti-partage','Chaque licence est liée à ton serveur et peut être coupée à distance en cas d\'abus.'],
+    ['🎨','Personnalise ton panel','Choisis la couleur d\'accent de ton dashboard.'],
+    ['⚡','Toujours dispo','Le panneau se rallume tout seul après une période d\'inactivité, sans erreur de session.'],
+  ]},
+];
+function zNewsSeenKey(){return 'zshield_news_seen';}
+function zNewsUnseen(){try{return (ZS_NEWS[0]&&ZS_NEWS[0].v)&&localStorage.getItem(zNewsSeenKey())!==ZS_NEWS[0].v;}catch(e){return false;}}
+function zNewsMarkSeen(){try{if(ZS_NEWS[0])localStorage.setItem(zNewsSeenKey(),ZS_NEWS[0].v);}catch(e){}}
+function zCloseNews(){var m=document.getElementById('zNewsModal');if(m)m.remove();}
+function zNewsModal(){
+  var rel=ZS_NEWS.map(function(r,idx){
+    var rows=r.items.map(function(it){return '<div style="display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line)"><div style="font-size:18px;line-height:1.3;flex:0 0 auto">'+it[0]+'</div><div style="flex:1"><div style="font-weight:700;font-size:13.5px">'+zesc(it[1])+'</div><div style="color:var(--sub);font-size:12.5px;line-height:1.5;margin-top:2px">'+zesc(it[2])+'</div></div></div>';}).join('');
+    return '<div style="margin-top:'+(idx?'22px':'4px')+'"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-family:var(--disp);font-weight:800;font-size:16px">v'+zesc(r.v)+'</span>'+(idx===0?'<span class="rtag" style="background:var(--green-soft);color:var(--green);border-color:var(--green-line)">dernière</span>':'')+'<span style="color:var(--faint);font-size:12px;margin-left:auto">'+zesc(r.date)+'</span></div><div style="font-size:13px;color:var(--muted);margin:2px 0 6px">'+zesc(r.title)+'</div>'+rows+'</div>';
+  }).join('');
+  var m=document.createElement('div');m.id='zNewsModal';
+  m.style.cssText='position:fixed;inset:0;z-index:340;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:20px;overflow:auto';
+  m.innerHTML='<div style="background:var(--panel2);border:1px solid var(--line2);border-radius:16px;max-width:540px;width:100%;padding:24px;max-height:86vh;overflow:auto">'
+   +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><svg width="22" height="22" viewBox="0 0 256 256"><path fill="var(--green)" d="M52 122 200 40 150 104 116 152 100 126Z"/><path fill="#eaf0ea" d="M150 150 214 122 128 224Z"/></svg><div style="font-family:var(--disp);font-weight:800;font-size:18px">Nouveautés Z-Shield</div></div>'
+   +'<p style="color:var(--sub);font-size:12.5px;margin:0 0 8px;line-height:1.5">Ce qui a changé récemment sur ton panneau.</p>'
+   +rel
+   +'<div style="display:flex;justify-content:flex-end;margin-top:22px"><button class="btn btn-green btn-sm" onclick="zCloseNews()">J\'ai compris</button></div>'
+   +'</div>';
+  m.addEventListener('click',function(e){if(e.target===m)zCloseNews();});
+  document.body.appendChild(m);
+  zNewsMarkSeen();
+}
 function zCloseInvite(){var m=document.getElementById('zInviteModal');if(m)m.remove();}
 function zInviteModal(){
   var m=document.createElement('div');m.id='zInviteModal';
@@ -2245,6 +2284,7 @@ function zAccountMenu(e){
   if(ZS.me&&ZS.me.is_platform_admin) items+='<div class="ai" onclick="zCloseAcct();applyView(\'admin\')">'+zAcctIcon('<path d="M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5l7-3Z"/>')+'Admin — tous serveurs</div>';
   items+='<div class="ai" onclick="zAccountOrgs()">'+zAcctIcon('<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/>')+'Changer d\'organisation</div>';
   items+='<div class="ai" onclick="zCloseAcct();applyView(\'install\')">'+zAcctIcon('<path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>')+'Installation</div>';
+  items+='<div class="ai" onclick="zCloseAcct();zNewsModal()">'+zAcctIcon('<path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2" fill="var(--green)" stroke="none"/>')+'Nouveautés'+(zNewsUnseen()?'<span class="rtag" style="background:var(--green-soft);color:var(--green);border-color:var(--green-line)">nouveau</span>':'')+'</div>';
   items+='<div class="sep"></div>';
   items+='<div class="ai danger" onclick="zLogout()">'+zAcctIcon('<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l-5-5 5-5M5 12h12"/>')+'Se déconnecter</div>';
   items+='<div style="padding:8px 10px 4px;font-size:10.5px;color:var(--faint);text-align:center">Version '+(window.ZS_BUILD||'—')+'</div>';
@@ -2271,7 +2311,7 @@ async function zSwitchOrg(id){try{await zapi('/api/auth/switch-organization',{me
 
 </script>
 
-<script>window.ZS_BUILD="2026-09-25 22:19 UTC";</script>
+<script>window.ZS_BUILD="2026-09-25 23:02 UTC";</script>
 <script>
 (async () => {
   try { const r = await fetch('/api/auth/me', { credentials: 'include' }); if (r.status === 401) location.href = '/login'; }
