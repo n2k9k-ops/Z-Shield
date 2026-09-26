@@ -699,7 +699,7 @@ a{color:inherit}
       </div>
 
       <div class="card wm">
-        <div class="pad" style="border-bottom:1px solid var(--hair)"><h2 style="font-size:15px">Installation en 6 étapes</h2><div style="color:var(--muted);font-size:12.5px;margin-top:3px">≈ 5 minutes. Le bouton <b>« Télécharger l'anticheat (.zip) »</b> ci-dessus contient TOUS les fichiers. Ce que tu colles ci-dessous se met dans ton <span class="mono">server.cfg</span>.</div></div>
+        <div class="pad" style="border-bottom:1px solid var(--hair)"><h2 style="font-size:15px">Installation en 5 étapes</h2><div style="color:var(--muted);font-size:12.5px;margin-top:3px">≈ 5 minutes. Le bouton <b>« Télécharger l'anticheat (.zip) »</b> ci-dessus contient TOUS les fichiers. Ce que tu colles ci-dessous se met dans ton <span class="mono">server.cfg</span>.</div></div>
 
         <div class="step"><div class="no">1</div><div class="sc"><h4>Télécharge et dépose les dossiers</h4><p>Clique <b>« Télécharger l'anticheat (.zip) »</b>, décompresse, puis place les dossiers <b>zshield-ac</b> et <b>zshield-agent</b> dans le dossier <span class="mono">resources/</span> de ton serveur FiveM. Le .zip contient l'intégralité des fichiers de l'anticheat.</p></div></div>
 
@@ -708,16 +708,27 @@ set zshield_server_id "srv_xxxxxxxx"
 set zshield_key_id "key_xxxxxxxx"
 set zshield_agent_secret "•••••• (affiché une seule fois)"</pre></div></div></div>
 
-        <div class="step"><div class="no">3</div><div class="sc"><h4>Colle ta clé de licence</h4><p>La clé fournie par ton vendeur (elle est liée à CE serveur). Rien d'autre à configurer : la protection anti-triche est déjà réglée dans la ressource.</p><div class="code"><pre>set zshield_license_key "ZS-•••• (ta clé de licence)"</pre><button class="copy" data-copy='set zshield_license_key "ZS-•••• (ta clé de licence)"'>Copier</button></div></div></div>
+        <div class="step"><div class="no">3</div><div class="sc"><h4>Colle ta clé de licence + le kill-switch</h4><p>La clé est fournie par ton vendeur (liée à CE serveur). La 2ᵉ ligne relie l'anticheat au dashboard pour pouvoir <b>couper une licence à distance</b> (clé volée/revendue) — <b>garde-la</b>. Colle les deux lignes dans ton <span class="mono">server.cfg</span>.</p><div class="code"><pre>set zshield_license_key "ZS-•••• (ta clé de licence)"
+set zshield_dashboard_url "https://zshield-api.onrender.com"</pre><button class="copy" data-copy='set zshield_license_key "ZS-•••• (ta clé de licence)"&#10;set zshield_dashboard_url "https://zshield-api.onrender.com"'>Copier</button></div></div></div>
 
-        <div class="step"><div class="no">4</div><div class="sc"><h4>Active le kill-switch en ligne <span style="color:var(--faint);font-weight:400">(recommandé)</span></h4><p>Cette ligne relie l'anticheat au dashboard pour pouvoir <b>couper une licence à distance</b> (clé volée/revendue). Remplace l'URL par celle de ton API Z-Shield. Sans elle, la protection marche quand même, mais tu perds le kill-switch en ligne.</p><div class="code"><pre>set zshield_dashboard_url "https://zshield-api.onrender.com"</pre><button class="copy" data-copy='set zshield_dashboard_url "https://zshield-api.onrender.com"'>Copier</button></div></div></div>
+        <div class="step"><div class="no">4</div><div class="sc"><h4>Ordre de démarrage &amp; durcissement moteur</h4><p>Z-Shield démarre <b>en dernier</b>, après ton framework. OneSync activé. Les lignes <b>de durcissement</b> (natives FiveM) bloquent les exploits de state bags et les floods d'events sans script — garde-les.</p><div class="code"><pre>set onesync on
 
-        <div class="step"><div class="no">5</div><div class="sc"><h4>Ordre de démarrage</h4><p>Z-Shield démarre <b>en dernier</b>, après ton framework. OneSync doit être activé.</p><div class="code"><pre>set onesync on
+# Durcissement moteur FiveM (natif, recommandé)
+setr sv_stateBagStrictMode true
+set rateLimiter_netEvent_rate 50
+set rateLimiter_netEvent_burst 200
+set rateLimiter_netEventFlood_rate 75
+set rateLimiter_netEventFlood_burst 300
+set rateLimiter_stateBag_rate 75
+set rateLimiter_stateBag_burst 125
+set rateLimiter_stateBagFlood_rate 150
+set rateLimiter_stateBagFlood_burst 175
+
 # ... ton framework (ESX/QBCore) et tes ressources ...
 ensure zshield-agent
-ensure zshield-ac</pre><button class="copy" data-copy="set onesync on&#10;ensure zshield-agent&#10;ensure zshield-ac">Copier</button></div></div></div>
+ensure zshield-ac</pre><button class="copy" data-copy="set onesync on&#10;setr sv_stateBagStrictMode true&#10;set rateLimiter_netEvent_rate 50&#10;set rateLimiter_netEvent_burst 200&#10;set rateLimiter_netEventFlood_rate 75&#10;set rateLimiter_netEventFlood_burst 300&#10;set rateLimiter_stateBag_rate 75&#10;set rateLimiter_stateBag_burst 125&#10;set rateLimiter_stateBagFlood_rate 150&#10;set rateLimiter_stateBagFlood_burst 175&#10;ensure zshield-agent&#10;ensure zshield-ac">Copier</button></div></div></div>
 
-        <div class="step"><div class="no">6</div><div class="sc"><h4>Démarre le serveur</h4><p>Au lancement, la console affiche l'<b>identifiant du serveur</b>, l'état de la licence et <b>« Protégé par Z-Shield »</b>. Le serveur apparaît alors ici, protection active.</p><div class="code"><pre>[Z-Shield] Identifiant de ce serveur : 7b9d6cd94dbfd140
+        <div class="step"><div class="no">5</div><div class="sc"><h4>Démarre le serveur</h4><p>Au lancement, la console affiche l'<b>identifiant du serveur</b>, l'état de la licence et <b>« Protégé par Z-Shield »</b>. Le serveur apparaît alors ici, protection active.</p><div class="code"><pre>[Z-Shield] Identifiant de ce serveur : 7b9d6cd94dbfd140
 [Z-Shield] Licence : VALIDE (pro — 30 j restants)
 [Z-Shield] Protégé par Z-Shield</pre></div></div></div>
       </div>
@@ -1629,6 +1640,16 @@ function downloadInstall(){
   "# Z-Shield — modele server.cfg (remplace les valeurs entre << >>)\n"+
   "# ================================================================\n\n"+
   "set onesync on\n\n"+
+  "# --- Durcissement moteur FiveM (natif, recommande) ---\n"+
+  "setr sv_stateBagStrictMode true\n"+
+  "set rateLimiter_netEvent_rate 50\n"+
+  "set rateLimiter_netEvent_burst 200\n"+
+  "set rateLimiter_netEventFlood_rate 75\n"+
+  "set rateLimiter_netEventFlood_burst 300\n"+
+  "set rateLimiter_stateBag_rate 75\n"+
+  "set rateLimiter_stateBag_burst 125\n"+
+  "set rateLimiter_stateBagFlood_rate 150\n"+
+  "set rateLimiter_stateBagFlood_burst 175\n\n"+
   "# --- Ta cle de licence (fournie par ton vendeur) ---\n"+
   "set zshield_license_key \"<<ta-cle-de-licence>>\"\n\n"+
   "# --- Kill-switch en ligne (recommande) : permet de couper une cle a distance ---\n"+
@@ -2144,6 +2165,11 @@ function zCopy(t){try{navigator.clipboard.writeText(t);toast('Copié','grn');}ca
    navigateur ne l'a pas ouverte (mémorisé en local, par version).
    ========================================================================= */
 var ZS_NEWS=[
+  {v:'1.3.0',date:'26 septembre 2026',title:'Protection renforcée + durcissement serveur',items:[
+    ['🧱','Durcissement moteur natif','Le server.cfg inclut désormais les protections natives FiveM (state bags stricts, anti-flood) — bloque des exploits sans script.'],
+    ['🗄️','Anti-exploit state bags','Détection des clés protégées écrites par un client, des charges géantes (crash) et des floods.'],
+    ['🛡️','Build client protégé','Nouvel outil de build : secret gravé, filigrane anti-fuite, prêt pour l\'escrow Cfx.re (chiffrement réel).'],
+  ]},
   {v:'1.2.0',date:'26 septembre 2026',title:'Modes prêts + anti-Lapsus + anti-dumper',items:[
     ['🎚️','Modes de configuration en 1 clic','Choisis Léger, Équilibré, PvP ou Strict — plus besoin de régler chaque protection à la main.'],
     ['🎯','Anti menus de triche','Signatures des menus connus (Lapsus, Eulen, RedEngine, Susano…) intégrées à l\'anti-injection.'],
@@ -2463,7 +2489,7 @@ async function zSwitchOrg(id){try{await zapi('/api/auth/switch-organization',{me
 
 </script>
 
-<script>window.ZS_BUILD="2026-09-25 23:43 UTC";</script>
+<script>window.ZS_BUILD="2026-09-26 00:11 UTC";</script>
 <script>
 (async () => {
   try { const r = await fetch('/api/auth/me', { credentials: 'include' }); if (r.status === 401) location.href = '/login'; }
