@@ -15,6 +15,16 @@
   --nav-w:238px; --r:14px;
   --wm:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'><path fill='%2333e58a' d='M52 122 200 40 150 104 116 152 100 126Z'/><path fill='%2333e58a' d='M150 150 214 122 128 224Z'/></svg>");
 }
+/* Thème clair (bascule via le menu de compte). On ne redéfinit que les neutres :
+   le vert d'accent est assombri pour rester lisible sur fond blanc. */
+:root[data-theme="light"]{
+  color-scheme: light;
+  --bg:#f4f6f4; --bg2:#eaeeea; --panel:#ffffff; --panel2:#f6f8f6; --raise:#eef1ee;
+  --line:#e3e7e3; --line2:#d2d8d2; --hair:#e9ece9;
+  --ink:#0d160f; --sub:#495449; --muted:#6c776d; --faint:#9aa59b;
+  --green:#0f9d59; --green-d:#0c8149; --ink-on-green:#ffffff;
+  --green-soft:rgba(15,157,89,.10); --green-line:rgba(15,157,89,.32);
+}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
@@ -428,6 +438,9 @@ a{color:inherit}
     <div class="navitem" data-view="map"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3-6-3Z"/><path d="M9 3v15M15 6v15"/></svg>Carte live</div>
     <div class="navitem" data-view="multiview"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="14" width="8" height="6" rx="1.5"/><rect x="13" y="14" width="8" height="6" rx="1.5"/></svg>Multi‑vue</div>
     <div class="navitem" data-view="bans"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></svg>Bans &amp; sanctions</div>
+    <div class="navitem" data-view="livethreats"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg>Menaces live</div>
+    <div class="navitem" data-view="analytics"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Analytics</div>
+    <div class="navitem" data-view="incidents"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v6M12 22a9 9 0 1 0-9-9"/><path d="M12 12l4 2"/><path d="M3 4l3 3"/></svg>Incidents</div>
 
     <div class="navlabel">Défense</div>
     <div class="navitem" data-view="prot"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h16M4 8l3-3M4 8l3 3M20 16H4M20 16l-3-3M20 16l-3 3"/></svg>Configuration<span class="badge" id="cfgBadge">165</span></div>
@@ -622,6 +635,18 @@ a{color:inherit}
         <div class="chip" data-filter="manual">Manuels</div>
       </div>
       <div class="card"><table class="tbl"><thead><tr><th>Joueur</th><th>Raison</th><th>État</th><th>Quand</th><th>Preuve</th></tr></thead><tbody id="banRows"></tbody></table></div>
+
+      <div class="card" style="padding:16px 18px;margin-top:16px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px"><div style="font-weight:700;font-size:13.5px">Réseau de bans partagés</div><div style="color:var(--muted);font-size:12px;margin-top:2px">Partage un <b>hash anonyme</b> de tes bans avec le réseau Z-Shield et vois si un joueur est signalé ailleurs. Aucune donnée brute, aucun serveur nommé. C'est un signal, jamais un ban auto.</div></div>
+          <div id="netStatus" style="font-size:12px;color:var(--muted)">…</div>
+          <button class="btn btn-sm" id="netToggle" onclick="zNetworkToggle()">…</button>
+        </div>
+      </div>
+
+      <div class="section-head"><h2 style="font-size:15px">Appels de ban <span id="appealCount" class="rtag" style="display:none"></span></h2><div class="grow"></div><button class="btn btn-ghost btn-sm" onclick="zAppealsLoad()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>Actualiser</button></div>
+      <p style="color:var(--sub);font-size:12.5px;margin:0 0 10px">Contestations envoyées par les joueurs via ta page publique <span class="mono">/appeal.html</span>. Accepter lève le ban ; refuser le maintient.</p>
+      <div class="card" id="appealList"></div>
     </section>
 
     <!-- CONFIGURATION (165 réglages, 7 onglets) -->
@@ -637,6 +662,12 @@ a{color:inherit}
           <button class="btn btn-sm" onclick="zApplyPreset('balanced')">Équilibré</button>
           <button class="btn btn-sm" onclick="zApplyPreset('pvp')">PvP</button>
           <button class="btn btn-sm btn-green" onclick="zApplyPreset('strict')">Strict</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+          <div style="flex:1;min-width:160px;color:var(--muted);font-size:12px">Modèle partageable — exporte ta config pour la réappliquer sur un autre serveur.</div>
+          <button class="btn btn-sm btn-ghost" onclick="zCfgExport()">Exporter</button>
+          <button class="btn btn-sm btn-ghost" onclick="zCfgImport()">Importer</button>
+          <input type="file" id="cfgImportFile" accept="application/json,.json" style="display:none">
         </div>
       </div>
       <div class="search" style="margin-bottom:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="protSearch" placeholder="Rechercher un réglage…"></div>
@@ -723,10 +754,14 @@ set rateLimiter_stateBag_rate 75
 set rateLimiter_stateBag_burst 125
 set rateLimiter_stateBagFlood_rate 150
 set rateLimiter_stateBagFlood_burst 175
+set sv_filterRequestControl 2           # bloque la prise de contrôle d'entités
+sv_scriptHookAllowed false              # coupe ScriptHook (vecteur de trainers)
+set sv_endpointPrivacy true             # masque les IP des joueurs (anti-DDoS/doxx)
+set sv_enableNetworkedPhoneExplosions false
 
 # ... ton framework (ESX/QBCore) et tes ressources ...
 ensure zshield-agent
-ensure zshield-ac</pre><button class="copy" data-copy="set onesync on&#10;setr sv_stateBagStrictMode true&#10;set rateLimiter_netEvent_rate 50&#10;set rateLimiter_netEvent_burst 200&#10;set rateLimiter_netEventFlood_rate 75&#10;set rateLimiter_netEventFlood_burst 300&#10;set rateLimiter_stateBag_rate 75&#10;set rateLimiter_stateBag_burst 125&#10;set rateLimiter_stateBagFlood_rate 150&#10;set rateLimiter_stateBagFlood_burst 175&#10;ensure zshield-agent&#10;ensure zshield-ac">Copier</button></div></div></div>
+ensure zshield-ac</pre><button class="copy" data-copy="set onesync on&#10;setr sv_stateBagStrictMode true&#10;set rateLimiter_netEvent_rate 50&#10;set rateLimiter_netEvent_burst 200&#10;set rateLimiter_netEventFlood_rate 75&#10;set rateLimiter_netEventFlood_burst 300&#10;set rateLimiter_stateBag_rate 75&#10;set rateLimiter_stateBag_burst 125&#10;set rateLimiter_stateBagFlood_rate 150&#10;set rateLimiter_stateBagFlood_burst 175&#10;set sv_filterRequestControl 2&#10;sv_scriptHookAllowed false&#10;set sv_endpointPrivacy true&#10;set sv_enableNetworkedPhoneExplosions false&#10;ensure zshield-agent&#10;ensure zshield-ac">Copier</button></div></div></div>
 
         <div class="step"><div class="no">5</div><div class="sc"><h4>Démarre le serveur</h4><p>Au lancement, la console affiche l'<b>identifiant du serveur</b>, l'état de la licence et <b>« Protégé par Z-Shield »</b>. Le serveur apparaît alors ici, protection active.</p><div class="code"><pre>[Z-Shield] Identifiant de ce serveur : 7b9d6cd94dbfd140
 [Z-Shield] Licence : VALIDE (pro — 30 j restants)
@@ -760,9 +795,22 @@ ensure zshield-ac</pre><button class="copy" data-copy="set onesync on&#10;setr s
 
     <!-- SIGNATURES -->
     <section class="view content" data-view="signatures">
-      <div class="notice" style="margin-bottom:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Signatures de détection et leur déploiement. Une signature déployée est active sur tous tes serveurs ; en <b>canary</b>, elle est testée sur un serveur avant généralisation.</div></div>
-      <div class="search" style="margin-bottom:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="sigSearch" placeholder="Rechercher une signature…"></div>
-      <div class="card"><table class="tbl"><thead><tr><th>Signature</th><th>Version</th><th>Catégorie</th><th>Fiabilité</th><th>Déploiement</th></tr></thead><tbody id="sigRows"></tbody></table></div>
+      <div class="section-head" style="margin-top:0"><h2>Marketplace de signatures</h2><div class="grow"></div>
+        <button class="btn btn-green btn-sm" onclick="zSigSubmitModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Proposer une signature</button>
+        <button class="btn btn-ghost btn-sm" onclick="zSignaturesLoad()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>Actualiser</button></div>
+      <div class="notice" style="margin-bottom:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Tu croises un nouveau cheat ? <b>Propose sa signature</b> (nom d'événement, resource, entité…). Après validation manuelle par l'équipe Z-Shield, elle rejoint le flux commun — <b>anonymisé</b> — dont profitent tous les serveurs. On ne diffuse rien sans modération : une signature erronée ne doit pas devenir un faux positif chez tout le monde.</div></div>
+
+      <div class="section-head" style="margin-top:4px"><h2 style="font-size:15px">Signatures approuvées <span class="mut" id="sigApprovedCount" style="font-weight:600;font-size:12px"></span></h2></div>
+      <div class="search" style="margin:10px 0 14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="sigSearch" placeholder="Rechercher une signature approuvée…"></div>
+      <div class="card"><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Signature</th><th>Catégorie</th><th>Cheat visé</th><th>Pattern</th><th>Approuvée</th></tr></thead><tbody id="sigApprovedRows"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Chargement…</td></tr></tbody></table></div></div>
+
+      <div class="section-head" style="margin-top:18px"><h2 style="font-size:15px">Mes propositions</h2></div>
+      <div class="card" style="margin-top:10px"><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Signature</th><th>Catégorie</th><th>Statut</th><th>Note de revue</th><th>Proposée</th></tr></thead><tbody id="sigMineRows"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Chargement…</td></tr></tbody></table></div></div>
+
+      <div id="sigModerationWrap" style="display:none">
+        <div class="section-head" style="margin-top:18px"><h2 style="font-size:15px">Modération <span class="tag amb" style="margin-left:6px">Admin plateforme</span></h2></div>
+        <div class="card" style="margin-top:10px"><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Signature</th><th>Organisation</th><th>Catégorie</th><th>Pattern</th><th>Statut</th><th></th></tr></thead><tbody id="sigModRows"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Chargement…</td></tr></tbody></table></div></div>
+      </div>
     </section>
 
     <!-- TERMINAL -->
@@ -793,11 +841,39 @@ ensure zshield-ac</pre><button class="copy" data-copy="set onesync on&#10;setr s
       <p style="color:var(--faint);font-size:12px;margin-top:16px">Prix en euros, par serveur et par mois. Contacte-nous pour un réseau de plus de 5 serveurs.</p>
     </section>
 
+    <section class="view content" data-view="analytics">
+      <div class="section-head" style="margin-top:0"><h2>Analytics</h2><div class="grow"></div><button class="btn btn-ghost btn-sm" onclick="zAnalyticsLoad()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>Actualiser</button></div>
+      <div class="grid kpis" style="margin-bottom:16px">
+        <div class="card kpi"><div class="k-lab">Bans actifs</div><div class="k-val num" id="anBansActive">0</div><div class="k-delta"><span class="mut">en cours</span></div></div>
+        <div class="card kpi"><div class="k-lab">Bans (total)</div><div class="k-val num" id="anBansTotal">0</div><div class="k-delta"><span class="mut">historique</span></div></div>
+        <div class="card kpi"><div class="k-lab">Détections (30 j)</div><div class="k-val num" id="anDet30">0</div><div class="k-delta"><span class="mut">sur le mois</span></div></div>
+        <div class="card kpi"><div class="k-lab">Taux de faux positifs</div><div class="k-val num" id="anFpRate">0%</div><div class="k-delta"><span class="mut" id="anFpN">0 annulés</span></div></div>
+      </div>
+      <div class="card" style="padding:20px;margin-bottom:16px"><div class="section-head" style="margin-top:0"><h2 style="font-size:15px">Bans par jour (14 j)</h2></div><div id="anBansChart" style="margin-top:8px"></div></div>
+      <div class="card" style="padding:20px"><div class="section-head" style="margin-top:0"><h2 style="font-size:15px">Top détecteurs (30 j)</h2></div><div id="anTopDet" style="margin-top:8px"></div></div>
+    </section>
+
+    <section class="view content" data-view="livethreats">
+      <div class="section-head" style="margin-top:0"><h2>Menaces live</h2><div class="grow"></div><label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px"><input type="checkbox" id="liveAuto" checked> Auto‑actualisation</label></div>
+      <div class="notice" style="margin-bottom:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Flux des détections récentes (qui · quoi · score), rafraîchi en direct. Basé sur les détections serveur réelles.</div></div>
+      <div class="card"><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Quand</th><th>Joueur</th><th>Détecteur</th><th>Score</th><th>Verdict</th><th>Serveur</th></tr></thead><tbody id="liveRows"></tbody></table></div></div>
+    </section>
+
+    <section class="view content" data-view="incidents">
+      <div class="section-head" style="margin-top:0"><h2>Incidents</h2><div class="grow"></div>
+        <div class="seg" id="incFilter" style="margin-right:10px"><button class="on" data-st="">Tous</button><button data-st="OPEN">Ouverts</button><button data-st="RESOLVED">Résolus</button></div>
+        <button class="btn btn-ghost btn-sm" onclick="zIncidentsLoad()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>Actualiser</button></div>
+      <div class="notice" style="margin-bottom:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Un incident regroupe les alertes corrélées d'un même événement. Ouvre-le pour voir la <b>chronologie</b> (signaux → corrélation → verdict) et la chaîne de preuve. Le niveau de preuve E0–E5 est <b>dérivé des alertes réelles</b>, jamais inventé.</div></div>
+      <div class="card"><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Incident</th><th>Gravité</th><th>État</th><th>Alertes</th><th>Dernière activité</th></tr></thead><tbody id="incRows"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">Chargement…</td></tr></tbody></table></div></div>
+    </section>
+
     <!-- MEMBERS end -->
   </div>
 </div>
 <div id="drawerMount"></div>
 
+<!-- Catalogue GTA V (armes/véhicules/peds/props + hash joaat) pour la blacklist. -->
+<script src="/zshield-catalog.js"></script>
 <script>
 function initials(n){return n.replace(/[^A-Za-zÀ-ÿ ]/g,'').split(/[ _]/).filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase()||'??';}
 function riskColor(r){return r>=70?'var(--red)':r>=35?'var(--warn)':'var(--green)';}
@@ -928,7 +1004,7 @@ const protections=[
 ];
 
 /* nav */
-const titles={overview:"Vue d'ensemble",players:"Joueurs — renseignement",map:"Carte live",multiview:"Multi‑vue",bans:"Bans & sanctions",prot:"Configuration",blacklist:"Blacklist",signatures:"Signatures",servers:"Serveurs & licence",tarifs:"Tarifs & offres",install:"Installation",terminal:"Terminal",members:"Comptes & accès"};
+const titles={overview:"Vue d'ensemble",players:"Joueurs — renseignement",map:"Carte live",multiview:"Multi‑vue",bans:"Bans & sanctions",prot:"Configuration",blacklist:"Blacklist",signatures:"Signatures",servers:"Serveurs & licence",tarifs:"Tarifs & offres",install:"Installation",terminal:"Terminal",members:"Comptes & accès",analytics:"Analytics",livethreats:"Menaces live",incidents:"Incidents"};
 const nav=document.getElementById('nav');
 let currentView='overview';
 function applyView(v){
@@ -961,6 +1037,19 @@ document.getElementById('bars').innerHTML=barVals.map(v=>`<div class="b ${v>45?'
 
 /* map */
 const mapwrap=document.getElementById('mapwrap'),pcEmpty=document.getElementById('pcEmpty'),pcBody=document.getElementById('pcBody');
+// Fond de carte GTA V (image hébergée, configurable via window.ZS_MAP_IMG_URL). Posée
+// AU-DESSUS du SVG stylisé mais SOUS les joueurs (ajoutés ensuite). Si l'URL ne charge
+// pas (CDN indispo), on la retire et la carte stylisée reste — jamais de carte cassée.
+var ZS_MAP_IMG_URL = window.ZS_MAP_IMG_URL || 'https://cdn.jsdelivr.net/gh/martonp96/GTAV-Maps@master/atlas/0-0_0.png';
+(function(){
+  if(!mapwrap||!ZS_MAP_IMG_URL) return;
+  var img=document.createElement('img');
+  img.alt='';
+  img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.95;pointer-events:none';
+  img.onerror=function(){ try{ img.remove(); }catch(e){} };
+  img.src=ZS_MAP_IMG_URL;
+  mapwrap.appendChild(img);   // avant les joueurs -> joueurs au-dessus
+})();
 function placeDot(p){const q=worldToPct(p.gx,p.gy);p._el.style.left=q.lx+'%';p._el.style.top=q.ly+'%';}
 players.forEach((p,i)=>{const d=document.createElement('div');d.className='pdot '+p.lvl;d.title=p.n;d.addEventListener('click',()=>selectPlayer(i,d));mapwrap.appendChild(d);p._el=d;placeDot(p);});
 function selectPlayer(i,el){
@@ -1496,6 +1585,30 @@ function renderBlacklist(){
 }
 document.getElementById('blTabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;document.querySelectorAll('#blTabs button').forEach(x=>x.classList.toggle('on',x===b));blTab=b.dataset.b;blFillTypes();renderBlacklist();});
 document.getElementById('blSearch').addEventListener('input',e=>{blQuery=e.target.value.toLowerCase();renderBlacklist();});
+
+// Remplit la blacklist depuis le catalogue GTA V réel (window.ZS_CATALOG : noms +
+// hash joaat corrects), groupé par catégorie. Chaque entrée est AUTORISÉE par défaut
+// (on:false) ; l'opérateur bascule ce qu'il veut interdire. Fallback = seed intégré.
+function blSlug(s){return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');}
+function blHydrateFromCatalog(){
+  var C=window.ZS_CATALOG; if(!C)return false;
+  var out={weapon:[],vehicle:[],ped:[],object:[]};
+  function addGroup(tab,label,arr){
+    var slug=blSlug(label); TYPE_LABEL[slug]=label;
+    (arr||[]).forEach(function(e){ out[tab].push({nm:e.name,type:slug,on:false,hs:'#'+e.hash}); });
+  }
+  Object.keys(C.weapons||{}).forEach(function(g){ addGroup('weapon',g,C.weapons[g]); });
+  Object.keys(C.vehicles||{}).forEach(function(g){ addGroup('vehicle',g,C.vehicles[g]); });
+  TYPE_LABEL.ped='PNJ / personnage'; (C.peds||[]).forEach(function(e){ out.ped.push({nm:e.name,type:'ped',on:false,hs:'#'+e.hash}); });
+  TYPE_LABEL.prop='Prop / décor'; (C.props||[]).forEach(function(e){ out.object.push({nm:e.name,type:'prop',on:false,hs:'#'+e.hash}); });
+  // Mutation des objets const (autorisée) : on ne réassigne pas les bindings.
+  ['weapon','vehicle','ped','object'].forEach(function(k){ if(out[k].length)blacklist[k]=out[k]; });
+  TAB_TYPES.weapon=Object.keys(C.weapons||{}).map(blSlug);
+  TAB_TYPES.vehicle=Object.keys(C.vehicles||{}).map(blSlug);
+  TAB_TYPES.ped=['ped']; TAB_TYPES.object=['prop'];
+  return true;
+}
+try{ blHydrateFromCatalog(); }catch(e){}
 blFillTypes();renderBlacklist();
 
 /* copy buttons */
@@ -1551,26 +1664,6 @@ function openDossier(i){const p=players[i],x=plExtra[i],tr=trust(p);
    <div class="dactions"><button class="btn" onclick="toast('${p.n} averti');closeDrawer()">Avertir</button><button class="btn btn-red" onclick="toast('${p.n} banni','red');closeDrawer()">Bannir</button></div></div>`;
 }
 renderPlayers();
-
-/* ===== Signatures ===== */
-let sigQuery='';
-const signatures=[
- {n:'movement.teleport',v:'v4',cat:'Mouvement',rel:98,dep:'déployée'},
- {n:'aim.accuracy',v:'v3',cat:'Aimbot',rel:82,dep:'canary'},
- {n:'weapon.firerate',v:'v2',cat:'Armes',rel:95,dep:'déployée'},
- {n:'injection.phantom_event',v:'v1',cat:'Injection',rel:99,dep:'déployée'},
- {n:'entity.storm',v:'v5',cat:'Entités',rel:97,dep:'déployée'},
- {n:'vehicle.repair',v:'v1',cat:'Véhicule',rel:88,dep:'canary'},
- {n:'connection.vpn',v:'v2',cat:'Connexion',rel:74,dep:'observation'},
- {n:'economy.money',v:'v3',cat:'Économie',rel:91,dep:'déployée'},
-];
-function depTag(d){return d==='déployée'?'<span class="tag grn">déployée</span>':d==='canary'?'<span class="tag amb">canary</span>':'<span class="tag">observation</span>';}
-function renderSig(){
-  const rows=signatures.filter(s=>(s.n+s.cat).toLowerCase().includes(sigQuery));
-  document.getElementById('sigRows').innerHTML=rows.map(s=>`<tr><td class="mono">${s.n}</td><td>${s.v}</td><td>${s.cat}</td><td><div class="risk"><div class="risk__track"><div class="risk__fill" style="width:${s.rel}%;background:${s.rel>90?'var(--green)':s.rel>75?'var(--warn)':'var(--red)'}"></div></div><span class="risk__num">${s.rel}</span></div></td><td>${depTag(s.dep)}</td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">Aucune signature</td></tr>`;
-}
-document.getElementById('sigSearch').addEventListener('input',e=>{sigQuery=e.target.value.toLowerCase();renderSig();});
-renderSig();
 
 /* ===== Terminal ===== */
 const termOut=document.getElementById('termOut'),termIn=document.getElementById('termIn');
@@ -1649,7 +1742,11 @@ function downloadInstall(){
   "set rateLimiter_stateBag_rate 75\n"+
   "set rateLimiter_stateBag_burst 125\n"+
   "set rateLimiter_stateBagFlood_rate 150\n"+
-  "set rateLimiter_stateBagFlood_burst 175\n\n"+
+  "set rateLimiter_stateBagFlood_burst 175\n"+
+  "set sv_filterRequestControl 2           # bloque la prise de controle d'entites\n"+
+  "sv_scriptHookAllowed false              # coupe ScriptHook (vecteur de trainers)\n"+
+  "set sv_endpointPrivacy true             # masque les IP des joueurs (anti-DDoS/doxx)\n"+
+  "set sv_enableNetworkedPhoneExplosions false\n\n"+
   "# --- Ta cle de licence (fournie par ton vendeur) ---\n"+
   "set zshield_license_key \"<<ta-cle-de-licence>>\"\n\n"+
   "# --- Kill-switch en ligne (recommande) : permet de couper une cle a distance ---\n"+
@@ -1808,8 +1905,32 @@ renderPlayers=function(){
   document.getElementById('plRows').innerHTML=rows.map(function(o){var p=o.p,i=o.i,tr=trust(p);return '<tr onclick="openDossier('+i+')"><td><div class="pl"><div class="mini">'+initials(p.n)+'</div><div><div class="who">'+zesc(p.n)+'</div><div class="id mono">'+zesc(p._id||'')+'</div></div></div></td><td><div class="risk"><div class="risk__track"><div class="risk__fill" style="width:'+tr+'%;background:'+(tr>60?'var(--green)':tr>35?'var(--warn)':'var(--red)')+'"></div></div><span class="risk__num">'+tr+'</span></div></td><td>'+p.ping+' / 24 h</td><td>'+(p.det>0?'<span class="tag red">'+p.det+'</span>':'<span style="color:var(--faint)">0</span>')+'</td><td><span class="tag">Voir</span></td></tr>';}).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">Aucun joueur à risque — aucune détection pour le moment.</td></tr>';
 };
 openDossier=function(i){var p=players[i];if(!p)return;var tr=trust(p);
-  document.getElementById('drawerMount').innerHTML='<div class="scrim" onclick="closeDrawer()"></div><div class="drawer" role="dialog"><div class="dh"><div class="pav">'+initials(p.n)+'</div><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:16px">'+zesc(p.n)+'</div><div class="mono" style="color:var(--faint);font-size:12px">'+zesc(p._id||'')+'</div></div><div class="close" onclick="closeDrawer()">✕</div></div><div class="db"><div class="kv"><span class="l">Score de risque</span><span class="v" style="color:'+riskColor(p.risk)+'">'+p.risk+'/100</span><span class="l">Détections (total)</span><span class="v">'+p.det+'</span><span class="l">Détections 24 h</span><span class="v">'+p.ping+'</span><span class="l">Dernière activité</span><span class="v">'+zesc(p.seen||'')+'</span></div><div class="notice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Fiche construite à partir des détections serveur réelles. Z-Shield n\'accède ni à l\'écran ni aux fichiers du joueur.</div></div></div><div class="dactions"><button class="btn btn-red" onclick="zBanPlayer('+i+')">Bannir</button></div></div>';
+  document.getElementById('drawerMount').innerHTML='<div class="scrim" onclick="closeDrawer()"></div><div class="drawer" role="dialog"><div class="dh"><div class="pav">'+initials(p.n)+'</div><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:16px">'+zesc(p.n)+'</div><div class="mono" style="color:var(--faint);font-size:12px">'+zesc(p._id||'')+'</div></div><div class="close" onclick="closeDrawer()">✕</div></div><div class="db"><div class="kv"><span class="l">Score de risque</span><span class="v" style="color:'+riskColor(p.risk)+'">'+p.risk+'/100</span><span class="l">Détections (total)</span><span class="v">'+p.det+'</span><span class="l">Détections 24 h</span><span class="v">'+p.ping+'</span><span class="l">Dernière activité</span><span class="v">'+zesc(p.seen||'')+'</span></div><div id="dossierIntel" style="margin-top:14px"><div style="color:var(--muted);font-size:12.5px">Chargement du renseignement inter‑serveurs…</div></div><div class="notice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Fiche construite à partir des détections serveur réelles. Z-Shield n\'accède ni à l\'écran ni aux fichiers du joueur.</div></div></div><div class="dactions"><button class="btn btn-red" onclick="zBanPlayer('+i+')">Bannir</button></div></div>';
+  if(p._id)zDossierIntel(p._id);
 };
+/* Renseignement inter-serveurs : score de confiance calculé côté serveur + serveurs vus +
+   comptes liés + historique de bans (endpoint /api/players/:identifier, données réelles). */
+async function zDossierIntel(id){
+  var host=document.getElementById('dossierIntel');if(!host)return;
+  var d;try{d=await zapi('/api/players/'+encodeURIComponent(id));}catch(e){host.innerHTML='<div style="color:var(--muted);font-size:12.5px">Renseignement inter‑serveurs indisponible.</div>';return;}
+  var conf=(d.player&&d.player.confidence!=null)?d.player.confidence:(d.confidence!=null?d.confidence:null);
+  var servers=d.servers_seen||d.servers||[];
+  var alts=d.alt_accounts||d.alts||[];
+  var bans=d.bans||[];
+  var confBlock=(conf!=null)?('<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="font-size:12px;color:var(--muted);flex:0 0 150px">Confiance inter‑serveurs</div><div style="flex:1;background:var(--panel);border-radius:6px;height:14px;overflow:hidden"><div style="width:'+conf+'%;height:100%;background:'+(conf>60?'var(--green)':conf>35?'var(--warn)':'var(--red)')+'"></div></div><div style="flex:0 0 44px;text-align:right;font-weight:700">'+conf+'/100</div></div>'):'';
+  var srvBlock='<div class="kv" style="margin-top:6px"><span class="l">Serveurs vus</span><span class="v">'+(servers.length||0)+'</span><span class="l">Comptes liés</span><span class="v">'+(alts.length||0)+'</span><span class="l">Bans (historique)</span><span class="v">'+(bans.length||0)+'</span></div>';
+  var banList=bans.length?('<div style="margin-top:10px;font-size:12px;color:var(--muted)">Historique de bans :</div>'+bans.slice(0,5).map(function(b){return '<div style="font-size:12px;padding:4px 0;border-top:1px solid var(--line)"><b>'+zesc(b.status||'')+'</b> · '+zesc(b.reason||b.detection_category||'—')+' <span style="color:var(--faint)">'+zesc(zAgo(b.created_at))+'</span></div>';}).join('')):'';
+  var altList=alts.length?('<div style="margin-top:10px;font-size:12px;color:var(--muted)">Comptes possiblement liés (même pseudo) :</div>'+alts.slice(0,6).map(function(a){return '<div class="mono" style="font-size:11.5px;padding:3px 0;color:var(--sub)">'+zesc(a.identifier||a.player_identifier||a)+'</div>';}).join('')):'';
+  host.innerHTML='<div style="font-weight:700;font-size:13px;margin-bottom:8px">Renseignement inter‑serveurs</div>'+confBlock+srvBlock+altList+banList+'<div id="dossierNet"></div>';
+  // Réseau de bans partagés : signal externe (si l'org est membre du réseau).
+  try{
+    var n=await zapi('/api/network/check?identifier='+encodeURIComponent(id));
+    var nh=document.getElementById('dossierNet');
+    if(nh&&n&&n.enabled&&n.found&&n.org_count>0){
+      nh.innerHTML='<div style="margin-top:12px;padding:10px 12px;background:rgba(224,101,92,.10);border:1px solid rgba(224,101,92,.4);border-radius:10px;font-size:12.5px;color:#f2b7b2;display:flex;gap:8px;align-items:flex-start"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="flex:0 0 auto;margin-top:1px"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg><div><b>Signalé sur '+n.org_count+' serveur(s) du réseau Z-Shield.</b> Signal externe — à toi de juger, ce n\'est pas un ban automatique.</div></div>';
+    }
+  }catch(e){}
+}
 async function zBanPlayer(i){var p=players[i];if(!p||!p._id){toast('Identifiant manquant','red');return;}
   var scope='license';var id=p._id;var m=/^([a-z]+):/i.exec(id);if(m){var s=m[1].toLowerCase();if(['license','discord','steam','ip','fivem'].includes(s)){scope=s;id=id.slice(m[0].length);}}
   try{await zapi('/api/bans',{method:'POST',body:{scope:scope,identifier:id,reason:'Bannissement manuel depuis la fiche joueur',server_id:ZS.serverId||undefined}});toast(p.n+' banni','red');closeDrawer();await zBansLoad();}catch(e){toast('Échec : '+(e.message||e),'red');}
@@ -1967,6 +2088,36 @@ function zApplyPreset(name){
   if(typeof zCfgSummary==='function')zCfgSummary();
   toast('Mode « '+p.label+' » appliqué — vérifie puis Enregistre','grn');
 }
+/* Modèles de config partageables : export/import de l'ensemble on/mode des protections.
+   L'import applique au panneau puis l'utilisateur vérifie et Enregistre (rien n'est poussé
+   silencieusement). Le modèle ne contient que des id/état — aucune donnée sensible. */
+function zCfgExport(){
+  if(!ZS.protIndex||ZS.protIndex.size===0){toast('Configuration pas encore chargée','red');return;}
+  var items=[];ZS.protIndex.forEach(function(it){items.push({id:it.id,enabled:!!it.on,mode:it.mode});});
+  var tpl={zshield_template:1,exported_at:new Date().toISOString(),count:items.length,items:items};
+  var blob=new Blob([JSON.stringify(tpl,null,2)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='zshield-config-'+(new Date().toISOString().slice(0,10))+'.json';
+  document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);
+  toast('Modèle de config exporté','grn');
+}
+function zCfgImport(){var f=document.getElementById('cfgImportFile');if(f)f.click();}
+(function(){var f=document.getElementById('cfgImportFile');if(f)f.addEventListener('change',function(e){
+  var file=e.target.files&&e.target.files[0];if(!file)return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    var tpl;try{tpl=JSON.parse(rd.result);}catch(err){toast('Fichier invalide','red');return;}
+    if(!tpl||!Array.isArray(tpl.items)){toast('Modèle non reconnu','red');return;}
+    if(!ZS.protIndex||ZS.protIndex.size===0){toast('Configuration pas encore chargée','red');return;}
+    var applied=0;
+    tpl.items.forEach(function(x){var it=ZS.protIndex.get(x.id);if(it){it.on=!!x.enabled;if(x.mode==='watch'||x.mode==='block')it.mode=x.mode;applied++;}});
+    if(typeof renderCfgPanel==='function')renderCfgPanel();
+    if(typeof cfgTouch==='function')cfgTouch();
+    if(typeof zCfgSummary==='function')zCfgSummary();
+    toast(applied+' réglage(s) importé(s) — vérifie puis Enregistre','grn');
+  };
+  rd.readAsText(file);
+  e.target.value='';
+});})();
 function zCfgSummary(){
   if(!ZS.protIndex)return;
   var active=0,watch=0;
@@ -2165,6 +2316,41 @@ function zCopy(t){try{navigator.clipboard.writeText(t);toast('Copié','grn');}ca
    navigateur ne l'a pas ouverte (mémorisé en local, par version).
    ========================================================================= */
 var ZS_NEWS=[
+  {v:'1.9.0',date:'26 septembre 2026',title:'Timeline d’incident, marketplace de signatures & durcissement natif',items:[
+    ['🧭','Timeline d’incident','Chaque incident s’ouvre sur une chronologie visuelle : signaux → corrélation → verdict, avec la chaîne de preuve (alertes réelles) et un niveau de preuve E0–E5 dérivé, jamais inventé.'],
+    ['🧩','Marketplace de signatures','Tu croises un nouveau cheat ? Propose sa signature. Après validation manuelle par l’équipe, elle rejoint le flux commun (anonymisé) dont profitent tous les serveurs. Rien n’est diffusé sans modération.'],
+    ['🛡️','Durcissement moteur natif','Nouvelles lignes recommandées dans server.cfg : blocage de la prise de contrôle d’entités, ScriptHook coupé, IP des joueurs masquées, explosions de téléphone désactivées.'],
+    ['💥','Explosions falsifiées','Détection des explosionEvent à dégâts sans propriétaire réseau — signature d’un event forgé, signalée par défaut (blocage dur optionnel).'],
+    ['🤝','Honnêteté','Aucun anticoche n’est « impénétrable ». Z-Shield stoppe la grande majorité des cheats publics côté serveur, mais un ESP/DMA purement externe reste invisible pour tout AC serveur. On préfère te le dire.'],
+  ]},
+  {v:'1.8.0',date:'26 septembre 2026',title:'Réseau de bans partagés',items:[
+    ['🌐','Bans partagés (opt-in)','Rejoins le réseau : un hash anonyme de tes bans est partagé, et tu vois si un joueur est signalé ailleurs.'],
+    ['🔎','Signal sur la fiche joueur','La fiche affiche « signalé sur N serveurs du réseau » — un signal, jamais un ban auto.'],
+    ['🔒','Vie privée','Aucun identifiant brut, aucun serveur nommé : seulement des hash et des compteurs.'],
+  ]},
+  {v:'1.7.0',date:'26 septembre 2026',title:'Appels de ban',items:[
+    ['⚖️','Contestation de ban','Tes joueurs contestent un ban depuis une page publique ; tu tranches : accepter l\u00e8ve le ban, refuser le maintient.'],
+    ['📉','Moins de faux positifs mal vécus','Les appels remontent tes vrais faux positifs — tu ajustes plus vite.'],
+  ]},
+  {v:'1.6.0',date:'26 septembre 2026',title:'Sanctions graduées, lockdown & sessions',items:[
+    ['⚖️','Sanctions graduées','À la récidive, l\'anticheat escalade : 1re fois kick, 2e ban temporaire, 3e ban définitif.'],
+    ['🔒','Lockdown & anti-raid','Ferme le serveur aux non-whitelistés en cas d\'attaque ; détection auto d\'une rafale de connexions.'],
+    ['🖥️','Sessions & appareils','Vois et déconnecte les sessions actives de ton compte depuis le menu.'],
+    ['🧩','Modèles de config','Exporte ta config de protections et réapplique-la sur un autre serveur en un fichier.'],
+  ]},
+  {v:'1.5.0',date:'26 septembre 2026',title:'Analytics, menaces live & fiche joueur',items:[
+    ['📊','Onglet Analytics','Bans/jour, top détecteurs, taux de faux positifs, tendances — la valeur de Z-Shield en un coup d\'œil.'],
+    ['⚡','Menaces live','Un flux temps réel des détections (qui · quoi · score), rafraîchi en direct.'],
+    ['🪪','Fiche joueur inter-serveurs','Colle un identifiant : score de confiance, serveurs vus, comptes liés, historique de bans.'],
+    ['🎯','Dégâts par arme','L\'anticheat coupe au tick zéro les dégâts moddés (table réelle des 60+ armes).'],
+    ['🌗','Thème clair / sombre','Bascule le panneau en clair ou sombre depuis ton menu de compte.'],
+  ]},
+  {v:'1.4.0',date:'26 septembre 2026',title:'Pièges anti-menu + bans qui collent',items:[
+    ['🍯','Pièges à menus (honeypots)','Des events-appâts qu\'aucun joueur légitime ne déclenche : y toucher = tricheur confirmé, sans faux positif.'],
+    ['🚫','Garde anti-executor','Un event serveur déclenché par un client injecté est refusé et tracé.'],
+    ['🔗','Bans multi-jetons','Un banni qui change d\'identifiants est rattrapé via plusieurs jetons machine (2+ = lien confirmé).'],
+    ['🔎','Signatures de menus élargies','Eulen, RedEngine, Lapsus, Susano, Brutan, Skript, Hydrogen… reconnus (en complément du comportemental).'],
+  ]},
   {v:'1.3.0',date:'26 septembre 2026',title:'Protection renforcée + durcissement serveur',items:[
     ['🧱','Durcissement moteur natif','Le server.cfg inclut désormais les protections natives FiveM (state bags stricts, anti-flood) — bloque des exploits sans script.'],
     ['🗄️','Anti-exploit state bags','Détection des clés protégées écrites par un client, des charges géantes (crash) et des floods.'],
@@ -2190,6 +2376,35 @@ var ZS_NEWS=[
     ['⚡','Toujours dispo','Le panneau se rallume tout seul après une période d\'inactivité, sans erreur de session.'],
   ]},
 ];
+/* Sessions & appareils : liste les sessions actives du compte et permet de les
+   révoquer (endpoints /api/auth/sessions). La session courante n'est pas révocable. */
+function zCloseSessions(){var m=document.getElementById('zSessModal');if(m)m.remove();}
+async function zSessionsModal(){
+  var m=document.createElement('div');m.id='zSessModal';
+  m.style.cssText='position:fixed;inset:0;z-index:340;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:20px;overflow:auto';
+  m.innerHTML='<div style="background:var(--panel2);border:1px solid var(--line2);border-radius:16px;max-width:520px;width:100%;padding:24px;max-height:86vh;overflow:auto"><div style="font-family:var(--disp);font-weight:800;font-size:18px;margin-bottom:6px">Sessions &amp; appareils</div><p style="color:var(--sub);font-size:12.5px;margin:0 0 14px">Les connexions actives de ton compte. Révoque celles que tu ne reconnais pas.</p><div id="zSessList"><div style="color:var(--muted);font-size:13px">Chargement…</div></div><div style="display:flex;justify-content:flex-end;margin-top:18px"><button class="btn btn-ghost btn-sm" onclick="zCloseSessions()">Fermer</button></div></div>';
+  m.addEventListener('click',function(e){if(e.target===m)zCloseSessions();});
+  document.body.appendChild(m);
+  zSessionsLoad();
+}
+async function zSessionsLoad(){
+  var host=document.getElementById('zSessList');if(!host)return;
+  var list;try{list=(await zapi('/api/auth/sessions')).sessions||[];}catch(e){host.innerHTML='<div style="color:var(--muted);font-size:13px">Sessions indisponibles.</div>';return;}
+  host.innerHTML=list.map(function(s){
+    var ua=(s.user_agent||'Appareil inconnu');ua=ua.length>60?ua.slice(0,60)+'…':ua;
+    var cur=s.current===true;
+    return '<div class="member" style="align-items:flex-start"><div class="avatar">'+ (cur?'★':'💻') +'</div><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px">'+zesc(ua)+(cur?' <span class="rtag" style="background:var(--green-soft);color:var(--green);border-color:var(--green-line)">actuelle</span>':'')+'</div><div style="color:var(--muted);font-size:12px">'+zesc(s.ip||'?')+' · vu '+zesc(zAgo(s.last_seen_at||s.created_at))+'</div></div>'+(cur?'':'<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="zSessRevoke('+zJs(s.id)+')">Révoquer</button>')+'</div>';
+  }).join('')||'<div style="color:var(--muted);font-size:13px">Aucune session active.</div>';
+}
+async function zSessRevoke(id){
+  try{await zapi('/api/auth/sessions/'+id,{method:'DELETE'});toast('Session révoquée','grn');zSessionsLoad();}
+  catch(e){toast('Échec : '+(e.message||e),'red');}
+}
+/* Thème clair/sombre (mémorisé par navigateur). Sombre par défaut. */
+function zThemeGet(){try{return localStorage.getItem('zshield_theme')||'dark';}catch(e){return 'dark';}}
+function zApplyTheme(t){var r=document.documentElement;if(t==='light')r.setAttribute('data-theme','light');else r.removeAttribute('data-theme');}
+function zToggleTheme(){var next=zThemeGet()==='light'?'dark':'light';try{localStorage.setItem('zshield_theme',next);}catch(e){}zApplyTheme(next);if(typeof zCloseAcct==='function')zCloseAcct();toast('Thème '+(next==='light'?'clair':'sombre'),'grn');}
+(function(){try{zApplyTheme(zThemeGet());}catch(e){}})();
 function zNewsSeenKey(){return 'zshield_news_seen';}
 function zNewsUnseen(){try{return (ZS_NEWS[0]&&ZS_NEWS[0].v)&&localStorage.getItem(zNewsSeenKey())!==ZS_NEWS[0].v;}catch(e){return false;}}
 function zNewsMarkSeen(){try{if(ZS_NEWS[0])localStorage.setItem(zNewsSeenKey(),ZS_NEWS[0].v);}catch(e){}}
@@ -2421,8 +2636,250 @@ function zTarifChoose(code,name){
   // vendeur, qui génère la clé (pas de faux tunnel d'achat).
   toast('Pour passer à '+name+', contacte ton vendeur Z-Shield pour recevoir ta clé.','grn');
 }
+
+/* Appels de ban : liste les contestations reçues (/api/appeals) et permet de trancher.
+   Accepter lève le ban rattaché ; refuser le maintient. */
+async function zAppealsLoad(){
+  var host=document.getElementById('appealList');if(!host)return;
+  var list;try{list=(await zapi('/api/appeals')).appeals||[];}catch(e){host.innerHTML='<div style="padding:18px;color:var(--muted);font-size:13px">Appels indisponibles.</div>';return;}
+  var pending=list.filter(function(a){return a.status==='PENDING';}).length;
+  var badge=document.getElementById('appealCount');
+  if(badge){if(pending>0){badge.style.display='';badge.textContent=pending+' en attente';badge.style.background='var(--green-soft)';badge.style.color='var(--green)';badge.style.borderColor='var(--green-line)';}else{badge.style.display='none';}}
+  var stTag={PENDING:['amb','En attente'],APPROVED:['grn','Accepté'],REJECTED:['','Refusé']};
+  host.innerHTML=list.length?list.map(function(a){
+    var st=stTag[a.status]||['','—'];
+    var actions=a.status==='PENDING'
+      ? '<button class="btn btn-sm btn-green" onclick="zAppealResolve('+zJs(a.id)+',\'approve\')">Accepter (lever le ban)</button> <button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="zAppealResolve('+zJs(a.id)+',\'reject\')">Refuser</button>'
+      : '<span class="tag '+st[0]+'">'+st[1]+'</span>';
+    return '<div style="padding:14px 16px;border-top:1px solid var(--line)"><div style="display:flex;align-items:flex-start;gap:12px"><div style="flex:1;min-width:0"><div class="mono" style="font-size:12.5px;font-weight:700">'+zesc(a.identifier)+' <span class="tag '+st[0]+'" style="margin-left:6px">'+st[1]+'</span></div><div style="color:var(--sub);font-size:13px;margin-top:6px;line-height:1.5;white-space:pre-wrap">'+zesc(a.message||'')+'</div>'+(a.contact?'<div style="color:var(--faint);font-size:12px;margin-top:6px">Contact : '+zesc(a.contact)+'</div>':'')+'<div style="color:var(--faint);font-size:11.5px;margin-top:4px">'+zesc(zAgo(a.created_at))+'</div></div></div><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+actions+'</div></div>';
+  }).join(''):'<div style="padding:22px;text-align:center;color:var(--muted);font-size:13px">Aucun appel pour le moment.</div>';
+}
+async function zAppealResolve(id,decision){
+  if(decision==='approve'&&!confirm('Accepter cet appel et LEVER le ban ?'))return;
+  try{await zapi('/api/appeals/'+id+'/resolve',{method:'POST',body:{decision:decision}});
+    toast(decision==='approve'?'Appel accepté · ban levé':'Appel refusé','grn');
+    if(typeof zLog==='function')zLog('Appel de ban '+(decision==='approve'?'accepté (ban levé)':'refusé'));
+    await zAppealsLoad();if(decision==='approve')await zBansLoad();
+  }catch(e){toast('Échec : '+(e.message||e),'red');}
+}
+/* Charge les appels en même temps que la vue Bans. */
+(function(){if(typeof zBansLoad==='function'){var _b=zBansLoad;zBansLoad=async function(){var r=await _b.apply(this,arguments);try{await zAppealsLoad();}catch(e){}try{await zNetworkLoad();}catch(e){}return r;};}})();
+
+/* Réseau de bans partagés : statut opt-in + bascule. */
+ZS._net=false;
+async function zNetworkLoad(){
+  var st=document.getElementById('netStatus'),bt=document.getElementById('netToggle');if(!bt)return;
+  var d;try{d=await zapi('/api/network/status');}catch(e){if(st)st.textContent='';return;}
+  ZS._net=!!d.enabled;
+  if(st)st.innerHTML=ZS._net?'<span class="tag grn">Membre du réseau</span>':'<span class="tag">Hors réseau</span>';
+  bt.textContent=ZS._net?'Quitter le réseau':'Rejoindre le réseau';
+  bt.className='btn btn-sm'+(ZS._net?' btn-ghost':' btn-green');
+}
+async function zNetworkToggle(){
+  var next=!ZS._net;
+  if(next&&!confirm('Rejoindre le réseau de bans partagés ?\nUn HASH anonyme de tes bans sera partagé (jamais l\'identifiant brut ni ton serveur). En échange, tu vois si un joueur est signalé ailleurs.'))return;
+  try{await zapi('/api/network/optin',{method:'POST',body:{enabled:next}});toast(next?'Réseau rejoint':'Réseau quitté','grn');await zNetworkLoad();}
+  catch(e){toast('Échec : '+(e.message||e),'red');}
+}
+
+/* =========================================================================
+   Analytics : synthèse réelle (/api/analytics/summary) — graphes en SVG inline
+   (aucune dépendance externe), + Menaces live (flux des détections récentes).
+   ========================================================================= */
+function zSvgBars(data, key, labelKey){
+  if(!data||!data.length)return '<div style="color:var(--muted);font-size:13px;padding:14px 0">Aucune donnée pour le moment.</div>';
+  var W=Math.max(320,data.length*46),H=160,pad=24,bw=Math.min(34,(W-pad*2)/data.length-8);
+  var max=1;data.forEach(function(d){max=Math.max(max,Number(d[key])||0);});
+  var bars=data.map(function(d,i){
+    var v=Number(d[key])||0;var h=Math.round((v/max)*(H-pad*2));
+    var x=pad+i*((W-pad*2)/data.length);var y=H-pad-h;
+    var lab=String(d[labelKey]||'').slice(5); // MM-DD
+    return '<rect x="'+x.toFixed(1)+'" y="'+y+'" width="'+bw+'" height="'+Math.max(1,h)+'" rx="3" fill="var(--green)"></rect>'
+      +'<text x="'+(x+bw/2).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9" fill="var(--faint)">'+zesc(lab)+'</text>'
+      +(v>0?'<text x="'+(x+bw/2).toFixed(1)+'" y="'+(y-4)+'" text-anchor="middle" font-size="9" fill="var(--sub)">'+v+'</text>':'');
+  }).join('');
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px;overflow:visible">'+bars+'</svg>';
+}
+function zTopDetBars(rows){
+  if(!rows||!rows.length)return '<div style="color:var(--muted);font-size:13px;padding:14px 0">Aucune détection sur la période.</div>';
+  var max=1;rows.forEach(function(r){max=Math.max(max,Number(r.total)||0);});
+  return rows.map(function(r){
+    var v=Number(r.total)||0;var pct=Math.round((v/max)*100);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:5px 0"><div class="mono" style="flex:0 0 180px;font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+zesc(r.detector)+'</div><div style="flex:1;background:var(--panel);border-radius:6px;height:14px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:var(--green)"></div></div><div style="flex:0 0 40px;text-align:right;font-size:12px;font-weight:700">'+v+'</div></div>';
+  }).join('');
+}
+async function zAnalyticsLoad(){
+  var host=document.getElementById('anBansChart');if(!host)return;
+  var d;try{d=await zapi('/api/analytics/summary');}catch(e){host.innerHTML='<div style="color:var(--muted);font-size:13px">Analytics indisponible.</div>';return;}
+  var t=d.totals||{};
+  zSetTxt('anBansActive',t.bans_active||0);zSetTxt('anBansTotal',t.bans_total||0);
+  zSetTxt('anDet30',t.detections_30d||0);zSetTxt('anFpRate',(t.fp_rate||0)+'%');
+  zSetTxt('anFpN',(t.false_positives||0)+' annulés');
+  host.innerHTML=zSvgBars(d.bans_per_day||[],'total','day');
+  var td=document.getElementById('anTopDet');if(td)td.innerHTML=zTopDetBars(d.top_detectors||[]);
+}
+/* Menaces live : flux des détections récentes, rafraîchi tant que la vue est ouverte. */
+function zLiveVerdict(v){var m={ban:['red','Ban'],pending:['amb','En attente'],kick:['amb','Kick'],flag:['amb','Signalé'],observed:['','Observé'],false_positive:['grn','Faux positif']};var x=m[(v||'').toLowerCase()]||['','—'];return '<span class="tag '+x[0]+'">'+x[1]+'</span>';}
+async function zLiveLoad(){
+  var host=document.getElementById('liveRows');if(!host)return;
+  var list;try{list=(await zapi('/api/detections?limit=40')).detections||[];}catch(e){return;}
+  host.innerHTML=list.map(function(x){
+    var score=Math.max(0,Math.min(100,Math.round(Number(x.confidence!=null?x.confidence*100:x.risk||0))));
+    var col=score>=70?'var(--red)':score>=35?'var(--warn)':'var(--green)';
+    return '<tr><td style="color:var(--muted);font-size:12px">'+zesc(zAgo(x.created_at||x.occurred_at))+'</td>'
+      +'<td><div class="who">'+zesc(x.player_name||x.player_identifier||'—')+'</div><div class="mono" style="color:var(--faint);font-size:11px">'+zesc(x.player_identifier||'')+'</div></td>'
+      +'<td class="mono" style="font-size:12px">'+zesc(x.kind||x.detector||'—')+'</td>'
+      +'<td><span style="color:'+col+';font-weight:700">'+score+'</span></td>'
+      +'<td>'+zLiveVerdict(x.disposition)+'</td>'
+      +'<td class="mono" style="font-size:11px;color:var(--faint)">'+zesc((x.server_id||'').slice(0,12))+'</td></tr>';
+  }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">Aucune détection récente — tout est calme.</td></tr>';
+}
+(function(){
+  // Rafraîchissement live tant que la vue « Menaces live » est ouverte et auto coché.
+  setInterval(function(){
+    if(currentView==='livethreats'){var a=document.getElementById('liveAuto');if(!a||a.checked)zLiveLoad();}
+  },5000);
+})();
+/* Chargement à la demande quand on ouvre l'onglet (analytics/live). */
+(function(){if(typeof applyView==='function'){var _av=applyView;applyView=function(v){_av(v);if(v==='analytics')zAnalyticsLoad();if(v==='livethreats')zLiveLoad();if(v==='incidents')zIncidentsLoad();if(v==='signatures')zSignaturesLoad();};}})();
+/* Filtre d'état des incidents (segmented). */
+(function(){var seg=document.getElementById('incFilter');if(seg)seg.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;seg.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);});zIncFilter=b.dataset.st||'';zIncidentsLoad();});})();
+/* Recherche dans les signatures approuvées. */
+(function(){var s=document.getElementById('sigSearch');if(s)s.addEventListener('input',function(e){zSigQuery=(e.target.value||'').toLowerCase();zRenderApproved();});})();
 /* Affiche l'onglet Admin + charge les données pour les comptes vendeur. */
 (function(){if(typeof zLoadAll==='function'){var _l=zLoadAll;zLoadAll=async function(){await _l.apply(this,arguments);if(ZS.me&&ZS.me.is_platform_admin){var na=document.getElementById('navAdmin');if(na)na.style.display='';await zAdminLoad();}await zTarifsLoad();};}})();
+
+/* =========================================================================
+   INCIDENTS — timeline visuelle. Liste via /api/incidents, détail (chronologie
+   + chaîne de preuve + niveau de preuve dérivé) via /api/incidents/:id.
+   ========================================================================= */
+var zIncFilter='';
+function zSevTag(s){var m={CRITICAL:['red','Critique'],HIGH:['red','Élevée'],MEDIUM:['amb','Moyenne'],LOW:['','Faible'],INFO:['','Info']};var e=m[s]||['',s||'—'];return '<span class="tag '+e[0]+'">'+zesc(e[1])+'</span>';}
+function zIncStateTag(s){return s==='RESOLVED'?'<span class="tag grn">Résolu</span>':s==='ACKNOWLEDGED'?'<span class="tag amb">Pris en charge</span>':'<span class="tag">Ouvert</span>';}
+function zEvidenceColor(lv){var n=parseInt(String(lv||'E0').replace('E',''),10)||0;return n>=4?'var(--red)':n>=2?'var(--warn)':n>=1?'var(--green)':'var(--muted)';}
+async function zIncidentsLoad(){
+  var tb=document.getElementById('incRows');if(!tb)return;
+  try{
+    var incs=(await zapi('/api/incidents')).incidents||[];
+    if(zIncFilter)incs=incs.filter(function(i){return zIncFilter==='OPEN'?(i.status!=='RESOLVED'):(i.status==='RESOLVED');});
+    tb.innerHTML=incs.length?incs.map(function(i){
+      return '<tr style="cursor:pointer" onclick="zIncidentOpen('+zJs(i.id)+')"><td><div style="font-weight:700">'+zesc(i.title||'Incident')+'</div><div class="mono" style="color:var(--faint);font-size:11.5px">'+zesc(i.id)+'</div></td><td>'+zSevTag(i.severity)+'</td><td>'+zIncStateTag(i.status)+'</td><td class="num">'+zfmt(i.alert_count||0)+'</td><td style="color:var(--sub)">'+zAgo(i.last_alert_at||i.updated_at||i.created_at)+'</td></tr>';
+    }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">Aucun incident. Un incident est créé quand des alertes corrélées se regroupent.</td></tr>';
+  }catch(e){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">Chargement impossible.</td></tr>';}
+}
+async function zIncidentOpen(id){
+  var mount=document.getElementById('drawerMount');
+  mount.innerHTML='<div class="scrim" onclick="closeDrawer()"></div><div class="drawer" role="dialog"><div class="dh"><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:16px">Incident</div><div class="mono" style="color:var(--faint);font-size:12px">'+zesc(id)+'</div></div><div class="close" onclick="closeDrawer()">✕</div></div><div class="db"><div style="color:var(--muted);font-size:13px">Chargement de la chronologie…</div></div></div>';
+  var r;try{r=await zapi('/api/incidents/'+encodeURIComponent(id));}catch(e){document.querySelector('.drawer .db').innerHTML='<div class="notice"><div>Impossible de charger cet incident.</div></div>';return;}
+  var inc=r.incident||{},tl=r.timeline||[],al=r.alerts||[],ev=r.evidence_level||'E0';
+  var head='<span class="tag" style="border-color:'+zEvidenceColor(ev)+';color:'+zEvidenceColor(ev)+'">Preuve '+zesc(ev)+'</span> '+zSevTag(inc.severity)+' '+zIncStateTag(inc.status);
+  var kv='<div class="kv" style="margin-top:12px"><span class="l">Serveur</span><span class="v mono">'+zesc(inc.server_id||'—')+'</span><span class="l">Alertes</span><span class="v num">'+zfmt(inc.alert_count||al.length||0)+'</span><span class="l">Première</span><span class="v">'+zesc(zAgo(inc.first_alert_at))+'</span><span class="l">Dernière</span><span class="v">'+zesc(zAgo(inc.last_alert_at))+'</span>'+(inc.resolved_at?'<span class="l">Résolu</span><span class="v">'+zesc(zAgo(inc.resolved_at))+'</span>':'')+'</div>';
+  var desc=inc.description?'<div style="margin-top:12px;color:var(--sub);font-size:13.5px;line-height:1.5">'+zesc(inc.description)+'</div>':'';
+  // Chaîne de preuve : les alertes réelles rattachées.
+  var evidence='';
+  if(al.length){
+    evidence='<div style="font-weight:700;margin:18px 0 10px">Chaîne de preuve · '+al.length+' alerte(s)</div><div class="timeline">'+al.map(function(a){
+      var col=a.severity==='CRITICAL'||a.severity==='HIGH'?'var(--red)':a.severity==='MEDIUM'?'var(--warn)':'var(--muted)';
+      return '<div class="ev"><span class="pt" style="background:'+col+'"></span><div class="txt">'+zesc(a.summary||a.category||'Alerte')+'<div class="tt">'+zesc(a.category||'')+' · '+zesc(zAgo(a.occurred_at))+'</div></div></div>';
+    }).join('')+'</div>';
+  }
+  // Chronologie de l'incident (événements : création, corrélation, commentaires, verdict).
+  var timeline='';
+  if(tl.length){
+    timeline='<div style="font-weight:700;margin:18px 0 10px">Chronologie</div><div class="timeline">'+tl.map(function(t){
+      var kindFr={created:'Incident ouvert',correlated:'Corrélation de signaux',comment:'Note',status:'Changement d\'état',verdict:'Verdict',resolved:'Résolu'}[t.kind]||t.kind||'Événement';
+      var col=t.kind==='resolved'?'var(--green)':t.kind==='verdict'?'var(--red)':t.kind==='correlated'?'var(--warn)':'var(--muted)';
+      var who=t.actor_name?' · '+zesc(t.actor_name):'';
+      return '<div class="ev"><span class="pt" style="background:'+col+'"></span><div class="txt">'+zesc(kindFr)+(t.body?' — '+zesc(t.body):'')+'<div class="tt">'+zesc(zAgo(t.created_at))+who+'</div></div></div>';
+    }).join('')+'</div>';
+  }
+  var note='<div class="notice" style="margin-top:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Le niveau de preuve E0–E5 est <b>dérivé des alertes réelles</b> (nombre de catégories corrélées + gravité), pas attribué arbitrairement.</div></div>';
+  document.querySelector('.drawer .dh div div:first-child').textContent=inc.title||'Incident';
+  document.querySelector('.drawer .db').innerHTML='<div>'+head+kv+desc+'</div>'+evidence+timeline+note;
+}
+
+/* =========================================================================
+   MARKETPLACE DE SIGNATURES — proposer / consulter / (admin) modérer.
+   Approuvées : /api/signatures/approved · Miennes : /api/signatures/mine
+   Modération : /api/admin/signatures (+ /review). Rien n'est diffusé sans
+   validation humaine.
+   ========================================================================= */
+var zSigCatFr={event:'Événement',resource:'Resource',entity:'Entité',convar:'Convar',pattern:'Pattern'};
+var zSigApproved=[],zSigQuery='';
+function zSigStatusTag(s){return s==='approved'?'<span class="tag grn">Approuvée</span>':s==='rejected'?'<span class="tag red">Rejetée</span>':'<span class="tag amb">En attente</span>';}
+function zRenderApproved(){
+  var tb=document.getElementById('sigApprovedRows');if(!tb)return;
+  var rows=zSigApproved.filter(function(s){return((s.label||'')+(s.pattern||'')+(s.cheat_name||'')).toLowerCase().indexOf(zSigQuery)>=0;});
+  var c=document.getElementById('sigApprovedCount');if(c)c.textContent=zSigApproved.length?('· '+zSigApproved.length):'';
+  tb.innerHTML=rows.length?rows.map(function(s){
+    return '<tr><td style="font-weight:700">'+zesc(s.label)+'</td><td>'+zesc(zSigCatFr[s.category]||s.category)+'</td><td>'+zesc(s.cheat_name||'—')+'</td><td class="mono" style="font-size:11.5px;max-width:220px;overflow:hidden;text-overflow:ellipsis">'+zesc(s.pattern)+'</td><td style="color:var(--sub)">'+zesc(zAgo(s.reviewed_at))+'</td></tr>';
+  }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Aucune signature approuvée pour le moment.</td></tr>';
+}
+async function zSignaturesLoad(){
+  try{zSigApproved=(await zapi('/api/signatures/approved')).signatures||[];}catch(e){zSigApproved=[];}
+  zRenderApproved();
+  var mt=document.getElementById('sigMineRows');
+  if(mt){try{
+    var mine=(await zapi('/api/signatures/mine')).submissions||[];
+    mt.innerHTML=mine.length?mine.map(function(s){
+      return '<tr><td style="font-weight:700">'+zesc(s.label)+'<div class="mono" style="color:var(--faint);font-size:11px">'+zesc(s.pattern)+'</div></td><td>'+zesc(zSigCatFr[s.category]||s.category)+'</td><td>'+zSigStatusTag(s.status)+'</td><td style="color:var(--sub);font-size:12.5px;max-width:200px">'+zesc(s.review_note||'—')+'</td><td style="color:var(--sub)">'+zesc(zAgo(s.created_at))+'</td></tr>';
+    }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Tu n\'as encore rien proposé.</td></tr>';
+  }catch(e){mt.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Chargement impossible.</td></tr>';}}
+  if(ZS.me&&ZS.me.is_platform_admin){
+    var wrap=document.getElementById('sigModerationWrap');if(wrap)wrap.style.display='';
+    await zSigModerationLoad();
+  }
+}
+async function zSigModerationLoad(){
+  var tb=document.getElementById('sigModRows');if(!tb)return;
+  try{
+    var subs=(await zapi('/api/admin/signatures')).submissions||[];
+    tb.innerHTML=subs.length?subs.map(function(s){
+      var act=s.status==='pending'?'<button class="btn btn-green btn-sm" onclick="zSigReview('+zJs(s.id)+',\'approve\')">Approuver</button> <button class="btn btn-red btn-sm" onclick="zSigReview('+zJs(s.id)+',\'reject\')">Rejeter</button>':zesc(zAgo(s.reviewed_at));
+      return '<tr><td style="font-weight:700">'+zesc(s.label)+(s.cheat_name?'<div style="color:var(--faint);font-size:11.5px">'+zesc(s.cheat_name)+'</div>':'')+'</td><td>'+zesc(s.organization_name||'—')+'</td><td>'+zesc(zSigCatFr[s.category]||s.category)+'</td><td class="mono" style="font-size:11.5px;max-width:200px;overflow:hidden;text-overflow:ellipsis">'+zesc(s.pattern)+'</td><td>'+zSigStatusTag(s.status)+'</td><td style="white-space:nowrap">'+act+'</td></tr>';
+    }).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Aucune proposition.</td></tr>';
+  }catch(e){tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Chargement impossible.</td></tr>';}
+}
+async function zSigReview(id,decision){
+  var note=decision==='reject'?(prompt('Note de rejet (optionnelle, visible par l\'auteur) :')||''):'';
+  try{await zapi('/api/admin/signatures/'+encodeURIComponent(id)+'/review',{method:'POST',body:{decision:decision,note:note||undefined}});
+    toast(decision==='approve'?'Signature approuvée':'Signature rejetée',decision==='approve'?'grn':'red');
+    await zSigModerationLoad();await zSignaturesLoad();
+  }catch(e){toast('Action impossible','red');}
+}
+function zSigSubmitModal(){
+  var mount=document.getElementById('drawerMount');
+  var cats=Object.keys(zSigCatFr).map(function(k){return '<option value="'+k+'">'+zSigCatFr[k]+'</option>';}).join('');
+  mount.innerHTML='<div class="scrim" onclick="closeDrawer()"></div><div class="drawer" role="dialog"><div class="dh"><div style="flex:1"><div style="font-weight:800;font-size:16px">Proposer une signature</div></div><div class="close" onclick="closeDrawer()">✕</div></div><div class="db">'
+    +'<div class="notice" style="margin:0 0 14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Décris un marqueur observable côté serveur : nom d\'événement suspect, resource, entité, convar… Après validation par l\'équipe, il profitera à tout le réseau (anonymisé).</div></div>'
+    +'<label style="display:block;font-size:12px;color:var(--muted);margin:10px 0 5px">Nom lisible</label><input id="sgLabel" class="zin" placeholder="ex. Menu Eulen — event nui" maxlength="120">'
+    +'<label style="display:block;font-size:12px;color:var(--muted);margin:12px 0 5px">Catégorie</label><select id="sgCat" class="zin">'+cats+'</select>'
+    +'<label style="display:block;font-size:12px;color:var(--muted);margin:12px 0 5px">Signature (pattern)</label><input id="sgPattern" class="zin mono" placeholder="ex. esx_menu:open_hidden" maxlength="256">'
+    +'<label style="display:block;font-size:12px;color:var(--muted);margin:12px 0 5px">Cheat visé <span style="color:var(--faint)">(optionnel)</span></label><input id="sgCheat" class="zin" placeholder="ex. Eulen, Lynx, Redengine…" maxlength="80">'
+    +'<label style="display:block;font-size:12px;color:var(--muted);margin:12px 0 5px">Contexte / preuve <span style="color:var(--faint)">(optionnel)</span></label><textarea id="sgDesc" class="zin" style="min-height:80px;resize:vertical" placeholder="Où / comment tu l\'as observé" maxlength="2000"></textarea>'
+    +'<div id="sgErr" style="color:var(--red);font-size:12.5px;margin-top:10px;display:none"></div>'
+    +'</div><div class="dactions"><button class="btn btn-green" id="sgSubmit" onclick="zSigSubmit()">Envoyer la proposition</button><button class="btn btn-ghost" onclick="closeDrawer()">Annuler</button></div></div>';
+  document.querySelectorAll('.zin').forEach(function(el){el.style.cssText+=';width:100%;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;color:var(--ink);font-size:14px;font-family:inherit';});
+}
+async function zSigSubmit(){
+  var label=(document.getElementById('sgLabel').value||'').trim();
+  var category=document.getElementById('sgCat').value;
+  var pattern=(document.getElementById('sgPattern').value||'').trim();
+  var cheat=(document.getElementById('sgCheat').value||'').trim();
+  var desc=(document.getElementById('sgDesc').value||'').trim();
+  var err=document.getElementById('sgErr');
+  if(label.length<2||pattern.length<2){err.textContent='Le nom et la signature sont requis (2 caractères minimum).';err.style.display='';return;}
+  var btn=document.getElementById('sgSubmit');btn.disabled=true;btn.textContent='Envoi…';
+  try{
+    var body={label:label,category:category,pattern:pattern};
+    if(cheat)body.cheat_name=cheat;if(desc)body.description=desc;
+    await zapi('/api/signatures',{method:'POST',body:body});
+    closeDrawer();toast('Proposition envoyée — en attente de modération','grn');await zSignaturesLoad();
+  }catch(e){
+    btn.disabled=false;btn.textContent='Envoyer la proposition';
+    err.textContent=(e&&e.status===409)?'Tu as déjà proposé cette signature.':'Envoi impossible. Réessaie.';err.style.display='';
+  }
+}
 
 
 /* =========================================================================
@@ -2463,6 +2920,8 @@ function zAccountMenu(e){
   items+='<div class="ai" onclick="zAccountOrgs()">'+zAcctIcon('<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/>')+'Changer d\'organisation</div>';
   items+='<div class="ai" onclick="zCloseAcct();applyView(\'install\')">'+zAcctIcon('<path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>')+'Installation</div>';
   items+='<div class="ai" onclick="zCloseAcct();zNewsModal()">'+zAcctIcon('<path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2" fill="var(--green)" stroke="none"/>')+'Nouveautés'+(zNewsUnseen()?'<span class="rtag" style="background:var(--green-soft);color:var(--green);border-color:var(--green-line)">nouveau</span>':'')+'</div>';
+  items+='<div class="ai" onclick="zToggleTheme()">'+zAcctIcon('<circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/>')+'Thème clair / sombre</div>';
+  items+='<div class="ai" onclick="zCloseAcct();zSessionsModal()">'+zAcctIcon('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>')+'Sessions &amp; appareils</div>';
   items+='<div class="sep"></div>';
   items+='<div class="ai danger" onclick="zLogout()">'+zAcctIcon('<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l-5-5 5-5M5 12h12"/>')+'Se déconnecter</div>';
   items+='<div style="padding:8px 10px 4px;font-size:10.5px;color:var(--faint);text-align:center">Version '+(window.ZS_BUILD||'—')+'</div>';
@@ -2489,7 +2948,7 @@ async function zSwitchOrg(id){try{await zapi('/api/auth/switch-organization',{me
 
 </script>
 
-<script>window.ZS_BUILD="2026-09-26 00:11 UTC";</script>
+<script>window.ZS_BUILD="2026-09-26 21:12 UTC";</script>
 <script>
 (async () => {
   try { const r = await fetch('/api/auth/me', { credentials: 'include' }); if (r.status === 401) location.href = '/login'; }

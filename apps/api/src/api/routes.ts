@@ -1812,6 +1812,52 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
     });
   }));
 
+  // Synthèse analytique pour l'onglet Analytics : bans/jour (14 j), top détecteurs (30 j),
+  // taux de faux positifs, et totaux. Tout est agrégé sous RLS (données de l'org).
+  app.get('/api/analytics/summary', handle(async (request) => {
+    const actor = await guard.requireRead(request, 'server.read');
+    return withTenant(pool, actor.organizationId, async (client) => {
+      const org = actor.organizationId;
+      const bansPerDay = await client.query<{ day: string; total: number }>(
+        `SELECT to_char(date_trunc('day', created_at), 'YYYY-MM-DD') AS day, count(*)::int AS total
+           FROM bans WHERE organization_id = $1 AND created_at > now() - interval '14 days'
+          GROUP BY 1 ORDER BY 1`,
+        [org],
+      );
+      const topDetectors = await client.query<{ detector: string; total: number }>(
+        `SELECT COALESCE(kind, 'inconnu') AS detector, count(*)::int AS total
+           FROM detections WHERE organization_id = $1 AND created_at > now() - interval '30 days'
+          GROUP BY 1 ORDER BY total DESC LIMIT 8`,
+        [org],
+      );
+      const banStats = await client.query<{ total: string; active: string; dismissed: string }>(
+        `SELECT count(*)::text AS total,
+                count(*) FILTER (WHERE status = 'ACTIVE')::text AS active,
+                count(*) FILTER (WHERE status = 'DISMISSED')::text AS dismissed
+           FROM bans WHERE organization_id = $1`,
+        [org],
+      );
+      const det30 = await client.query<{ total: string }>(
+        `SELECT count(*)::text AS total FROM detections
+          WHERE organization_id = $1 AND created_at > now() - interval '30 days'`,
+        [org],
+      );
+      const totalBans = Number(banStats.rows[0]?.total ?? '0');
+      const dismissed = Number(banStats.rows[0]?.dismissed ?? '0');
+      return {
+        bans_per_day: bansPerDay.rows,
+        top_detectors: topDetectors.rows,
+        totals: {
+          bans_total: totalBans,
+          bans_active: Number(banStats.rows[0]?.active ?? '0'),
+          false_positives: dismissed,
+          fp_rate: totalBans > 0 ? Math.round((dismissed / totalBans) * 100) : 0,
+          detections_30d: Number(det30.rows[0]?.total ?? '0'),
+        },
+      };
+    });
+  }));
+
   // =========================================================================
   // Offre et quotas
   //
@@ -2097,6 +2143,12 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
         identifier: body.data.identifier,
       }, request.ip);
 
+    // Réseau de bans partagés : si l'org a opté pour le partage, contribue le HASH
+    // de l'identifiant au pool anonyme (uniquement pour un ban ACTIF). Fire-and-forget.
+    if (!pending) {
+      void contributeSharedBan(actor.organizationId, body.data.identifier);
+    }
+
     reply.status(201);
     return { ban: { id: result, status } };
   }));
@@ -2228,6 +2280,360 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
     if (!ok) { reply.status(404); return { error: 'not_found' }; }
     await audit(actor, 'ban.false_positive', { kind: 'ban', id: banId }, {}, request.ip);
     return { status: 'ok', ban_status: 'DISMISSED' };
+  }));
+
+  // =========================================================================
+  // Appels de ban (contestation). Page publique -> revue admin.
+  // =========================================================================
+  const appealSubmitSchema = z
+    .object({
+      identifier: z.string().min(1).max(128),
+      contact: z.string().max(200).optional(),
+      message: z.string().min(1).max(2000),
+    })
+    .strict();
+  // Anti-spam simple par IP (mémoire) : 1 appel / 60 s / IP.
+  const appealLastByIp = new Map<string, number>();
+
+  // PUBLIC : un joueur banni conteste (sans compte). On retrouve son ban actif le
+  // plus récent (toutes orgs) et on crée l'appel dans l'org propriétaire. Réponse
+  // générique dans tous les cas (anti-énumération : on ne révèle pas s'il est banni).
+  app.post('/api/appeals', handle(async (request, reply) => {
+    const parsed = appealSubmitSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'validation' };
+    }
+    const ip = request.ip;
+    const now = Date.now();
+    const last = appealLastByIp.get(ip) ?? 0;
+    if (now - last < 60_000) {
+      reply.status(429);
+      return { status: 'received' }; // même forme que le succès : on ne détaille pas
+    }
+    appealLastByIp.set(ip, now);
+
+    const { identifier, contact, message } = parsed.data;
+    try {
+      await withPlatformAdmin(pool, async (client) => {
+        const ban = await client.query<{ id: string; organization_id: string }>(
+          `SELECT id, organization_id FROM bans
+            WHERE identifier = $1 AND status = 'ACTIVE'
+            ORDER BY created_at DESC LIMIT 1`,
+          [identifier],
+        );
+        if (ban.rowCount === 0) return; // pas de ban actif : on ne crée rien (réponse générique)
+        await client.query(
+          `INSERT INTO ban_appeals (organization_id, ban_id, identifier, contact, message, ip)
+                VALUES ($1, $2, $3, $4, $5, $6)`,
+          [ban.rows[0]!.organization_id, ban.rows[0]!.id, identifier, contact ?? null, message, ip],
+        );
+      });
+    } catch (error) {
+      logger.error('échec de soumission d’appel', {
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    }
+    reply.status(202);
+    return { status: 'received' };
+  }));
+
+  // ADMIN : liste des appels de l'organisation (en attente d'abord).
+  app.get('/api/appeals', handle(async (request) => {
+    const actor = await guard.requireRead(request, 'ban.read');
+    return withTenant(pool, actor.organizationId, async (client) => {
+      const { rows } = await client.query(
+        `SELECT id, ban_id, identifier, contact, message, status, created_at,
+                resolved_at
+           FROM ban_appeals
+          WHERE organization_id = $1
+          ORDER BY (status = 'PENDING') DESC, created_at DESC
+          LIMIT 200`,
+        [actor.organizationId],
+      );
+      return { appeals: rows };
+    });
+  }));
+
+  // ADMIN : trancher un appel. approve -> lève le ban rattaché ; reject -> refus.
+  const appealResolveSchema = z.object({ decision: z.enum(['approve', 'reject']) }).strict();
+  app.post('/api/appeals/:id/resolve', handle(async (request, reply) => {
+    const actor = await guard.require(request, 'ban.manage');
+    const appealId = (request.params as { id: string }).id;
+    const parsed = appealResolveSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'validation' };
+    }
+    const decision = parsed.data.decision;
+
+    const result = await withTenant(pool, actor.organizationId, async (client) => {
+      const { rows } = await client.query<{ ban_id: string | null; status: string }>(
+        `SELECT ban_id, status FROM ban_appeals
+          WHERE id = $1 AND organization_id = $2 FOR UPDATE`,
+        [appealId, actor.organizationId],
+      );
+      const appeal = rows[0];
+      if (!appeal) return { status: 404 as const };
+      if (appeal.status !== 'PENDING') return { status: 409 as const };
+
+      await client.query(
+        `UPDATE ban_appeals SET status = $3, resolved_by = $4, resolved_at = now()
+          WHERE id = $1 AND organization_id = $2`,
+        [appealId, actor.organizationId, decision === 'approve' ? 'APPROVED' : 'REJECTED', actor.user.userId],
+      );
+      // Approuvé : on lève le ban rattaché (s'il est encore actif).
+      if (decision === 'approve' && appeal.ban_id) {
+        await client.query(
+          `UPDATE bans SET status = 'LIFTED', lifted_at = now(), lifted_by = $3,
+                  lifted_reason = 'appel de ban accepté'
+            WHERE organization_id = $1 AND id = $2 AND status = 'ACTIVE'`,
+          [actor.organizationId, appeal.ban_id, actor.user.userId],
+        );
+      }
+      return { status: 200 as const, banId: appeal.ban_id };
+    });
+
+    if (result.status === 404) { reply.status(404); return { error: 'not_found' }; }
+    if (result.status === 409) { reply.status(409); return { error: 'already_resolved' }; }
+    await audit(actor, decision === 'approve' ? 'appeal.approved' : 'appeal.rejected',
+      { kind: 'appeal', id: appealId }, {}, request.ip);
+    return { status: 'ok', decision };
+  }));
+
+  // =========================================================================
+  // Réseau de bans partagés (opt-in). On ne partage qu'un HASH salé de
+  // l'identifiant + des compteurs agrégés — jamais l'identifiant brut, jamais
+  // quel serveur l'a banni. C'est un SIGNAL, jamais un ban automatique.
+  // =========================================================================
+  const banHash = (identifier: string) =>
+    hmacSha256Hex(env().LICENSE_SIGNING_SECRET, 'sharedban:' + identifier);
+
+  async function orgSharesBans(orgId: string): Promise<boolean> {
+    const { rows } = await pool.query<{ share_bans: boolean }>(
+      `SELECT share_bans FROM organizations WHERE id = $1`, [orgId]);
+    return rows[0]?.share_bans === true;
+  }
+
+  // Contribue un ban au pool anonyme (si l'org partage). Dédup par (hash, org).
+  async function contributeSharedBan(orgId: string, identifier: string): Promise<void> {
+    try {
+      if (!(await orgSharesBans(orgId))) return;
+      const h = banHash(identifier);
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const ins = await client.query(
+          `INSERT INTO global_ban_reporters (identifier_hash, organization_id)
+                VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [h, orgId],
+        );
+        const newReporter = (ins.rowCount ?? 0) > 0;
+        await client.query(
+          `INSERT INTO global_ban_signals (identifier_hash, org_count, report_count)
+                VALUES ($1, 1, 1)
+           ON CONFLICT (identifier_hash) DO UPDATE SET
+                report_count = global_ban_signals.report_count + 1,
+                org_count = global_ban_signals.org_count + CASE WHEN $2 THEN 1 ELSE 0 END,
+                last_reported_at = now()`,
+          [h, newReporter],
+        );
+        await client.query('COMMIT');
+      } catch (e) {
+        await client.query('ROLLBACK'); throw e;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      logger.error('échec de contribution au réseau de bans', {
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  // Statut opt-in de l'organisation.
+  app.get('/api/network/status', handle(async (request) => {
+    const actor = await guard.requireRead(request, 'ban.read');
+    return { enabled: await orgSharesBans(actor.organizationId) };
+  }));
+
+  // Activer / désactiver le partage (réciprocité : partager pour voir les signaux).
+  app.post('/api/network/optin', handle(async (request, reply) => {
+    const actor = await guard.require(request, 'ban.manage');
+    const parsed = z.object({ enabled: z.boolean() }).strict().safeParse(request.body ?? {});
+    if (!parsed.success) { reply.status(400); return { error: 'validation' }; }
+    await pool.query(`UPDATE organizations SET share_bans = $2 WHERE id = $1`,
+      [actor.organizationId, parsed.data.enabled]);
+    await audit(actor, 'network.optin', { kind: 'organization', id: actor.organizationId },
+      { enabled: parsed.data.enabled }, request.ip);
+    return { status: 'ok', enabled: parsed.data.enabled };
+  }));
+
+  // Signal réseau pour un identifiant. Réservé aux orgs opt-in (réciprocité).
+  // Ne renvoie qu'un agrégat (nb d'orgs, nb de signalements), jamais qui.
+  app.get('/api/network/check', handle(async (request) => {
+    const actor = await guard.requireRead(request, 'ban.read');
+    const q = z.object({ identifier: z.string().min(1).max(128) })
+      .safeParse(request.query ?? {});
+    if (!q.success) return { enabled: false, error: 'validation' };
+    if (!(await orgSharesBans(actor.organizationId))) return { enabled: false };
+    const { rows } = await pool.query<{ org_count: number; report_count: number; last_reported_at: string }>(
+      `SELECT org_count, report_count, last_reported_at
+         FROM global_ban_signals WHERE identifier_hash = $1`,
+      [banHash(q.data.identifier)],
+    );
+    const row = rows[0];
+    return {
+      enabled: true,
+      found: !!row,
+      org_count: row?.org_count ?? 0,
+      report_count: row?.report_count ?? 0,
+      last_reported_at: row?.last_reported_at ?? null,
+    };
+  }));
+
+  // =========================================================================
+  // Marketplace de signatures (communautaire, modéré).
+  //
+  // Un serveur qui croise un nouveau cheat PROPOSE une signature. Un admin
+  // plateforme MODÈRE. Les signatures approuvées sont diffusées ANONYMISÉES
+  // (jamais l'org ni l'auteur) à tous les serveurs abonnés, qui les ajoutent à
+  // leur config (injection.cheat_signatures). Aucune diffusion sans validation
+  // humaine : une proposition erronée ne doit pas devenir un faux positif chez
+  // tout le monde.
+  // =========================================================================
+  const signatureSubmitSchema = z.object({
+    label: z.string().min(2).max(120),
+    category: z.enum(['event', 'resource', 'entity', 'convar', 'pattern']),
+    pattern: z.string().min(2).max(256),
+    cheat_name: z.string().max(80).optional(),
+    description: z.string().max(2000).optional(),
+  }).strict();
+
+  // Proposer une signature (réservé aux rôles qui configurent l'anticheat).
+  app.post('/api/signatures', handle(async (request, reply) => {
+    const actor = await guard.require(request, 'anticheat.configure');
+    const parsed = signatureSubmitSchema.safeParse(request.body ?? {});
+    if (!parsed.success) { reply.status(400); return { error: 'validation' }; }
+    const d = parsed.data;
+    const id = newId('sig');
+    try {
+      const done = await withTenant(pool, actor.organizationId, async (client) => {
+        await client.query(
+          `INSERT INTO signature_submissions
+             (id, organization_id, submitted_by, label, category, pattern, cheat_name, description)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [id, actor.organizationId, actor.user.userId, d.label, d.category, d.pattern,
+           d.cheat_name ?? null, d.description ?? null],
+        );
+        return true;
+      });
+      if (!done) { reply.status(500); return { error: 'insert_failed' }; }
+    } catch (error) {
+      // Violation d'unicité (org + catégorie + pattern) : déjà proposée.
+      if (error && typeof error === 'object' && (error as { code?: string }).code === '23505') {
+        reply.status(409);
+        return { error: 'already_submitted' };
+      }
+      throw error;
+    }
+    await audit(actor, 'signature.submitted', { kind: 'signature', id },
+      { category: d.category }, request.ip);
+    reply.status(201);
+    return { status: 'ok', id };
+  }));
+
+  // Mes propositions et leur statut (pending/approved/rejected).
+  app.get('/api/signatures/mine', handle(async (request) => {
+    const actor = await guard.requireRead(request, 'detection.read');
+    return withTenant(pool, actor.organizationId, async (client) => {
+      const { rows } = await client.query(
+        `SELECT id, label, category, pattern, cheat_name, description, status,
+                review_note, reviewed_at, created_at
+           FROM signature_submissions
+          WHERE organization_id = $1
+          ORDER BY created_at DESC
+          LIMIT 200`,
+        [actor.organizationId],
+      );
+      return { submissions: rows };
+    });
+  }));
+
+  // Flux des signatures APPROUVÉES, commun à tous les serveurs abonnés.
+  // Anonymisé : on n'expose ni l'organisation ni l'auteur, seulement la
+  // signature validée. C'est ce flux que les serveurs ajoutent à leur config.
+  app.get('/api/signatures/approved', handle(async (request) => {
+    await guard.requireRead(request, 'detection.read');
+    const rows = await withPlatformAdmin(pool, async (client) => {
+      const res = await client.query<{
+        id: string; label: string; category: string; pattern: string;
+        cheat_name: string | null; reviewed_at: string | null;
+      }>(
+        `SELECT id, label, category, pattern, cheat_name, reviewed_at
+           FROM signature_submissions
+          WHERE status = 'approved'
+          ORDER BY reviewed_at DESC NULLS LAST
+          LIMIT 1000`,
+      );
+      return res.rows;
+    });
+    return { signatures: rows };
+  }));
+
+  // ADMIN PLATEFORME : file de modération (par défaut, en attente d'abord).
+  app.get('/api/admin/signatures', handle(async (request, reply) => {
+    const actor = await platformAdmin(request, reply);
+    if (!actor) return { error: 'forbidden' };
+    const status = String((request.query as { status?: string } | undefined)?.status ?? '');
+    const rows = await withPlatformAdmin(pool, async (client) => {
+      const res = await client.query(
+        `SELECT s.id, s.organization_id, o.name AS organization_name,
+                u.display_name AS submitter_name,
+                s.label, s.category, s.pattern, s.cheat_name, s.description,
+                s.status, s.review_note, s.reviewed_at, s.created_at
+           FROM signature_submissions s
+           JOIN organizations o ON o.id = s.organization_id
+           LEFT JOIN users u ON u.id = s.submitted_by
+          WHERE ($1 = '' OR s.status = $1)
+          ORDER BY (s.status = 'pending') DESC, s.created_at DESC
+          LIMIT 500`,
+        [status],
+      );
+      return res.rows;
+    });
+    return { submissions: rows };
+  }));
+
+  // ADMIN PLATEFORME : trancher une proposition (approve / reject + note).
+  const signatureReviewSchema = z.object({
+    decision: z.enum(['approve', 'reject']),
+    note: z.string().max(1000).optional(),
+  }).strict();
+  app.post('/api/admin/signatures/:id/review', handle(async (request, reply) => {
+    const actor = await platformAdmin(request, reply);
+    if (!actor) return { error: 'forbidden' };
+    const id = String((request.params as { id: string }).id ?? '');
+    const parsed = signatureReviewSchema.safeParse(request.body ?? {});
+    if (!parsed.success) { reply.status(400); return { error: 'validation' }; }
+    const newStatus = parsed.data.decision === 'approve' ? 'approved' : 'rejected';
+    const outcome = await withPlatformAdmin(pool, async (client) => {
+      const { rows } = await client.query<{ status: string }>(
+        `SELECT status FROM signature_submissions WHERE id = $1 FOR UPDATE`, [id]);
+      if (rows.length === 0) return 404 as const;
+      await client.query(
+        `UPDATE signature_submissions
+            SET status = $2, review_note = $3, reviewed_by = $4,
+                reviewed_at = now(), updated_at = now()
+          WHERE id = $1`,
+        [id, newStatus, parsed.data.note ?? null, actor.user.userId],
+      );
+      return 200 as const;
+    });
+    if (outcome === 404) { reply.status(404); return { error: 'not_found' }; }
+    await audit(actor, newStatus === 'approved' ? 'signature.approved' : 'signature.rejected',
+      { kind: 'signature', id }, {}, request.ip);
+    return { status: 'ok', decision: parsed.data.decision };
   }));
 
   app.get('/api/security-rules', handle(async (request) => {
