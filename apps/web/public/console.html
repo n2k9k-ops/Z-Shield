@@ -662,6 +662,7 @@ a{color:inherit}
           <button class="btn btn-sm" onclick="zApplyPreset('balanced')">Équilibré</button>
           <button class="btn btn-sm" onclick="zApplyPreset('pvp')">PvP</button>
           <button class="btn btn-sm btn-green" onclick="zApplyPreset('strict')">Strict</button>
+          <button class="btn btn-sm btn-green" onclick="zApplyPreset('maximum')" title="Toutes les protections en Bloquer + sanctions escaladantes. Le staff reste exempté.">Maximum</button>
         </div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
           <div style="flex:1;min-width:160px;color:var(--muted);font-size:12px">Modèle partageable — exporte ta config pour la réappliquer sur un autre serveur.</div>
@@ -2068,6 +2069,7 @@ async function zConfigLoad(){
    (jamais en simple surveillance) quel que soit le mode. L'utilisateur vérifie et
    enregistre ensuite (rien n'est poussé sans son clic sur Enregistrer). */
 var ZS_PRESETS={
+  maximum: {label:'Maximum',  watch:[], max:true},
   strict:  {label:'Strict',   watch:[]},
   balanced:{label:'Équilibré',watch:['av','ai']},
   light:   {label:'Léger',    watch:['mv','pl','wp','vh','ai','av','sp','bh']},
@@ -2086,7 +2088,9 @@ function zApplyPreset(name){
   if(typeof renderCfgPanel==='function')renderCfgPanel();
   if(typeof cfgTouch==='function')cfgTouch();
   if(typeof zCfgSummary==='function')zCfgSummary();
-  toast('Mode « '+p.label+' » appliqué — vérifie puis Enregistre','grn');
+  toast(p.max
+    ? 'Mode « Maximum » : toutes les protections en Bloquer + sanctions escaladantes. Le staff reste exempté. Vérifie puis Enregistre.'
+    : 'Mode « '+p.label+' » appliqué — vérifie puis Enregistre','grn');
 }
 /* Modèles de config partageables : export/import de l'ensemble on/mode des protections.
    L'import applique au panneau puis l'utilisateur vérifie et Enregistre (rien n'est poussé
@@ -2948,10 +2952,10 @@ async function zSwitchOrg(id){try{await zapi('/api/auth/switch-organization',{me
 
 </script>
 
-<script>window.ZS_BUILD="2026-09-26 21:12 UTC";</script>
+<script>window.ZS_BUILD="2026-09-26 22:03 UTC";</script>
 <script>
 (async () => {
-  try { const r = await fetch('/api/auth/me', { credentials: 'include' }); if (r.status === 401) location.href = '/login'; }
+  try { const r = await fetch("/api/auth/me", { credentials: "include" }); if (r.status === 401) location.href = "/login"; }
   catch (e) {}
 })();
 </script>
