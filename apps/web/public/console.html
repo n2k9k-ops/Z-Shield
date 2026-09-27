@@ -688,7 +688,12 @@ a{color:inherit}
     <section class="view content" data-view="blacklist">
       <div class="notice" style="margin-bottom:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Interdis certaines <b>armes</b> et <b>véhicules</b> sur ton serveur. Une entrée <b>bloquée</b> est refusée à la création / à l'équipement, et une tentative génère une alerte. <span id="blCount" style="color:var(--green)"></span></div></div>
       <div class="seg" id="blTabs" style="margin-bottom:16px"><button class="on" data-b="weapon">Armes</button><button data-b="vehicle">Véhicules</button><button data-b="ped">Peds</button><button data-b="object">Objets</button></div>
-      <div class="search" style="margin-bottom:12px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="blSearch" placeholder="Rechercher une arme, un véhicule, un identifiant…"></div>
+      <div class="search" style="margin-bottom:12px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="blSearch" placeholder="Rechercher une arme, un véhicule, un prop, un identifiant…"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+        <button class="btn btn-red btn-sm" onclick="blBulk(true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>Tout bloquer (filtré)</button>
+        <button class="btn btn-ghost btn-sm" onclick="blBulk(false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>Tout autoriser (filtré)</button>
+        <span id="blBulkHint" style="color:var(--muted);font-size:12.5px"></span>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
         <input id="blAddName" placeholder="Ajouter : nom ou identifiant (ex. WEAPON_KNIFE, adder…)" style="flex:1;min-width:220px;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 13px;color:var(--ink);font-family:var(--body);font-size:14px;outline:none">
         <select id="blAddType" style="background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;color:var(--ink);font-family:var(--body);font-size:14px"></select>
@@ -1592,16 +1597,41 @@ const TAB_TYPES={weapon:['pistol','smg','rifle','shotgun','sniper','mg','explosi
 let blTab='weapon',blQuery='';
 function blFillTypes(){document.getElementById('blAddType').innerHTML=TAB_TYPES[blTab].map(t=>`<option value="${t}">${TYPE_LABEL[t]}</option>`).join('');}
 function blAdd(){const el=document.getElementById('blAddName');const nm=el.value.trim();if(!nm){toast('Entre un nom ou un identifiant','red');return;}const type=document.getElementById('blAddType').value;blacklist[blTab].unshift({nm,type,on:true,hs:blTab==='weapon'?'ajouté':'perso'});el.value='';renderBlacklist();toast('Ajouté à la blacklist','grn');}
+// Bascule EN MASSE toutes les entrées correspondant au filtre courant (onglet + recherche).
+// Indispensable sur les props (21k+) : bloquer/autoriser d'un coup ce qu'on a filtré.
+function blBulk(block){
+ const arr=blacklist[blTab],q=blQuery;let n=0;
+ for(let i=0;i<arr.length;i++){const x=arr[i];
+  if((x.nm+' '+x.hs+' '+TYPE_LABEL[x.type]).toLowerCase().indexOf(q)>=0){ if(x.on!==block){x.on=block;} n++; }
+ }
+ if(block&&!q&&n>500){ if(!confirm('Bloquer les '+n.toLocaleString('fr-FR')+' entrées de cet onglet ? Bloquer TOUS les props peut casser des ressources légitimes (beaucoup de props sont utilisés partout). Confirme.')){return;} }
+ renderBlacklist();
+ toast((block?'Bloqué : ':'Autorisé : ')+n.toLocaleString('fr-FR')+' entrée(s)'+(q?' (filtre « '+q+' »)':''),block?'red':'grn');
+}
+// NB : le catalogue prop est COMPLET (21k+ entrées). On borne le rendu (CAP) pour ne
+// jamais figer le navigateur, et on garde l'index réel de chaque entrée dans data-i
+// (pas d'indexOf en O(n²)). La recherche filtre sur l'ensemble ; l'affichage montre les
+// premiers résultats + un compteur invitant à affiner. Le total bloqué compte TOUT.
+const BL_RENDER_CAP=300;
 function renderBlacklist(){
- const list=blacklist[blTab].filter(x=>(x.nm+' '+x.hs+' '+TYPE_LABEL[x.type]).toLowerCase().includes(blQuery));
- const nOn=Object.keys(blacklist).reduce((s,k)=>s+blacklist[k].filter(x=>x.on).length,0);
+ const arr=blacklist[blTab],q=blQuery;
+ const matches=[];
+ for(let i=0;i<arr.length;i++){const x=arr[i];
+  if((x.nm+' '+x.hs+' '+TYPE_LABEL[x.type]).toLowerCase().indexOf(q)>=0)matches.push([i,x]);
+ }
+ let nOn=0;Object.keys(blacklist).forEach(k=>{const a=blacklist[k];for(let j=0;j<a.length;j++)if(a[j].on)nOn++;});
  document.getElementById('blCount').textContent='· '+nOn+' entrées bloquées';
- document.getElementById('blList').innerHTML=list.map((x,i)=>`<div class="blrow ${x.on?'on':''}" data-i="${blacklist[blTab].indexOf(x)}">
+ const shown=matches.slice(0,BL_RENDER_CAP);
+ let html=shown.map(([i,x])=>`<div class="blrow ${x.on?'on':''}" data-i="${i}">
   <div class="blicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${BLICON[x.type]||''}</svg></div>
   <div class="bt"><div class="nm">${x.nm}</div><div class="hs">${TYPE_LABEL[x.type]}${x.hs?(' · '+x.hs):''}</div></div>
   <span class="blstate">${x.on?'Bloqué':'Autorisé'}</span>
-  <div class="sw ${x.on?'on':''}" data-i="${blacklist[blTab].indexOf(x)}" role="switch" aria-checked="${x.on}"></div>
- </div>`).join('')||`<div style="padding:30px;text-align:center;color:var(--muted)">Aucun résultat</div>`;
+  <div class="sw ${x.on?'on':''}" data-i="${i}" role="switch" aria-checked="${x.on}"></div>
+ </div>`).join('');
+ if(!shown.length)html=`<div style="padding:30px;text-align:center;color:var(--muted)">Aucun résultat</div>`;
+ else if(matches.length>shown.length)html+=`<div style="padding:14px;text-align:center;color:var(--muted);font-size:12.5px">${shown.length} affichés sur ${matches.length.toLocaleString('fr-FR')} — affine la recherche pour voir les autres. (Tout est déjà chargé et blacklistable.)</div>`;
+ document.getElementById('blList').innerHTML=html;
+ const bh=document.getElementById('blBulkHint');if(bh)bh.textContent=matches.length.toLocaleString('fr-FR')+' entrée(s) correspondent au filtre';
  document.querySelectorAll('#blList .sw').forEach(sw=>sw.addEventListener('click',()=>{const it=blacklist[blTab][+sw.dataset.i];it.on=!it.on;renderBlacklist();}));
 }
 document.getElementById('blTabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;document.querySelectorAll('#blTabs button').forEach(x=>x.classList.toggle('on',x===b));blTab=b.dataset.b;blFillTypes();renderBlacklist();});
@@ -3046,7 +3076,7 @@ async function zSwitchOrg(id){try{await zapi('/api/auth/switch-organization',{me
 
 </script>
 
-<script>window.ZS_BUILD="2026-09-26 22:19 UTC";</script>
+<script>window.ZS_BUILD="2026-09-27 10:49 UTC";</script>
 <script>
 (async () => {
   try { const r = await fetch("/api/auth/me", { credentials: "include" }); if (r.status === 401) location.href = "/login"; }
