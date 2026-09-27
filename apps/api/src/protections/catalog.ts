@@ -411,6 +411,17 @@ export const PROTECTION_CATALOG: ProtectionCategory[] = [
       def('rs_scan_evasion', 'Anti évasion de scan', 'Ressource qui masque sa présence au scan (allowlist stricte).'),
     ],
   },
+  {
+    id: 'fonctions_avancees',
+    label: 'Fonctions avancées',
+    items: [
+      def('sp_particles', 'Anti particules abusives', 'ptFX à échelle absurde ou en rafale (aveuglement / flood).', 'block', false),
+      def('nt_fakechat', 'Anti faux chat', 'Message forgé au nom d’un autre joueur ou du staff (usurpation).'),
+      def('rs_resource_control', 'Anti stop/start de ressource', 'Un client tente d’arrêter/lancer une ressource (neutralisation de l’AC).'),
+      def('rc_keepalive', 'Keep-Alive client', 'Battement client absent chez un joueur actif (module client déchargé).', 'watch', false),
+      def('nt_solo_session', 'Anti session solo', 'Isolation réseau alors que le serveur est peuplé (dupe / grief).', 'block', false),
+    ],
+  },
 ];
 
 /** Index plat id → définition, pour valider les écritures. */

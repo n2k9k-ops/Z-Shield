@@ -707,20 +707,6 @@ a{color:inherit}
     <section class="view content" data-view="servers">
       <div class="section-head" style="margin-top:0"><h2>Tes serveurs</h2><div class="grow"></div><button class="btn btn-green btn-sm" onclick="addServer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Ajouter un serveur</button></div>
       <div id="serverList" class="grid" style="gap:14px"></div>
-      <div id="licGenCard" class="card wm" style="margin-top:18px;padding:20px">
-        <div class="section-head" style="margin-top:0"><h2>Générer une licence <span class="tag grn">admin</span></h2></div>
-        <p style="color:var(--sub);font-size:13.5px;margin:0 0 14px">Crée une clé à donner au client. Il la colle dans son <b>server.cfg</b> : <span class="mono">set zshield_license_key "…"</span>. Lie-la à l'identifiant de SON serveur (affiché dans sa console au démarrage) et à une durée.</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)">Identifiant serveur (ou "any")
-            <input id="licSrv" placeholder="ex. 7b9d6cd94dbfd140 / any" style="background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:9px 12px;color:var(--ink);font-family:var(--body);font-size:14px;min-width:220px"></label>
-          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)">Plan
-            <select id="licPlan" style="background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:9px 12px;color:var(--ink);font-family:var(--body);font-size:14px"><option value="starter">Starter</option><option value="pro" selected>Pro</option><option value="enterprise">Enterprise</option><option value="trial">Essai</option></select></label>
-          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)">Durée (jours)
-            <input id="licDays" value="30" style="background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:9px 12px;color:var(--ink);font-family:var(--body);font-size:14px;width:110px"></label>
-          <button class="btn btn-green btn-sm" onclick="genLicense()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Générer la clé</button>
-        </div>
-        <div id="licOut" class="mono" style="margin-top:14px;padding:12px 14px;border:1px dashed var(--line2);border-radius:10px;color:var(--sub);font-size:12.5px;word-break:break-all;display:none"></div>
-      </div>
     </section>
 
     <!-- INSTALL -->
@@ -2011,7 +1997,7 @@ function zServerCard(s,lic){
     +'<div class="mono" style="color:var(--faint);font-size:12px;margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">Identifiant : <span>'+zesc(s.id)+'</span><button class="btn btn-ghost btn-sm" onclick="zCopy('+zJs(s.id)+')">Copier</button></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'
     +'<button class="btn btn-sm" onclick="zServerCreds('+zJs(s.id)+')">Identifiants d\'agent</button>'
-    +'<button class="btn btn-sm btn-green" onclick="zServerActivate('+zJs(s.id)+','+zJs(s.name)+')">'+((lic&&lic.has_license&&!lic.expired)?'Renouveler la licence':'Activer la licence')+'</button>'
+    +((lic&&lic.has_license&&!lic.expired)?'':'<button class="btn btn-sm btn-green" onclick="zServerActivate('+zJs(s.id)+','+zJs(s.name)+')">Activer la licence</button>')
     +'</div></div></div>';
 }
 async function zServersLoad(){
@@ -2023,9 +2009,6 @@ async function zServersLoad(){
   var lics=await Promise.all(list.map(function(s){return zapi('/api/servers/'+s.id+'/license').catch(function(){return{has_license:false};});}));
   if(!list.length){host.innerHTML='<div class="card wm" style="padding:24px;text-align:center;color:var(--muted)">Aucun serveur pour le moment. Clique sur « Ajouter un serveur ».</div>';}
   else{host.innerHTML=list.map(function(s,i){return zServerCard(s,lics[i]);}).join('');}
-  // Le générateur de licences n'est utile qu'aux comptes qui facturent (vendeur/admin).
-  var gen=document.getElementById('licGenCard');
-  if(gen)gen.style.display=((ZS.perms&&ZS.perms.indexOf('billing.manage')>=0)||(ZS.me&&ZS.me.is_platform_admin))?'':'none';
 }
 addServer=async function(){
   var name=prompt('Nom du nouveau serveur ?');if(!name)return;
@@ -3076,7 +3059,411 @@ async function zSwitchOrg(id){try{await zapi('/api/auth/switch-organization',{me
 
 </script>
 
-<script>window.ZS_BUILD="2026-09-27 10:49 UTC";</script>
+<!-- =====================================================================
+     WAVE — Fonctions & détections (cartes à interrupteur) + i18n FR/EN
+     Bloc autonome : n'altère pas le reste du prototype. Injecte un onglet,
+     un sélecteur de langue global, et un écran de fonctions piloté par données.
+     HONNÊTETÉ : chaque carte porte un palier réel —
+        Serveur = serveur-autoritatif (fiable) · Client = signal corroborant
+        (contournable par un internal) · Hybride = serveur + client · Journal.
+     ===================================================================== -->
+<style>
+  .langsw{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line2);border-radius:9px;padding:2px}
+  .langsw button{border:0;background:transparent;color:var(--sub);font-weight:800;font-size:12px;padding:5px 10px;border-radius:7px;cursor:pointer;font-family:var(--body)}
+  .langsw button.on{background:var(--green);color:#04140b}
+  .fsec{margin-bottom:26px}
+  .fsec h3{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;display:flex;align-items:center;gap:10px}
+  .fsec h3 .fbulk{margin-left:auto;display:flex;gap:6px}
+  .fcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+  .fcard .fhead{display:flex;align-items:flex-start;gap:14px}
+  .fcard .ftx{flex:1;min-width:0}
+  .fcard .fnm{font-weight:800;font-size:14.5px;color:var(--ink);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .fcard .fds{color:var(--sub);font-size:12.5px;margin-top:3px;line-height:1.5}
+  .frec{font-size:10px;font-weight:900;letter-spacing:.03em;color:var(--green);border:1px solid var(--green-line);border-radius:6px;padding:1px 7px;text-transform:uppercase}
+  .ftier{font-size:10px;font-weight:800;border-radius:6px;padding:1px 7px;border:1px solid var(--line2);color:var(--muted)}
+  .ftier.server{color:#7fd6a1;border-color:var(--green-line)}
+  .ftier.client{color:#e0b45c;border-color:rgba(224,180,92,.4)}
+  .ftier.hybrid{color:#8ab6e0;border-color:rgba(138,182,224,.4)}
+  .ftier.log{color:#9aa0a6}
+  .ftier.setting{color:#b18ad0;border-color:rgba(177,138,208,.4)}
+  .fstate{font-size:12px;font-weight:700;color:var(--muted);min-width:64px;text-align:right}
+  .fchildren{margin-top:12px;padding-top:12px;border-top:1px dashed var(--hair);display:grid;gap:10px}
+  .fchild{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .fchild label{font-size:12.5px;color:var(--sub);min-width:180px}
+  .fchild input[type=number],.fchild input[type=text],.fchild select{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:7px 10px;color:var(--ink);font-family:var(--body);font-size:13px;outline:none}
+  .fchild input[type=text]{flex:1;min-width:200px}
+  .fnote{font-size:11.5px;color:var(--faint);margin-top:6px}
+  .fcount{color:var(--green);font-weight:700}
+  .fmode{display:flex;gap:2px;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:2px}
+  .fmode button{border:0;background:transparent;color:var(--sub);font-weight:700;font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:var(--body)}
+  .fmode button.on{background:var(--green);color:#04140b}
+  #featSaveBar{position:sticky;top:8px;z-index:40;margin-bottom:14px;display:flex;align-items:center;gap:12px;background:var(--raise);border:1px solid var(--green-line);border-radius:12px;padding:12px 16px}
+  #featSaveBar .fh{flex:1;font-size:13px;color:var(--ink);font-weight:600}
+</style>
+<script>
+/* ---------- i18n : état de langue global ---------- */
+function ZLANG(){try{return localStorage.getItem('zshield_lang')||'fr';}catch(e){return 'fr';}}
+function ZSETLANG(l){try{localStorage.setItem('zshield_lang',l);}catch(e){}}
+function zL(o){if(!o)return '';var l=ZLANG();return (l==='en'?(o.en||o.fr):(o.fr||o.en))||'';}
+
+/* Titres de page en EN (les FR existent déjà dans `titles`) */
+var TITLES_EN={overview:"Overview",players:"Players — intel",map:"Live map",multiview:"Multi‑view",bans:"Bans & sanctions",prot:"Configuration",blacklist:"Blacklist",signatures:"Signatures",servers:"Servers & license",tarifs:"Pricing",install:"Install",terminal:"Terminal",members:"Accounts & access",analytics:"Analytics",livethreats:"Live threats",incidents:"Incidents",presets:"Protection presets",features:"Features & detections"};
+var NAV_I18N={overview:{fr:"Vue d'ensemble",en:"Overview"},players:{fr:"Joueurs",en:"Players"},map:{fr:"Carte live",en:"Live map"},multiview:{fr:"Multi‑vue",en:"Multi‑view"},bans:{fr:"Bans & sanctions",en:"Bans & sanctions"},livethreats:{fr:"Menaces live",en:"Live threats"},analytics:{fr:"Analytics",en:"Analytics"},incidents:{fr:"Incidents",en:"Incidents"},prot:{fr:"Configuration",en:"Configuration"},features:{fr:"Fonctions & détections",en:"Features & detections"},blacklist:{fr:"Blacklist",en:"Blacklist"},signatures:{fr:"Signatures",en:"Signatures"},presets:{fr:"Presets",en:"Presets"},install:{fr:"Installation",en:"Install"},servers:{fr:"Serveurs & licence",en:"Servers & license"},tarifs:{fr:"Tarifs & offres",en:"Pricing"},terminal:{fr:"Terminal",en:"Terminal"},members:{fr:"Comptes & accès",en:"Accounts & access"},admin:{fr:"Admin — tous serveurs",en:"Admin — all servers"}};
+
+/* Libellés d'interface réutilisés (écran Fonctions) */
+var FUI={
+  title:{fr:"Fonctions & détections",en:"Features & detections"},
+  intro:{fr:"Active chaque protection et règle ses détails. Chaque carte indique son palier réel : <b>Serveur</b> = serveur‑autoritatif (fiable), <b>Client</b> = signal corroborant (un internal à jour peut le contourner ; il ne banni jamais seul), <b>Hybride</b> = serveur + client, <b>Journal</b> = enregistrement.",
+       en:"Enable each protection and tune its details. Every card shows its real tier: <b>Server</b> = server‑authoritative (reliable), <b>Client</b> = corroborating signal (an up‑to‑date internal can bypass it; it never bans on its own), <b>Hybrid</b> = server + client, <b>Log</b> = logging."},
+  search:{fr:"Rechercher une fonction…",en:"Search a feature…"},
+  allOn:{fr:"Tout activer",en:"Enable all"},
+  allOff:{fr:"Tout désactiver",en:"Disable all"},
+  on:{fr:"Activé",en:"Enabled"},off:{fr:"Désactivé",en:"Disabled"},
+  rec:{fr:"Recommandé",en:"Recommended"},
+  tier_server:{fr:"Serveur",en:"Server"},tier_client:{fr:"Client",en:"Client"},tier_hybrid:{fr:"Hybride",en:"Hybrid"},tier_log:{fr:"Journal",en:"Log"},tier_setting:{fr:"Réglage",en:"Setting"},
+  count:{fr:"fonction(s) active(s)",en:"feature(s) enabled"},
+  clientWarn:{fr:"Palier client : utile contre les cheats publics/bon marché ; un internal payant à jour peut le neutraliser. Il corrobore, il ne sanctionne jamais seul.",en:"Client tier: useful against public/cheap cheats; an up‑to‑date paid internal can neutralize it. It corroborates, never sanctions alone."},
+  mode:{fr:"Mode",en:"Mode"},modeWatch:{fr:"Surveiller",en:"Watch"},modeBlock:{fr:"Bloquer",en:"Block"},
+  liveBadge:{fr:"config serveur en direct",en:"live server config"},
+  demoBadge:{fr:"démo (sélectionne un serveur pour la config réelle)",en:"demo (select a server for live config)"},
+  noResult:{fr:"Aucun résultat",en:"No result"},
+  save:{fr:"Enregistrer",en:"Save"},cancel:{fr:"Annuler",en:"Cancel"},
+  saveHint:{fr:"Modifications non enregistrées — l'anticheat rechargera sa config.",en:"Unsaved changes — the anticheat will reload its config."}
+};
+
+/* ---------- Catalogue des fonctions (liste complète demandée + paliers honnêtes) ----------
+   item = { k, fr, en, dfr, den, rec?, tier, children?[{ck,fr,en,type,def,opts?}] } */
+var ZS_FEATURES=[
+ {id:"vpn", fr:"VPN", en:"VPN", items:[
+   {k:"anti_vpn",rec:1,tier:"server",fr:"Anti VPN",en:"Anti VPN",dfr:"Bloque les connexions via VPN/proxy (réputation IP côté serveur).",den:"Blocks VPN/proxy connections (server‑side IP reputation).",
+     children:[{ck:"vpn_whitelist",type:"list",fr:"IP VPN autorisées",en:"Whitelisted VPN IPs"}]},
+ ]},
+ {id:"logs", fr:"Journaux", en:"Logs", items:[
+   {k:"log_connection_ip",rec:1,tier:"log",fr:"Journaliser l'IP de connexion",en:"Log connection IP",dfr:"Enregistre l'IP à chaque connexion.",den:"Records the IP on each join."},
+   {k:"log_explosions",tier:"log",fr:"Journal des explosions",en:"Explosions logs",dfr:"Trace chaque explosion serveur.",den:"Logs every server explosion."},
+   {k:"log_join",rec:1,tier:"log",fr:"Journal des connexions",en:"Join logs",dfr:"Trace les entrées/sorties de joueurs.",den:"Logs player joins/leaves."},
+   {k:"log_ban",rec:1,tier:"log",fr:"Journal des bans",en:"Ban logs",dfr:"Trace chaque sanction appliquée.",den:"Logs every applied sanction."},
+   {k:"log_admin_panel",tier:"log",fr:"Journal du panel admin in‑game",en:"In‑game admin panel logs",dfr:"Trace les actions du menu admin en jeu.",den:"Logs in‑game admin menu actions."},
+   {k:"ban_screenshots",rec:1,tier:"hybrid",fr:"Captures d'écran de ban",en:"Ban screenshots",dfr:"Joint une capture (screenshot‑basic) à la preuve du ban.",den:"Attaches a screenshot (screenshot‑basic) to the ban evidence."},
+ ]},
+ {id:"entity", fr:"Détection d'entités", en:"Entity detection", items:[
+   {k:"entity_detection",rec:1,tier:"server",fr:"Détection d'entités (liste noire)",en:"Entity detection (blacklist)",dfr:"Détecte les entités interdites créées côté serveur.",den:"Detects blacklisted entities created server‑side.",
+     children:[{ck:"entity_ban",type:"toggle",fr:"Bannir sur détection",en:"Ban on detection"},
+               {ck:"entity_method",type:"sel",opts:["blacklist","whitelist"],fr:"Méthode",en:"Method"},
+               {ck:"entity_list",type:"list",fr:"Entités blacklistées",en:"Blacklisted entities"}]},
+   {k:"objects_ai_detection",tier:"server",fr:"Détection IA d'objets",en:"Objects AI detection",dfr:"Repère les objets/props anormaux par heuristique.",den:"Flags abnormal objects/props by heuristic."},
+   {k:"entity_lockdown",rec:1,tier:"server",type:"sel",fr:"Mode verrouillage d'entités",en:"Entity lockdown mode",dfr:"Limite la création/prise de contrôle d'entités.",den:"Limits entity creation/control.",
+     children:[{ck:"lockdown_level",type:"sel",opts:["inactive","relaxed","strict"],fr:"Niveau",en:"Level"}]},
+   {k:"anti_ped_blacklisted_weapon",tier:"server",fr:"Anti PNJ avec arme blacklistée",en:"Anti ped with blacklisted weapon",dfr:"Détecte un ped porteur d'une arme interdite.",den:"Detects a ped carrying a blacklisted weapon."},
+   {k:"anti_mass_entities",rec:1,tier:"server",fr:"Anti spawn massif (peds/véhicules/entités)",en:"Anti mass peds/vehicles/entities",dfr:"Cadence de création impossible = crasher/spammer.",den:"Impossible creation rate = crasher/spammer."},
+   {k:"anti_mass_same_entities",tier:"server",fr:"Anti spawn massif du MÊME modèle",en:"Anti mass SAME entities",dfr:"Répétition du même modèle en rafale.",den:"Same model spawned in bursts.",
+     children:[{ck:"anti_mass_ignore",type:"list",fr:"Entités ignorées",en:"Ignored entities"}]},
+ ]},
+ {id:"explosions", fr:"Explosions", en:"Explosions", items:[
+   {k:"explosions_protection",rec:1,tier:"server",fr:"Protection explosions",en:"Explosions protection",dfr:"Filtre les explosions illégitimes (propriétaire/args).",den:"Filters illegitimate explosions (owner/args).",
+     children:[{ck:"ai_explosions_detection",type:"toggle",fr:"Détection IA des explosions",en:"AI explosions detection"}]},
+   {k:"block_invisible_explosions",rec:1,tier:"server",fr:"Bloquer les explosions invisibles",en:"Block invisible explosions",dfr:"Explosions sans effet visuel = injectées.",den:"Explosions with no visual = injected."},
+   {k:"block_silent_explosions",rec:1,tier:"server",fr:"Bloquer les explosions silencieuses",en:"Block silent explosions",dfr:"Explosions sans son = injectées.",den:"Explosions with no sound = injected."},
+   {k:"anti_mass_explosion",rec:1,tier:"server",fr:"Anti explosion massive",en:"Anti mass explosion",dfr:"Trop d'explosions par fenêtre = attaque.",den:"Too many explosions per window = attack.",
+     children:[{ck:"mass_explosion_value",type:"num",def:4,fr:"Seuil d'explosions",en:"Mass explosion value"},
+               {ck:"mass_explosion_reset",type:"num",def:10000,fr:"Reset compteur (ms)",en:"Reset counter (ms)"}]},
+   {k:"blacklisted_explosions",tier:"server",type:"list",fr:"Explosions blacklistées",en:"Blacklisted explosions",dfr:"Types d'explosion interdits (liste).",den:"Forbidden explosion types (list)."},
+ ]},
+ {id:"particles", fr:"Particules", en:"Particles", items:[
+   {k:"particles_detection",tier:"server",fr:"Détection de particules",en:"Particles detection",dfr:"Repère les effets ptFX abusifs.",den:"Flags abusive ptFX effects."},
+   {k:"anti_mass_particles",tier:"server",fr:"Anti particules massives",en:"Anti mass particles",dfr:"Rafale de particules = flood/crash.",den:"Particle bursts = flood/crash.",
+     children:[{ck:"particles_max_scale",type:"num",def:10,fr:"Échelle max",en:"Max scale"},
+               {ck:"mass_particles_value",type:"num",def:20,fr:"Seuil",en:"Value"},
+               {ck:"mass_particles_reset",type:"num",def:10000,fr:"Reset compteur (ms)",en:"Reset counter (ms)"},
+               {ck:"particles_ignore",type:"list",fr:"Particules ignorées",en:"Ignore list"}]},
+ ]},
+ {id:"perms", fr:"Permissions", en:"Permissions", items:[
+   {k:"add_ace_permissions",tier:"setting",fr:"Ajouter les permissions ACE",en:"Add ACE permissions",dfr:"Déclare les perms ACE du staff.",den:"Declares staff ACE perms."},
+   {k:"alt_permission_check",tier:"setting",fr:"Vérif. permissions alternative (panel web)",en:"Alternative permission check (web panel)",dfr:"Contrôle des droits via le panel au lieu des ACE.",den:"Rights checked via the panel instead of ACE."},
+ ]},
+ {id:"safeevents", fr:"Événements sûrs", en:"Safe events", items:[
+   {k:"safe_events",rec:1,tier:"server",fr:"Événements sûrs",en:"Safe events",dfr:"N'autorise que les events serveur déclarés sûrs.",den:"Only allows server events declared safe.",
+     children:[{ck:"ignore_events_list",type:"list",fr:"Events ignorés",en:"Ignore events list"}]},
+ ]},
+ {id:"events", fr:"Événements", en:"Events", items:[
+   {k:"blacklisted_string_event",rec:1,tier:"server",fr:"Event à chaîne blacklistée",en:"Blacklisted string event",dfr:"Bloque les events dont le nom correspond à un motif interdit.",den:"Blocks events whose name matches a forbidden pattern."},
+   {k:"blacklisted_triggers",rec:1,tier:"server",type:"list",fr:"Triggers blacklistés",en:"Blacklisted triggers",dfr:"Liste d'events serveur interdits au client.",den:"List of server events forbidden from client."},
+   {k:"event_rate_limiter",rec:1,tier:"server",fr:"Limiteur de débit d'events",en:"Event rate limiter",dfr:"Plafonne la cadence des events par joueur.",den:"Caps per‑player event rate.",
+     children:[{ck:"rate_limiter_time",type:"num",def:1000,fr:"Fenêtre (ms)",en:"Window (ms)"},
+               {ck:"rate_limiter_events",type:"list",fr:"Events surveillés",en:"Events list"}]},
+ ]},
+ {id:"basic", fr:"Base", en:"Basic", items:[
+   {k:"keep_alive",rec:1,tier:"hybrid",fr:"Système Keep‑Alive",en:"Keep‑Alive system",dfr:"Battement client attendu par le serveur ; son absence est suspecte.",den:"Client heartbeat expected by the server; its absence is suspicious.",
+     children:[{ck:"keep_alive_mode",type:"sel",opts:["1","2"],fr:"Mode",en:"Mode"},
+               {ck:"keep_alive_timeout",type:"num",def:15000,fr:"Timeout (ms)",en:"Timeout (ms)"},
+               {ck:"keep_alive_ban",type:"toggle",fr:"Bannir sur absence",en:"Ban on timeout"}]},
+   {k:"discord_invite",tier:"setting",type:"text",fr:"Code d'invitation Discord (affiché dans les bans)",en:"Discord invite code (shown in bans)",dfr:"Ajouté au message de ban.",den:"Added to the ban message."},
+   {k:"advanced_anti_give_weapon",rec:1,tier:"server",fr:"Anti give weapon avancé",en:"Advanced anti give weapon",dfr:"Refuse toute arme sans source serveur légitime.",den:"Rejects any weapon without a legitimate server source."},
+   {k:"anti_fake_chat",rec:1,tier:"server",fr:"Anti faux chat",en:"Anti fake chat",dfr:"Bloque l'usurpation de messages/identité dans le chat.",den:"Blocks chat message/identity spoofing."},
+   {k:"anti_stop_start_resources",rec:1,tier:"server",fr:"Anti stop/start de ressources",en:"Anti stop/start resources",dfr:"Empêche un client de couper/lancer des ressources.",den:"Prevents a client from stopping/starting resources."},
+   {k:"clear_ped_tasks_log",tier:"client",fr:"Log ClearPedTasksImmediately",en:"Clear ped tasks immediately log",dfr:"Signale l'usage abusif de ClearPedTasks (souvent trainer).",den:"Flags abusive ClearPedTasks use (often trainer).",
+     children:[{ck:"clear_ped_tasks_distance",type:"num",def:20,fr:"Distance (m)",en:"Distance (m)"}]},
+   {k:"screenshot_basic_name",tier:"setting",type:"text",fr:"Nom de la ressource screenshot‑basic",en:"Screenshot‑basic script name",dfr:"Utilisée pour les captures de ban.",den:"Used for ban screenshots."},
+   {k:"ban_on_ip",tier:"server",fr:"Bannir sur l'adresse IP",en:"Ban on IP address",dfr:"Ajoute l'IP aux identifiants bannis.",den:"Adds IP to banned identifiers."},
+   {k:"anti_spawn_props_unauth",rec:1,tier:"server",fr:"Anti spawn de props par ressources non autorisées",en:"Anti spawn props by unauthorized resources",dfr:"Un prop créé hors ressource autorisée est refusé.",den:"A prop created outside an authorized resource is rejected.",
+     children:[{ck:"anti_spawn_props_mode",type:"sel",opts:["1 (auto)","2 (manuel)"],fr:"Mode",en:"Mode"},
+               {ck:"anti_spawn_props_table",type:"list",fr:"Ressources autorisées (mode 2)",en:"Authorized resources (mode 2)"}]},
+   {k:"destroyed_vehicle_delete",tier:"server",fr:"Supprimer les véhicules détruits",en:"Destroyed vehicle delete",dfr:"Nettoie les épaves (anti‑crash/pollution).",den:"Cleans wrecks (anti‑crash/clutter)."},
+ ]},
+ {id:"esx", fr:"ESX", en:"ESX", items:[
+   {k:"esx_script_name",tier:"setting",type:"text",fr:"Nom de la ressource ESX",en:"ESX script name",dfr:"Pour l'intégration ESX.",den:"For ESX integration."},
+   {k:"esx_shared_object_event",tier:"setting",type:"text",fr:"Event SharedObject",en:"Shared object event",dfr:"Event de récupération de l'objet partagé.",den:"Shared object retrieval event."},
+   {k:"whitelist_events_on_job",tier:"server",fr:"Whitelister des events selon le job",en:"Whitelist events on job",dfr:"Autorise certains events uniquement pour un job.",den:"Allows certain events only for a job.",
+     children:[{ck:"whitelist_events_job_list",type:"list",fr:"Events par job",en:"Events on job list"}]},
+   {k:"anti_give_weapon_esx",tier:"server",fr:"Anti give weapon (ESX)",en:"Anti give weapon ESX",dfr:"Contrôle les armes via l'inventaire ESX.",den:"Checks weapons via ESX inventory.",
+     children:[{ck:"esx_ignore_weapons",type:"list",fr:"Armes ignorées",en:"Ignored weapons"}]},
+ ]},
+ {id:"qbcore", fr:"QBCore", en:"QBCore", items:[
+   {k:"qbcore_script_name",tier:"setting",type:"text",fr:"Nom de la ressource QBCore",en:"QBCore script name",dfr:"Pour l'intégration QBCore.",den:"For QBCore integration."},
+   {k:"anti_give_weapon_qbcore",tier:"server",fr:"Anti give weapon (QBCore)",en:"Anti give weapon QBCore",dfr:"Contrôle les armes via l'inventaire QBCore.",den:"Checks weapons via QBCore inventory.",
+     children:[{ck:"qbcore_ignore_weapons",type:"list",fr:"Armes ignorées",en:"Ignored weapons"}]},
+ ]},
+ {id:"client", fr:"Client (corroborant)", en:"Client (corroborating)", items:[
+   {k:"anti_internal",rec:1,tier:"client",fr:"Anti Internal",en:"Anti Internal",dfr:"Détecte les cheats internes publics (type Eulen, Ambani). ⚠ Un internal payant à jour peut contourner un check client ; ici c'est un signal corroborant, pas un ban garanti.",den:"Detects public internal cheats (Eulen, Ambani‑type). ⚠ An up‑to‑date paid internal can bypass a client check; here it corroborates, it is not a guaranteed ban."},
+   {k:"anti_health_hack",tier:"client",fr:"Anti Health Hack",en:"Anti health hack",dfr:"PV incohérents côté client (corroboré serveur via dégâts).",den:"Inconsistent client HP (corroborated server‑side via damage)."},
+   {k:"anti_head_hitbox",tier:"client",fr:"Anti Head Hitbox",en:"Anti head hitbox",dfr:"Hitbox tête modifiée.",den:"Modified head hitbox."},
+   {k:"anti_damage_modifier",tier:"hybrid",fr:"Anti Damage Modifier",en:"Anti damage modifier",dfr:"Multiplicateur de dégâts (corroboré serveur).",den:"Damage multiplier (server‑corroborated)."},
+   {k:"anti_give_weapon_client",tier:"hybrid",fr:"Anti Give Weapon (client)",en:"Anti give weapon (client)",dfr:"Arme apparue sans source (corroboré par provenance serveur).",den:"Weapon appearing without a source (corroborated by server provenance)."},
+   {k:"anti_godmode",rec:1,tier:"hybrid",fr:"Anti Godmode",en:"Anti godmode",dfr:"Invincibilité — le serveur voit les dégâts non appliqués.",den:"Invincibility — server sees unapplied damage."},
+   {k:"anti_semi_godmode",tier:"hybrid",fr:"Anti Semi‑Godmode en combat",en:"Anti semi god mode during fight",dfr:"Régénération anormale pendant un combat.",den:"Abnormal regen during a fight."},
+   {k:"anti_edited_head_hitbox",tier:"client",fr:"Anti Head Hitbox éditée",en:"Anti edited head hitbox",dfr:"Modification de la hitbox tête.",den:"Head hitbox edit."},
+   {k:"anti_infinite_stamina",tier:"client",fr:"Anti Stamina infinie",en:"Anti infinite stamina",dfr:"Endurance jamais épuisée.",den:"Stamina never depletes."},
+   {k:"anti_aimbot",rec:1,tier:"hybrid",fr:"Anti Aimbot",en:"Anti aimbot",dfr:"Visée assistée — corroboré par les stats de tir serveur (précision/snap).",den:"Assisted aim — corroborated by server shot stats (accuracy/snap)."},
+   {k:"anti_silent_aim",rec:1,tier:"hybrid",fr:"Anti Silent Aim",en:"Anti silent aim",dfr:"Balles redirigées — divergence origine/impact vue serveur.",den:"Redirected bullets — origin/impact divergence seen server‑side."},
+   {k:"anti_taze",tier:"client",fr:"Anti Taze",en:"Anti taze",dfr:"Taser abusif/à distance.",den:"Abusive/ranged taser."},
+   {k:"anti_spectate",tier:"client",fr:"Anti Spectate",en:"Anti spectate",dfr:"Spectate non autorisé d'un joueur.",den:"Unauthorized player spectate."},
+   {k:"anti_teleport",rec:1,tier:"hybrid",fr:"Anti Teleport",en:"Anti teleport",dfr:"Saut de position impossible — vu serveur (mouvement).",den:"Impossible position jump — seen server‑side (movement)."},
+   {k:"anti_teleport_waypoint",tier:"hybrid",fr:"Anti Teleport au waypoint",en:"Anti teleport to waypoint",dfr:"TP vers le point de la carte.",den:"TP to the map waypoint."},
+   {k:"anti_invisible",tier:"client",fr:"Anti Invisible",en:"Anti invisible",dfr:"Joueur rendu invisible.",den:"Player made invisible."},
+   {k:"anti_speedhack",rec:1,tier:"hybrid",fr:"Anti Speedhack",en:"Anti speedhack",dfr:"Horloge/vitesse accélérée — corroboré serveur (clocksync).",den:"Accelerated clock/speed — server‑corroborated (clocksync)."},
+   {k:"anti_superjump",tier:"hybrid",fr:"Anti Superjump",en:"Anti superjump",dfr:"Saut au‑delà du plausible.",den:"Jump beyond plausible."},
+   {k:"anti_freecam",tier:"client",fr:"Anti Freecam",en:"Anti freecam",dfr:"Caméra détachée du joueur.",den:"Camera detached from the player.",
+     children:[{ck:"anti_freecam_allow_cords",type:"list",fr:"Coordonnées autorisées",en:"Allowed cords"}]},
+   {k:"anti_nightvision",tier:"client",fr:"Anti Vision nocturne",en:"Anti night vision",dfr:"Vision nocturne forcée.",den:"Forced night vision."},
+   {k:"anti_thermal",tier:"client",fr:"Anti Vision thermique",en:"Anti thermal vision",dfr:"Vision thermique forcée.",den:"Forced thermal vision."},
+   {k:"anti_noclip",rec:1,tier:"hybrid",fr:"Anti Noclip",en:"Anti noclip",dfr:"Traversée de murs — corroboré serveur (désync physique).",den:"Wall‑clipping — server‑corroborated (physics desync)."},
+   {k:"anti_eulen_noclip",tier:"client",fr:"Anti Noclip Eulen",en:"Anti Eulen noclip",dfr:"Variante noclip d'Eulen. ⚠ Purement client : un Eulen à jour peut la neutraliser ; le noclip reste attrapé côté serveur par la désync.",den:"Eulen noclip variant. ⚠ Client‑only: an up‑to‑date Eulen can neutralize it; noclip is still caught server‑side via desync."},
+   {k:"anti_player_explosion",tier:"server",fr:"Anti explosion joueur",en:"Anti player explosion",dfr:"Explosion attribuée à un joueur sans arme légitime.",den:"Explosion attributed to a player without a legitimate weapon."},
+   {k:"anti_nui_devtools",tier:"client",fr:"Anti NUI DevTools",en:"Anti NUI devtools",dfr:"Ouverture des devtools NUI.",den:"NUI devtools opening."},
+   {k:"anti_combat_roll",tier:"client",fr:"Anti Combat Roll",en:"Anti combat roll",dfr:"Roulade de combat exploitée.",den:"Exploited combat roll."},
+   {k:"anti_attach_ped",tier:"client",fr:"Anti Attach Ped au joueur",en:"Anti attach ped to player",dfr:"Ped attaché au joueur (griefing).",den:"Ped attached to player (griefing)."},
+   {k:"blips_detection",tier:"client",fr:"Détection de blips",en:"Blips detection",dfr:"Trop de blips joueurs = radar/ESP.",den:"Too many player blips = radar/ESP.",
+     children:[{ck:"blips_max",type:"num",def:64,fr:"Blips max (joueurs)",en:"Max blips (players)"}]},
+   {k:"anti_enter_solo_session",tier:"server",fr:"Anti passage en session solo",en:"Anti enter solo session",dfr:"Isolement réseau pour dupe/griefing.",den:"Network isolation for dupe/griefing."},
+   {k:"blacklisted_textures",tier:"client",type:"list",fr:"Textures blacklistées",en:"Blacklisted textures",dfr:"Textures interdites (menus/ESP).",den:"Forbidden textures (menus/ESP)."},
+   {k:"use_ocr_detection",tier:"client",fr:"Détection OCR",en:"Use OCR detection",dfr:"Lit le texte à l'écran (noms de menus).",den:"Reads on‑screen text (menu names).",
+     children:[{ck:"ocr_strings",type:"list",fr:"Chaînes OCR recherchées",en:"OCR strings"}]},
+ ]},
+];
+
+/* ---------- État persistant (prototype) ---------- */
+function zFeatLoad(){try{return JSON.parse(localStorage.getItem('zshield_features')||'{}');}catch(e){return {};}}
+function zFeatSave(s){try{localStorage.setItem('zshield_features',JSON.stringify(s));}catch(e){}}
+var zFeatState=zFeatLoad();
+function zFeatDefault(){ // recommandées activées par défaut la 1re fois
+  if(Object.keys(zFeatState).length)return;
+  ZS_FEATURES.forEach(function(sec){sec.items.forEach(function(it){ if(it.rec)zFeatState[it.k]={on:true}; });});
+  zFeatSave(zFeatState);
+}
+function zFeatOn(k){return !!(zFeatState[k]&&zFeatState[k].on);}
+var zFeatQuery='';
+
+function zTierLabel(t){return FUI['tier_'+t]?zL(FUI['tier_'+t]):t;}
+function zFeatCount(){var n=0;ZS_FEATURES.forEach(function(s){s.items.forEach(function(it){if(zFeatOn(it.k))n++;});});return n;}
+
+// Palier honnête pour une protection LIVE, déduit du préfixe d'identifiant.
+// L'application (gate watch/block) est TOUJOURS serveur ; le palier décrit la SOURCE
+// de détection : av_/ai_ (visée/caméra) et bh_ (comportement) sont aidés par le client.
+var ZFEAT_TIER_PREFIX={ av:'hybrid', ai:'hybrid', bh:'hybrid', pl:'hybrid' };
+function zFeatLiveTier(id){ return ZFEAT_TIER_PREFIX[String(id||'').split('_')[0]] || 'server'; }
+function zFeatLiveReady(){ try{ return typeof CONFIG!=='undefined' && CONFIG && CONFIG.length && ZS && ZS.protIndex && ZS.protIndex.size>0; }catch(e){ return false; } }
+
+// Charge la config LIVE si un serveur est sélectionné et qu'elle ne l'est pas déjà.
+async function zFeatEnter(){
+  applyView('features');
+  try{
+    if(ZS.serverId && (!ZS.protIndex||ZS.protIndex.size===0) && typeof zConfigLoad==='function'){ await zConfigLoad(); }
+  }catch(e){}
+  zFeaturesRender();
+}
+function zFeatShowSave(on){ var b=document.getElementById('featSaveBar'); if(b)b.hidden=!on; }
+function zFeatToggleLive(id){ var it=ZS.protIndex&&ZS.protIndex.get(id); if(!it)return; it.on=!it.on; if(typeof cfgTouch==='function')cfgTouch(); zFeatShowSave(true); zFeaturesRender(); }
+function zFeatModeLive(id,mode){ var it=ZS.protIndex&&ZS.protIndex.get(id); if(!it)return; it.mode=mode; if(typeof cfgTouch==='function')cfgTouch(); zFeatShowSave(true); zFeaturesRender(); }
+function zFeatBulkLive(label,on){ if(!ZS.protIndex)return; var n=0; (CONFIG||[]).forEach(function(cat){ if(cat.tab!==label)return; cat.groups.forEach(function(g){ g.items.forEach(function(it){ if(it.on!==on){it.on=on;} n++; }); }); }); if(typeof cfgTouch==='function')cfgTouch(); zFeatShowSave(true); zFeaturesRender(); if(typeof toast==='function')toast((on?zL(FUI.allOn):zL(FUI.allOff))+' · '+zesc(label),on?'grn':undefined); }
+function zFeatSaveLive(){ if(typeof cfgSave==='function')cfgSave(); zFeatShowSave(false); }
+function zFeatCancelLive(){ if(typeof cfgDirty!=='undefined')cfgDirty=false; zFeatShowSave(false); if(ZS.serverId&&typeof zConfigLoad==='function'){zConfigLoad().then(zFeaturesRender);} else zFeaturesRender(); }
+
+function zFeaturesRenderLive(){
+  var host=document.getElementById('featBody');if(!host)return;
+  var q=zFeatQuery.toLowerCase();
+  var html='', active=0, total=0;
+  (CONFIG||[]).forEach(function(cat){
+    var items=[];
+    cat.groups.forEach(function(g){ g.items.forEach(function(it){ items.push(it); }); });
+    total+=items.length;
+    var cards=items.filter(function(it){ return ((it.n||'')+' '+(it.ds||'')+' '+(it.id||'')).toLowerCase().indexOf(q)>=0; });
+    items.forEach(function(it){ if(it.on)active++; });
+    if(!cards.length)return;
+    html+='<div class="fsec"><h3>'+zesc(cat.tab)+
+      '<span class="fbulk"><button class="btn btn-sm btn-ghost" onclick="zFeatBulkLive('+zJs(cat.tab)+',true)">'+zesc(zL(FUI.allOn))+'</button>'+
+      '<button class="btn btn-sm btn-ghost" onclick="zFeatBulkLive('+zJs(cat.tab)+',false)">'+zesc(zL(FUI.allOff))+'</button></span></h3>';
+    cards.forEach(function(it){
+      var on=!!it.on, tier=zFeatLiveTier(it.id);
+      html+='<div class="fcard"><div class="fhead">'+
+        '<div class="ftx"><div class="fnm">'+zesc(it.n)+
+          '<span class="ftier '+tier+'">'+zesc(zTierLabel(tier))+'</span></div>'+
+          '<div class="fds">'+zesc(it.ds||'')+'</div></div>'+
+        '<div class="fstate">'+zesc(on?zL(FUI.on):zL(FUI.off))+'</div>'+
+        '<div class="sw '+(on?'on':'')+'" role="switch" aria-checked="'+on+'" onclick="zFeatToggleLive('+zJs(it.id)+')"></div>'+
+      '</div>';
+      if(on){
+        html+='<div class="fchildren"><div class="fchild"><label>'+zesc(zL(FUI.mode))+'</label>'+
+          '<div class="fmode">'+
+            '<button class="'+(it.mode==='watch'?'on':'')+'" onclick="zFeatModeLive('+zJs(it.id)+',\'watch\')">'+zesc(zL(FUI.modeWatch))+'</button>'+
+            '<button class="'+(it.mode!=='watch'?'on':'')+'" onclick="zFeatModeLive('+zJs(it.id)+',\'block\')">'+zesc(zL(FUI.modeBlock))+'</button>'+
+          '</div></div></div>';
+      }
+      html+='</div>';
+    });
+    html+='</div>';
+  });
+  host.innerHTML=html||'<div style="padding:30px;text-align:center;color:var(--muted)">'+zesc(zL(FUI.noResult))+'</div>';
+  var c=document.getElementById('featCount');if(c)c.innerHTML='<span class="fcount">'+active+'</span> '+zesc(zL(FUI.count))+' · <span style="color:var(--green)">'+zesc(zL(FUI.liveBadge))+'</span>';
+  zFeatShowSave(typeof cfgDirty!=='undefined'&&cfgDirty);
+}
+
+function zFeaturesRender(){
+  if(zFeatLiveReady())return zFeaturesRenderLive();   // config serveur réelle
+  var host=document.getElementById('featBody');if(!host)return;
+  var q=zFeatQuery.toLowerCase();
+  var html='';
+  ZS_FEATURES.forEach(function(sec){
+    var cards=sec.items.filter(function(it){
+      return (zL({fr:it.fr,en:it.en})+' '+zL({fr:it.dfr,en:it.den})+' '+it.k).toLowerCase().indexOf(q)>=0;
+    });
+    if(!cards.length)return;
+    html+='<div class="fsec"><h3>'+zesc(zL({fr:sec.fr,en:sec.en}))+
+      '<span class="fbulk"><button class="btn btn-sm btn-ghost" onclick="zFeatBulk('+zJs(sec.id)+',true)">'+zesc(zL(FUI.allOn))+'</button>'+
+      '<button class="btn btn-sm btn-ghost" onclick="zFeatBulk('+zJs(sec.id)+',false)">'+zesc(zL(FUI.allOff))+'</button></span></h3>';
+    cards.forEach(function(it){
+      var on=zFeatOn(it.k);
+      html+='<div class="fcard"><div class="fhead">'+
+        '<div class="ftx"><div class="fnm">'+zesc(zL({fr:it.fr,en:it.en}))+
+          (it.rec?'<span class="frec">'+zesc(zL(FUI.rec))+'</span>':'')+
+          '<span class="ftier '+it.tier+'">'+zesc(zTierLabel(it.tier))+'</span></div>'+
+          '<div class="fds">'+zL({fr:it.dfr,en:it.den})+'</div></div>'+
+        '<div class="fstate">'+zesc(on?zL(FUI.on):zL(FUI.off))+'</div>'+
+        '<div class="sw '+(on?'on':'')+'" role="switch" aria-checked="'+on+'" onclick="zFeatToggle('+zJs(it.k)+')"></div>'+
+      '</div>';
+      if(on&&it.children&&it.children.length){
+        html+='<div class="fchildren">';
+        it.children.forEach(function(c){
+          var val=(zFeatState[it.k]&&zFeatState[it.k][c.ck]);
+          var lab=zesc(zL({fr:c.fr,en:c.en}));
+          if(c.type==='num'){html+='<div class="fchild"><label>'+lab+'</label><input type="number" value="'+(val!=null?val:(c.def!=null?c.def:''))+'" oninput="zFeatChild('+zJs(it.k)+','+zJs(c.ck)+',this.value)"></div>';}
+          else if(c.type==='sel'){html+='<div class="fchild"><label>'+lab+'</label><select onchange="zFeatChild('+zJs(it.k)+','+zJs(c.ck)+',this.value)">'+(c.opts||[]).map(function(o){return '<option'+(String(val)===String(o)?' selected':'')+'>'+zesc(o)+'</option>';}).join('')+'</select></div>';}
+          else if(c.type==='toggle'){var cv=!!val;html+='<div class="fchild"><label>'+lab+'</label><div class="sw '+(cv?'on':'')+'" role="switch" aria-checked="'+cv+'" onclick="zFeatChild('+zJs(it.k)+','+zJs(c.ck)+','+(cv?'false':'true')+');zFeaturesRender();"></div></div>';}
+          else{html+='<div class="fchild"><label>'+lab+'</label><input type="text" placeholder="a, b, c" value="'+(val!=null?zesc(String(val)):'')+'" oninput="zFeatChild('+zJs(it.k)+','+zJs(c.ck)+',this.value)"></div>';}
+        });
+        html+='</div>';
+      }
+      if(it.tier==='client'){html+='<div class="fnote">⚠ '+zL(FUI.clientWarn)+'</div>';}
+      html+='</div>';
+    });
+    html+='</div>';
+  });
+  host.innerHTML=html||'<div style="padding:30px;text-align:center;color:var(--muted)">—</div>';
+  var c=document.getElementById('featCount');if(c)c.innerHTML='<span class="fcount">'+zFeatCount()+'</span> '+zesc(zL(FUI.count))+' · <span style="color:var(--warn)">'+zesc(zL(FUI.demoBadge))+'</span>';
+  zFeatShowSave(false);
+}
+function zFeatToggle(k){zFeatState[k]=zFeatState[k]||{};zFeatState[k].on=!zFeatOn(k);zFeatSave(zFeatState);zFeaturesRender();}
+function zFeatChild(k,ck,v){zFeatState[k]=zFeatState[k]||{on:true};zFeatState[k][ck]=v;zFeatSave(zFeatState);}
+function zFeatBulk(secId,on){var sec=ZS_FEATURES.find(function(s){return s.id===secId;});if(!sec)return;sec.items.forEach(function(it){zFeatState[it.k]=zFeatState[it.k]||{};zFeatState[it.k].on=on;});zFeatSave(zFeatState);zFeaturesRender();if(typeof toast==='function')toast((on?zL(FUI.allOn):zL(FUI.allOff))+' · '+zesc(zL({fr:sec.fr,en:sec.en})),on?'grn':undefined);}
+
+/* ---------- Application de la langue à tout le dashboard ---------- */
+function zApplyLang(){
+  var l=ZLANG();
+  document.documentElement.setAttribute('lang',l);
+  // nav
+  document.querySelectorAll('.navitem').forEach(function(n){
+    var v=n.dataset.view;var tr=NAV_I18N[v];if(!tr)return;
+    var span=n.querySelector('.nvlabel');
+    if(span)span.textContent=zL(tr);
+  });
+  // titre de page courant
+  var t=document.getElementById('pageTitle');
+  if(t&&typeof currentView!=='undefined')t.textContent=(l==='en'?(TITLES_EN[currentView]||''):((typeof titles!=='undefined'&&titles[currentView])||''))||t.textContent;
+  // éléments opt-in [data-i18n-fr]/[data-i18n-en]
+  document.querySelectorAll('[data-i18n-fr]').forEach(function(el){
+    var txt=(l==='en'?el.getAttribute('data-i18n-en'):el.getAttribute('data-i18n-fr'));if(txt!=null)el.innerHTML=txt;
+  });
+  // écran Fonctions
+  var ft=document.getElementById('featTitle');if(ft)ft.textContent=zL(FUI.title);
+  var fi=document.getElementById('featIntro');if(fi)fi.innerHTML=zL(FUI.intro);
+  var fs=document.getElementById('featSearch');if(fs)fs.setAttribute('placeholder',zL(FUI.search));
+  var fsh=document.getElementById('featSaveHint');if(fsh)fsh.textContent=zL(FUI.saveHint);
+  var fsb=document.getElementById('featSaveBtn');if(fsb)fsb.textContent=zL(FUI.save);
+  var fcb=document.getElementById('featCancelBtn');if(fcb)fcb.textContent=zL(FUI.cancel);
+  // boutons langue
+  document.querySelectorAll('.langsw button').forEach(function(b){b.classList.toggle('on',b.dataset.l===l);});
+  zFeaturesRender();
+}
+function zSetLang(l){ZSETLANG(l);zApplyLang();}
+
+/* ---------- Injection (onglet, topbar, section) ---------- */
+(function(){
+  function boot(){
+    // 0) enrober le texte des navitems dans un span traduisible
+    document.querySelectorAll('.navitem').forEach(function(n){
+      if(n.querySelector('.nvlabel'))return;
+      for(var i=0;i<n.childNodes.length;i++){var nd=n.childNodes[i];
+        if(nd.nodeType===3&&nd.textContent.trim()){var sp=document.createElement('span');sp.className='nvlabel';sp.textContent=nd.textContent.trim();n.replaceChild(sp,nd);break;}}
+    });
+    // 1) onglet "Fonctions & détections" après Configuration
+    var protNav=document.querySelector('.navitem[data-view="prot"]');
+    if(protNav&&!document.querySelector('.navitem[data-view="features"]')){
+      var nv=document.createElement('div');nv.className='navitem';nv.dataset.view='features';
+      nv.innerHTML='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4Z"/><path d="m9 12 2 2 4-4"/></svg><span class="nvlabel">Fonctions & détections</span>';
+      protNav.parentNode.insertBefore(nv,protNav.nextSibling);
+      nv.addEventListener('click',function(){zFeatEnter();});
+    }
+    // 2) titres
+    if(typeof titles!=='undefined')titles.features="Fonctions & détections";
+    // 3) sélecteur de langue dans la topbar (avant la cloche)
+    var bell=document.getElementById('bellBtn');
+    if(bell&&!document.querySelector('.langsw')){
+      var sw=document.createElement('div');sw.className='langsw';
+      sw.innerHTML='<button data-l="fr" onclick="zSetLang(\'fr\')">FR</button><button data-l="en" onclick="zSetLang(\'en\')">EN</button>';
+      bell.parentNode.insertBefore(sw,bell);
+    }
+    // 4) section Fonctions
+    if(!document.querySelector('section[data-view="features"]')){
+      var app=document.querySelector('.view[data-view="prot"]');var parent=app?app.parentNode:document.body;
+      var sec=document.createElement('section');sec.className='view content';sec.dataset.view='features';
+      sec.innerHTML=
+        '<div style="max-width:940px">'+
+        '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px"><h2 id="featTitle" style="font-size:18px;margin:0">Fonctions & détections</h2><span id="featCount" style="color:var(--muted);font-size:12.5px"></span></div>'+
+        '<p id="featIntro" style="color:var(--sub);font-size:13px;line-height:1.6;margin:0 0 16px"></p>'+
+        '<div id="featSaveBar" hidden><span class="fh" id="featSaveHint"></span><button class="btn btn-ghost btn-sm" onclick="zFeatCancelLive()" id="featCancelBtn">Annuler</button><button class="btn btn-green btn-sm" onclick="zFeatSaveLive()" id="featSaveBtn">Enregistrer</button></div>'+
+        '<div class="search" style="margin-bottom:18px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="featSearch" placeholder="Rechercher une fonction…"></div>'+
+        '<div id="featBody"></div>'+
+        '</div>';
+      parent.appendChild(sec);
+      var s=document.getElementById('featSearch');if(s)s.addEventListener('input',function(e){zFeatQuery=e.target.value;zFeaturesRender();});
+    }
+    zFeatDefault();
+    zApplyLang();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+})();
+</script>
+
+<script>window.ZS_BUILD="2026-09-27 13:21 UTC";</script>
 <script>
 (async () => {
   try { const r = await fetch("/api/auth/me", { credentials: "include" }); if (r.status === 401) location.href = "/login"; }
