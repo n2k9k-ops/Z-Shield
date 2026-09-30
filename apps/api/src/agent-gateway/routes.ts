@@ -48,14 +48,45 @@ export async function agentGatewayRoutes(
 
   // Le corps est conservé tel quel. Aucun parsing avant vérification de la
   // signature : c'est l'exigence centrale du protocole.
-  app.addContentTypeParser(
-    'application/json',
-    { parseAs: 'buffer', bodyLimit: MAX_BODY_BYTES },
+  // Le corps est TOUJOURS lu en brut, quel que soit le Content-Type (ou son absence),
+  // et JAMAIS par le parseur JSON intégré de Fastify. On retire d'abord tous les
+  // parseurs hérités (dont le JSON intégré) : sinon un corps vide ou un content-type
+  // avec charset pouvait passer par le parseur JSON par défaut, qui répond par un 400
+  // NON SIGNÉ (FST_ERR_CTP_EMPTY_JSON_BODY) — précisément le « missing signature
+  // headers / status=400 » observé. Avec un unique parseur « * » -> buffer, seul le
+  // contrôle de signature décide, comme l'exige le protocole.
+  app.removeAllContentTypeParsers();
+  app.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: MAX_BODY_BYTES },
     (request, body, done) => {
       (request as FastifyRequest & WithRawBody)[RAW_BODY] = body as Buffer;
       done(null, undefined);
     },
   );
+
+  // Gestionnaire d'erreurs DE LA SURFACE AGENT. Toute erreur qui échappe aux
+  // réponses signées (parsing, limite de taille, routage, exception inattendue)
+  // arrive ici : on la JOURNALISE EN ENTIER — pour ne plus jamais être aveugle sur
+  // un 4xx « missing signature headers » — et on répond proprement. Les réponses
+  // restent non signées (pas de secret disponible à ce niveau), ce que l'agent
+  // traite comme une réponse invalide et réessaie, sans se verrouiller.
+  app.setErrorHandler((error, request, reply) => {
+    const anyErr = error as unknown as { statusCode?: number; code?: string };
+    logger.warn('erreur sur la surface agent (hors chemin signé)', {
+      path: request.url,
+      method: request.method,
+      code: anyErr.code,
+      status: anyErr.statusCode,
+      message: error.message,
+      content_type: request.headers['content-type'],
+    });
+    const status = typeof anyErr.statusCode === 'number' && anyErr.statusCode >= 400
+      ? anyErr.statusCode : 400;
+    sendUnsignableError(reply, status, AGENT_ERROR.VALIDATION, error.message || 'bad request');
+  });
+  app.setNotFoundHandler((request, reply) => {
+    logger.warn('route agent introuvable', { path: request.url, method: request.method });
+    sendUnsignableError(reply, 404, AGENT_ERROR.VALIDATION, 'unknown agent endpoint');
+  });
 
   /**
    * Authentifie puis valide. Retourne null si une réponse a déjà été envoyée.
