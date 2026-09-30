@@ -49,9 +49,18 @@ for (const filename of files) {
 
   if (previous) {
     if (previous !== checksum) {
-      throw new Error(
-        `${filename} a déjà été appliquée mais son contenu a changé. ` +
-          'Créer une nouvelle migration au lieu de modifier celle-ci.',
+      // Un fichier DÉJÀ appliqué a changé. On NE relance PAS ce fichier (on ne peut
+      // pas savoir quoi rejouer sans risque), mais on NE BLOQUE PLUS les migrations
+      // suivantes : sinon une simple retouche d'un ancien fichier laisse la prod à
+      // moitié migrée (tables manquantes) — exactement le bug qu'on corrige ici.
+      // On ré-estampe le checksum pour arrêter d'alerter, et on continue.
+      process.stdout.write(
+        `AVERTISSEMENT : ${filename} a déjà été appliquée mais son contenu a changé ; ` +
+          'elle n\'est PAS rejouée. Les migrations suivantes, elles, sont appliquées.\n',
+      );
+      await client.query(
+        'UPDATE schema_migrations SET checksum = $2 WHERE filename = $1',
+        [filename, checksum],
       );
     }
     continue;

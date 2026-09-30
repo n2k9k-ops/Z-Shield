@@ -36,7 +36,10 @@ services:
     rootDir: .                 # racine = ce dossier (monorepo npm workspaces)
     buildCommand: npm install
     preDeployCommand: npm run migrate         # applique les migrations avant chaque déploiement
-    startCommand: node --experimental-strip-types apps/api/src/server.ts
+    # Filet de sécurité : on relance aussi les migrations AU DÉMARRAGE. Si le hook
+    # preDeploy n'est pas exécuté (service non resynchronisé au blueprint), la base
+    # est quand même mise à jour avant que l'API serve. Idempotent + résilient.
+    startCommand: npm run migrate && node --experimental-strip-types apps/api/src/server.ts
     healthCheckPath: /healthz
     envVars:
       - key: NODE_VERSION

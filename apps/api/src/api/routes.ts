@@ -1825,7 +1825,7 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
         [org],
       );
       const topDetectors = await client.query<{ detector: string; total: number }>(
-        `SELECT COALESCE(kind, 'inconnu') AS detector, count(*)::int AS total
+        `SELECT COALESCE(kind::text, 'inconnu') AS detector, count(*)::int AS total
            FROM detections WHERE organization_id = $1 AND created_at > now() - interval '30 days'
           GROUP BY 1 ORDER BY total DESC LIMIT 8`,
         [org],
