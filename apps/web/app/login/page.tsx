@@ -40,12 +40,32 @@ function DiscordMark() {
   );
 }
 
+/** Icônes œil ouvert/fermé pour la bascule d'affichage du mot de passe. */
+function EyeMark() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+function EyeOffMark() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M3 3l18 18" />
+      <path d="M10.6 5.2A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a15.6 15.6 0 0 1-3.2 4.1M6.5 6.6C3.9 8.3 2 12 2 12s3.6 7 10 7a9.8 9.8 0 0 0 3.9-.8" />
+      <path d="M9.5 10a3 3 0 0 0 4.2 4.2" />
+    </svg>
+  );
+}
+
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const discordNotice = DISCORD_NOTICES[params.get('e') ?? ''] ?? null;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -120,14 +140,25 @@ function LoginForm() {
 
         <label className="field">
           <span className="field__label">Mot de passe</span>
-          <input
-            className="field__input"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
+          <div className="field__wrap">
+            <input
+              className="field__input"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <button
+              type="button"
+              className="field__eye"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? <EyeOffMark /> : <EyeMark />}
+            </button>
+          </div>
         </label>
 
         <button className="button" type="submit" disabled={busy}>

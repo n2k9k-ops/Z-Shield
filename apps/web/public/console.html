@@ -35,7 +35,7 @@ button{font-family:inherit}
 a{color:inherit}
 
 .app{display:grid;grid-template-columns:var(--nav-w) 1fr;min-height:100%}
-.nav{background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:3px;padding:16px 12px;position:sticky;top:0;height:100vh;overflow:auto}
+.nav{background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:7px;padding:16px 12px;position:sticky;top:0;height:100vh;overflow:auto}
 .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 14px;font-family:var(--disp);font-weight:800;font-size:19px}
 .brand svg{width:23px;height:23px;flex:0 0 auto}
 .brand .vtag{margin-left:auto;font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:2px 6px}
@@ -56,13 +56,16 @@ a{color:inherit}
 .navsearch input::placeholder{color:var(--muted)}
 .navsearch .kbd{font-family:var(--mono);font-size:11px;color:var(--faint);border:1px solid var(--line);border-radius:6px;padding:2px 6px}
 .navlabel{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding:15px 10px 7px}
-.navitem{display:flex;align-items:center;gap:11px;padding:7px 10px;border-radius:9px;color:var(--sub);font-weight:600;font-size:13px;cursor:pointer;border:1px solid transparent;user-select:none}
-.navitem:hover{background:var(--panel);color:var(--ink)}
-.navitem.on{background:var(--panel2);color:var(--ink);border-color:var(--line)}
+.navitem{display:flex;align-items:center;gap:11px;padding:11px 14px;border-radius:16px;color:var(--sub);font-weight:600;font-size:13.5px;cursor:pointer;border:1px solid transparent;user-select:none;
+  background:var(--panel);box-shadow:0 7px 16px -4px rgba(0,0,0,.45),0 1px 0 rgba(255,255,255,.03) inset;
+  transition:background .15s,box-shadow .15s,color .15s,transform .1s}
+.navitem:hover{background:var(--panel2);color:var(--ink);box-shadow:0 9px 20px -4px rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.04) inset;transform:translateY(-1px)}
+.navitem:active{transform:translateY(0)}
+.navitem.on{background:var(--raise);color:var(--ink);border-color:var(--line2);box-shadow:0 10px 22px -4px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.05) inset}
 .navitem .ic{width:18px;height:18px;flex:0 0 auto;opacity:.8}
 .navitem.on .ic{color:var(--green);opacity:1}
-.navitem .badge{margin-left:auto;background:var(--panel);color:var(--sub);border:1px solid var(--line2);font-size:11px;font-weight:700;border-radius:7px;padding:1px 8px;min-width:22px;text-align:center;font-variant-numeric:tabular-nums}
-.navitem.on .badge{color:var(--green);border-color:var(--green-line)}
+.navitem .badge{margin-left:auto;background:var(--raise);color:var(--sub);border:1px solid var(--line2);font-size:11px;font-weight:700;border-radius:999px;padding:1px 9px;min-width:22px;text-align:center;font-variant-numeric:tabular-nums;box-shadow:0 2px 5px rgba(0,0,0,.3) inset}
+.navitem.on .badge{color:var(--green);border-color:var(--green-line);background:var(--panel2)}
 .nav .spacer{flex:1;min-height:10px}
 .navuser{display:flex;align-items:center;gap:10px;padding:10px;margin-top:8px;border:1px solid var(--line);background:var(--panel);border-radius:12px;cursor:pointer}
 .navuser:hover{border-color:var(--line2)}
@@ -94,7 +97,7 @@ a{color:inherit}
 .bell-item .bi-t .ts{color:var(--muted);font-size:12px;margin-top:2px}
 .bell-item .bi-when{color:var(--faint);font-size:11px;white-space:nowrap}
 
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:700;font-size:14px;border-radius:10px;padding:9px 14px;border:1px solid var(--line2);background:var(--panel2);color:var(--ink);cursor:pointer}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:700;font-size:14px;border-radius:10px;padding:9px 14px;border:1px solid var(--line2);background:var(--panel2);color:var(--ink);cursor:pointer;text-decoration:none}
 .btn:hover{border-color:var(--faint)}
 .btn svg{width:16px;height:16px}
 .btn-green{background:var(--green);color:var(--ink-on-green);border-color:transparent}
@@ -106,7 +109,7 @@ a{color:inherit}
 
 .grid{display:grid;gap:16px}
 .kpis{grid-template-columns:repeat(4,1fr)}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;position:relative;overflow:hidden}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;position:relative;overflow:hidden;box-shadow:0 14px 32px -12px rgba(0,0,0,.5)}
 .card.wm::after{content:"";position:absolute;right:-24px;bottom:-30px;width:160px;height:160px;background:var(--wm) no-repeat center/contain;opacity:.04;pointer-events:none}
 .pad{padding:20px}
 /* KPI dans la DA GodEyes : gros chiffre, label capital, icône filigrane, variation */
@@ -279,14 +282,15 @@ a{color:inherit}
 .vbar .vt .nm{font-weight:800;font-size:16px;display:flex;align-items:center;gap:9px}
 .vbar .vt .ds{color:var(--muted);font-size:13px;margin-top:3px}
 .step{display:flex;gap:14px;padding:18px;border-top:1px solid var(--hair)}
-.step .no{width:28px;height:28px;flex:0 0 auto;border-radius:8px;background:var(--green-soft);border:1px solid var(--green-line);color:var(--green);font-weight:800;display:grid;place-items:center;font-size:13px}
+.step .no{width:30px;height:30px;flex:0 0 auto;border-radius:10px;background:var(--raise);border:1px solid var(--line2);color:var(--ink);font-weight:800;display:grid;place-items:center;font-size:13px;box-shadow:0 6px 14px -5px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.04) inset}
 .step .sc{flex:1;min-width:0}
 .step h4{font-size:14.5px;margin-bottom:5px}
 .step p{color:var(--sub);font-size:13px;margin:0 0 10px}
-.code{background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:12px 14px;font-family:var(--mono);font-size:12.5px;color:#cfe9d8;overflow-x:auto;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.code{background:var(--bg);border:1px solid var(--line2);border-radius:12px;padding:12px 14px;font-family:var(--mono);font-size:12.5px;color:#cfe9d8;overflow-x:auto;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;box-shadow:0 8px 18px -8px rgba(0,0,0,.55) inset}
 .code pre{margin:0;white-space:pre;overflow-x:auto}
-.copy{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line2);border-radius:7px;color:var(--sub);font-size:11.5px;font-weight:700;padding:5px 9px;cursor:pointer}
-.copy:hover{color:var(--ink)}
+.copy{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;background:var(--raise);border:1px solid var(--line2);border-radius:10px;color:var(--sub);font-size:11.5px;font-weight:700;padding:6px 10px;cursor:pointer;box-shadow:0 5px 12px -4px rgba(0,0,0,.5);transition:background .15s,color .15s}
+.copy svg{width:13px;height:13px;flex:0 0 auto;opacity:.85}
+.copy:hover{color:var(--ink);background:var(--panel2)}
 
 /* permissions (comptes & accès) */
 .permtbl{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -733,16 +737,20 @@ a{color:inherit}
 
     <!-- INSTALL -->
     <section class="view content" data-view="install">
-      <div class="card wm" style="margin-bottom:16px">
-        <div class="vbar">
-          <div class="si" style="width:46px;height:46px;border-radius:12px;background:var(--panel2);border:1px solid var(--line2);display:grid;place-items:center"><svg width="22" height="22" viewBox="0 0 256 256"><path fill="var(--green)" d="M52 122 200 40 150 104 116 152 100 126Z"/><path fill="#eaf0ea" d="M150 150 214 122 128 224Z"/></svg></div>
-          <div class="vt"><div class="nm">Z-Shield — ressources anticheat</div><div class="ds">FXServer récent · OneSync requis · dépose les dossiers dans <span class="mono">resources/</span></div></div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <a class="btn btn-green" href="/zshield-ac.zip" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Télécharger l'anticheat (.zip)</a>
-            <button class="btn" onclick="downloadInstall()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z" opacity=".0"/><path d="M8 6h8M8 10h8M8 14h5"/></svg>Modèle server.cfg</button>
+      <div class="card wm" style="margin-bottom:16px;padding:24px 26px">
+        <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase">Z-Shield — ressources anticheat</div>
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:10px">
+          <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+            <span id="zInstallVer" class="mono" style="font-family:var(--disp);font-weight:800;font-size:32px;letter-spacing:-.01em">—</span>
+            <span class="tag grn">Actuelle</span>
           </div>
+          <a class="btn btn-green" href="/zshield-ac.zip" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Télécharger l'anticheat (.zip)</a>
         </div>
+        <div style="color:var(--muted);font-size:12.5px;margin-top:8px">FXServer récent · OneSync requis · dépose les dossiers dans <span class="mono">resources/</span></div>
+        <div style="margin-top:14px"><button class="btn btn-sm" onclick="downloadInstall()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z" opacity=".0"/><path d="M8 6h8M8 10h8M8 14h5"/></svg>Modèle server.cfg</button></div>
       </div>
+      <script>(function(){function set(){var e=document.getElementById('zInstallVer');if(e)e.textContent=window.ZS_BUILD||'dev';}
+        if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',set);else set();})();</script>
 
       <div class="card wm">
         <div class="pad" style="border-bottom:1px solid var(--hair)"><h2 style="font-size:15px">Installation en 5 étapes</h2><div style="color:var(--muted);font-size:12.5px;margin-top:3px">≈ 5 minutes. Le bouton <b>« Télécharger l'anticheat (.zip) »</b> ci-dessus contient TOUS les fichiers. Ce que tu colles ci-dessous se met dans ton <span class="mono">server.cfg</span>.</div></div>
@@ -755,7 +763,7 @@ set zshield_key_id "key_xxxxxxxx"
 set zshield_agent_secret "•••••• (affiché une seule fois)"</pre></div></div></div>
 
         <div class="step"><div class="no">3</div><div class="sc"><h4>Colle ta clé de licence + le kill-switch</h4><p>La clé est fournie par ton vendeur (liée à CE serveur). La 2ᵉ ligne relie l'anticheat au dashboard pour pouvoir <b>couper une licence à distance</b> (clé volée/revendue) — <b>garde-la</b>. Colle les deux lignes dans ton <span class="mono">server.cfg</span>.</p><div class="code"><pre>set zshield_license_key "ZS-•••• (ta clé de licence)"
-set zshield_dashboard_url "https://zshield-api.onrender.com"</pre><button class="copy" data-copy='set zshield_license_key "ZS-•••• (ta clé de licence)"&#10;set zshield_dashboard_url "https://zshield-api.onrender.com"'>Copier</button></div></div></div>
+set zshield_dashboard_url "https://zshield-api.onrender.com"</pre><button class="copy" data-copy='set zshield_license_key "ZS-•••• (ta clé de licence)"&#10;set zshield_dashboard_url "https://zshield-api.onrender.com"'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span class="copy-label">Copier</span></button></div></div></div>
 
         <div class="step"><div class="no">4</div><div class="sc"><h4>Ordre de démarrage &amp; durcissement moteur</h4><p>Z-Shield démarre <b>en dernier</b>, après ton framework. OneSync activé. Les lignes <b>de durcissement</b> (natives FiveM) bloquent les exploits de state bags et les floods d'events sans script — garde-les.</p><div class="code"><pre>set onesync on
 
@@ -776,7 +784,7 @@ set sv_enableNetworkedPhoneExplosions false
 
 # ... ton framework (ESX/QBCore) et tes ressources ...
 ensure zshield-agent
-ensure zshield-ac</pre><button class="copy" data-copy="set onesync on&#10;setr sv_stateBagStrictMode true&#10;set rateLimiter_netEvent_rate 50&#10;set rateLimiter_netEvent_burst 200&#10;set rateLimiter_netEventFlood_rate 75&#10;set rateLimiter_netEventFlood_burst 300&#10;set rateLimiter_stateBag_rate 75&#10;set rateLimiter_stateBag_burst 125&#10;set rateLimiter_stateBagFlood_rate 150&#10;set rateLimiter_stateBagFlood_burst 175&#10;set sv_filterRequestControl 2&#10;sv_scriptHookAllowed false&#10;set sv_endpointPrivacy true&#10;set sv_enableNetworkedPhoneExplosions false&#10;ensure zshield-agent&#10;ensure zshield-ac">Copier</button></div></div></div>
+ensure zshield-ac</pre><button class="copy" data-copy="set onesync on&#10;setr sv_stateBagStrictMode true&#10;set rateLimiter_netEvent_rate 50&#10;set rateLimiter_netEvent_burst 200&#10;set rateLimiter_netEventFlood_rate 75&#10;set rateLimiter_netEventFlood_burst 300&#10;set rateLimiter_stateBag_rate 75&#10;set rateLimiter_stateBag_burst 125&#10;set rateLimiter_stateBagFlood_rate 150&#10;set rateLimiter_stateBagFlood_burst 175&#10;set sv_filterRequestControl 2&#10;sv_scriptHookAllowed false&#10;set sv_endpointPrivacy true&#10;set sv_enableNetworkedPhoneExplosions false&#10;ensure zshield-agent&#10;ensure zshield-ac"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span class="copy-label">Copier</span></button></div></div></div>
 
         <div class="step"><div class="no">5</div><div class="sc"><h4>Démarre le serveur</h4><p>Au lancement, la console affiche l'<b>identifiant du serveur</b>, l'état de la licence et <b>« Protégé par Z-Shield »</b>. Le serveur apparaît alors ici, protection active.</p><div class="code"><pre>[Z-Shield] Identifiant de ce serveur : 7b9d6cd94dbfd140
 [Z-Shield] Licence : VALIDE (pro — 30 j restants)
@@ -1671,7 +1679,7 @@ try{ blHydrateFromCatalog(); }catch(e){}
 blFillTypes();renderBlacklist();
 
 /* copy buttons */
-document.addEventListener('click',e=>{const c=e.target.closest('.copy');if(!c)return;const txt=(c.getAttribute('data-copy')||'').replace(/&#10;/g,'\n');const done=()=>{c.textContent='Copié ✓';setTimeout(()=>c.textContent='Copier',1500);};try{navigator.clipboard.writeText(txt).then(done,done);}catch(_){done();}});
+document.addEventListener('click',e=>{const c=e.target.closest('.copy');if(!c)return;const txt=(c.getAttribute('data-copy')||'').replace(/&#10;/g,'\n');const lbl=c.querySelector('.copy-label');const done=()=>{if(lbl){lbl.textContent='Copié ✓';setTimeout(()=>lbl.textContent='Copier',1500);}else{c.textContent='Copié ✓';setTimeout(()=>c.textContent='Copier',1500);}};try{navigator.clipboard.writeText(txt).then(done,done);}catch(_){done();}});
 
 /* ===== Comptes & accès : matrice de permissions ===== */
 const PERM_ROLES=['Propriétaire','Admin','Modérateur','Lecteur'];
@@ -2016,7 +2024,7 @@ function zServerCard(s,lic){
     +'<div class="nm">'+zesc(s.name)+' '+zStateTag(s.state)+'</div>'
     +'<div class="ds">'+players+' · '+zesc(s.environment||'production')+seen+'</div>'
     +'<div style="margin-top:10px">'+zLicChip(lic)+'</div>'
-    +'<div class="mono" style="color:var(--faint);font-size:12px;margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">Identifiant : <span>'+zesc(s.id)+'</span><button class="btn btn-ghost btn-sm" onclick="zCopy('+zJs(s.id)+')">Copier</button></div>'
+    +'<div class="mono" style="color:var(--faint);font-size:12px;margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">Identifiant : <span>'+zesc(s.id)+'</span><button class="btn btn-ghost btn-sm" onclick="zCopy('+zJs(s.id)+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span class="copy-label">Copier</span></button></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'
     +'<button class="btn btn-sm" onclick="zServerCreds('+zJs(s.id)+')">Identifiants d\'agent</button>'
     +((lic&&lic.has_license&&!lic.expired)?'':'<button class="btn btn-sm btn-green" onclick="zServerActivate('+zJs(s.id)+','+zJs(s.name)+')">Activer la licence</button>')
@@ -4039,7 +4047,7 @@ function zSetLang(l){ZSETLANG(l);zApplyLang();}
 })();
 </script>
 
-<script>window.ZS_LIVE=true;window.ZS_BUILD="2026-10-01 heatmap";</script>
+<script>window.ZS_LIVE=true;window.ZS_BUILD="2026-10-01 godeyes-da";</script>
 <script>
 (async () => {
   try { const r = await fetch("/api/auth/me", { credentials: "include" }); if (r.status === 401) location.href = "/login"; }
