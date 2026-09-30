@@ -1026,6 +1026,126 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
     };
   }));
 
+  // -------------------------------------------------------------------------
+  // Build prête à déposer : un seul fichier .cfg, tout déjà rempli pour CE
+  // serveur (identifiants d'agent frais + clé de licence + lignes de
+  // durcissement), au lieu de 6 lignes à recopier depuis 2 écrans différents.
+  //
+  // Reprend EXACTEMENT les mêmes garanties que POST /credentials : le secret
+  // d'agent est révoqué et régénéré à chaque appel, donc chaque téléchargement
+  // invalide le précédent (voir commentaire plus haut). On le dit clairement
+  // au client plutôt que de prétendre qu'on peut « re-télécharger » sans effet —
+  // ce serait soit un mensonge, soit un secret stocké en clair, réversible.
+  app.post('/api/servers/:id/build', handle(async (request, reply) => {
+    const actor = await guard.require(request, 'credential.manage');
+    const serverId = (request.params as { id: string }).id;
+
+    const server = await withTenant(pool, actor.organizationId, async (client) => {
+      const { rows } = await client.query<{ id: string; name: string }>(
+        `SELECT id, name FROM servers
+          WHERE organization_id = $1 AND id = $2 AND deleted_at IS NULL`,
+        [actor.organizationId, serverId],
+      );
+      return rows[0] ?? null;
+    });
+    if (!server) { reply.status(404); return { error: 'not_found' }; }
+
+    const licenseToken = await withTenant(pool, actor.organizationId, async (client) => {
+      const { rows } = await client.query<{ token: string; expires_at: string }>(
+        `SELECT token, expires_at FROM licenses WHERE organization_id = $1 AND server_id = $2`,
+        [actor.organizationId, serverId],
+      );
+      const row = rows[0];
+      if (!row) return null;
+      if (new Date(row.expires_at).getTime() < Date.now()) return null;
+      return row.token;
+    });
+    if (!licenseToken) {
+      reply.status(409);
+      return { error: 'no_license', message: 'Active d’abord une licence pour ce serveur (bouton « Activer »).' };
+    }
+
+    const agentId = await withTenant(pool, actor.organizationId, async (client) => {
+      const { rows } = await client.query<{ id: string }>(
+        `SELECT id FROM agents WHERE organization_id = $1 AND server_id = $2`,
+        [actor.organizationId, serverId],
+      );
+      if (rows[0]) return rows[0].id;
+      const created = newId('agt');
+      await client.query(
+        `INSERT INTO agents (id, organization_id, server_id) VALUES ($1, $2, $3)`,
+        [created, actor.organizationId, serverId],
+      );
+      return created;
+    });
+
+    await withTenant(pool, actor.organizationId, async (client) => {
+      await client.query(
+        `UPDATE api_credentials
+            SET status = 'REVOKED', revoked_at = now(), revoked_by = $3,
+                revoke_reason = 'replaced by a freshly generated build'
+          WHERE organization_id = $1 AND server_id = $2 AND status <> 'REVOKED'`,
+        [actor.organizationId, serverId, actor.user.userId],
+      );
+    });
+    const issued = await credentials.issue({
+      organizationId: actor.organizationId, serverId, agentId, createdBy: actor.user.userId,
+    });
+
+    const dashboardUrl = `${request.protocol}://${request.host}`;
+    const cfg = [
+      `# =============================================================================`,
+      `# Z-Shield — build pour « ${server.name} », générée le ${new Date().toISOString().slice(0, 10)}`,
+      `# À déposer dans ton server.cfg (ou : exec zshield-${serverId}.cfg), APRÈS ton`,
+      `# framework (ESX/QBCore). Le secret ci-dessous n'est valable qu'UNE FOIS : un`,
+      `# nouveau téléchargement en génère un autre et invalide celui-ci.`,
+      `# =============================================================================`,
+      ``,
+      `set onesync on`,
+      ``,
+      `# --- Durcissement moteur FiveM (natif, recommandé) ---`,
+      `setr sv_stateBagStrictMode true`,
+      `set rateLimiter_netEvent_rate 50`,
+      `set rateLimiter_netEvent_burst 200`,
+      `set rateLimiter_netEventFlood_rate 75`,
+      `set rateLimiter_netEventFlood_burst 300`,
+      `set rateLimiter_stateBag_rate 75`,
+      `set rateLimiter_stateBag_burst 125`,
+      `set rateLimiter_stateBagFlood_rate 150`,
+      `set rateLimiter_stateBagFlood_burst 175`,
+      `set sv_filterRequestControl 2`,
+      `sv_scriptHookAllowed false`,
+      `set sv_endpointPrivacy true`,
+      `set sv_enableNetworkedPhoneExplosions false`,
+      ``,
+      `# --- Identifiants d'agent (générés pour CE serveur) ---`,
+      `set zshield_agent_id "${agentId}"`,
+      `set zshield_server_id "${serverId}"`,
+      `set zshield_key_id "${issued.keyId}"`,
+      `set zshield_agent_secret "${issued.secret}"`,
+      ``,
+      `# --- Licence (liée à CE serveur) ---`,
+      `set zshield_license_key "${licenseToken}"`,
+      `set zshield_dashboard_url "${dashboardUrl}"`,
+      ``,
+      `# --- Démarrage (après avoir déposé les dossiers zshield-ac et zshield-agent`,
+      `#     dans resources/, depuis le .zip téléchargé ci-dessus) ---`,
+      `ensure zshield-agent`,
+      `ensure zshield-ac`,
+      ``,
+    ].join('\n');
+
+    await audit(actor, 'server.build_generated', { kind: 'server', id: serverId }, {
+      key_id: issued.keyId,
+    }, request.ip);
+
+    reply.status(201);
+    return {
+      filename: `zshield-${serverId}.cfg`,
+      cfg,
+    };
+  }));
+
   app.delete('/api/servers/:id/credentials/:keyId', handle(async (request, reply) => {
     const actor = await guard.require(request, 'credential.manage');
     const { id: serverId, keyId } = request.params as { id: string; keyId: string };

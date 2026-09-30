@@ -753,19 +753,27 @@ a{color:inherit}
         if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',set);else set();})();</script>
 
       <div class="card wm">
-        <div class="pad" style="border-bottom:1px solid var(--hair)"><h2 style="font-size:15px">Installation en 5 étapes</h2><div style="color:var(--muted);font-size:12.5px;margin-top:3px">≈ 5 minutes. Le bouton <b>« Télécharger l'anticheat (.zip) »</b> ci-dessus contient TOUS les fichiers. Ce que tu colles ci-dessous se met dans ton <span class="mono">server.cfg</span>.</div></div>
+        <div class="pad" style="border-bottom:1px solid var(--hair)"><h2 style="font-size:15px">Installation rapide</h2><div style="color:var(--muted);font-size:12.5px;margin-top:3px">≈ 2 minutes. Un seul fichier à coller : tout le reste est déjà dedans.</div></div>
 
-        <div class="step"><div class="no">1</div><div class="sc"><h4>Télécharge et dépose les dossiers</h4><p>Clique <b>« Télécharger l'anticheat (.zip) »</b>, décompresse, puis place les dossiers <b>zshield-ac</b> et <b>zshield-agent</b> dans le dossier <span class="mono">resources/</span> de ton serveur FiveM. Le .zip contient l'intégralité des fichiers de l'anticheat.</p></div></div>
+        <div class="step"><div class="no">1</div><div class="sc"><h4>Télécharge et dépose les dossiers</h4><p>Clique <b>« Télécharger l'anticheat (.zip) »</b> ci-dessus, décompresse, puis place les dossiers <b>zshield-ac</b> et <b>zshield-agent</b> dans le dossier <span class="mono">resources/</span> de ton serveur FiveM.</p></div></div>
 
-        <div class="step"><div class="no">2</div><div class="sc"><h4>Récupère les identifiants d'agent</h4><p>Dans ce dashboard : onglet <b>Serveurs &amp; licence</b> → ton serveur → bouton <b>« Identifiants d'agent »</b>. Copie les 4 lignes générées (elles relient CE serveur au dashboard) et colle-les dans <span class="mono">server.cfg</span> :</p><div class="code"><pre>set zshield_agent_id "agt_xxxxxxxx"
+        <div class="step"><div class="no">2</div><div class="sc"><h4>Télécharge la build de ce serveur</h4><p>Active d'abord une licence si ce n'est pas fait (onglet <b>Serveurs &amp; licence</b>), puis clique <b>« Télécharger le build prêt à l'emploi »</b> sur ce serveur. Le fichier <span class="mono">.cfg</span> obtenu contient déjà tes identifiants d'agent, ta clé de licence et le durcissement moteur — colle-le dans <span class="mono">server.cfg</span> (ou <span class="mono">exec zshield-&lt;id&gt;.cfg</span>), après ton framework.</p><div class="notice" style="margin-top:2px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Chaque téléchargement régénère le secret d'agent et invalide le précédent — normal, c'est ce qui empêche un secret volé de rester valable. Ne le télécharge qu'une fois par serveur, ou re-télécharge si tu dois le remplacer.</div></div></div></div>
+
+        <div class="step"><div class="no">3</div><div class="sc"><h4>Démarre le serveur</h4><p>Au lancement, la console affiche l'<b>identifiant du serveur</b>, l'état de la licence et <b>« Protégé par Z-Shield »</b>. Le serveur apparaît alors ici, protection active.</p><div class="code"><pre>[Z-Shield] Identifiant de ce serveur : 7b9d6cd94dbfd140
+[Z-Shield] Licence : VALIDE (pro — 30 j restants)
+[Z-Shield] Protégé par Z-Shield</pre></div></div></div>
+      </div>
+
+      <details style="margin-top:16px">
+        <summary style="cursor:pointer;color:var(--sub);font-size:13px;font-weight:700;padding:4px 0">Installation manuelle, ligne par ligne (si tu préfères tout coller toi-même)</summary>
+        <div class="card wm" style="margin-top:10px">
+          <div class="step" style="border-top:none"><div class="no">A</div><div class="sc"><h4>Identifiants d'agent</h4><p>Onglet <b>Serveurs &amp; licence</b> → ton serveur → <b>« Identifiants d'agent seuls »</b>. Colle les 4 lignes générées dans <span class="mono">server.cfg</span> :</p><div class="code"><pre>set zshield_agent_id "agt_xxxxxxxx"
 set zshield_server_id "srv_xxxxxxxx"
 set zshield_key_id "key_xxxxxxxx"
 set zshield_agent_secret "•••••• (affiché une seule fois)"</pre></div></div></div>
-
-        <div class="step"><div class="no">3</div><div class="sc"><h4>Colle ta clé de licence + le kill-switch</h4><p>La clé est fournie par ton vendeur (liée à CE serveur). La 2ᵉ ligne relie l'anticheat au dashboard pour pouvoir <b>couper une licence à distance</b> (clé volée/revendue) — <b>garde-la</b>. Colle les deux lignes dans ton <span class="mono">server.cfg</span>.</p><div class="code"><pre>set zshield_license_key "ZS-•••• (ta clé de licence)"
+          <div class="step"><div class="no">B</div><div class="sc"><h4>Clé de licence + kill-switch</h4><p>La 2ᵉ ligne relie l'anticheat au dashboard pour pouvoir <b>couper une licence à distance</b> — garde-la.</p><div class="code"><pre>set zshield_license_key "ZS-•••• (ta clé de licence)"
 set zshield_dashboard_url "https://zshield-api.onrender.com"</pre><button class="copy" data-copy='set zshield_license_key "ZS-•••• (ta clé de licence)"&#10;set zshield_dashboard_url "https://zshield-api.onrender.com"'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span class="copy-label">Copier</span></button></div></div></div>
-
-        <div class="step"><div class="no">4</div><div class="sc"><h4>Ordre de démarrage &amp; durcissement moteur</h4><p>Z-Shield démarre <b>en dernier</b>, après ton framework. OneSync activé. Les lignes <b>de durcissement</b> (natives FiveM) bloquent les exploits de state bags et les floods d'events sans script — garde-les.</p><div class="code"><pre>set onesync on
+          <div class="step"><div class="no">C</div><div class="sc"><h4>Ordre de démarrage &amp; durcissement moteur</h4><p>Z-Shield démarre <b>en dernier</b>. Les lignes de durcissement (natives FiveM) bloquent les exploits de state bags et les floods d'events sans script — garde-les.</p><div class="code"><pre>set onesync on
 
 # Durcissement moteur FiveM (natif, recommandé)
 setr sv_stateBagStrictMode true
@@ -785,11 +793,8 @@ set sv_enableNetworkedPhoneExplosions false
 # ... ton framework (ESX/QBCore) et tes ressources ...
 ensure zshield-agent
 ensure zshield-ac</pre><button class="copy" data-copy="set onesync on&#10;setr sv_stateBagStrictMode true&#10;set rateLimiter_netEvent_rate 50&#10;set rateLimiter_netEvent_burst 200&#10;set rateLimiter_netEventFlood_rate 75&#10;set rateLimiter_netEventFlood_burst 300&#10;set rateLimiter_stateBag_rate 75&#10;set rateLimiter_stateBag_burst 125&#10;set rateLimiter_stateBagFlood_rate 150&#10;set rateLimiter_stateBagFlood_burst 175&#10;set sv_filterRequestControl 2&#10;sv_scriptHookAllowed false&#10;set sv_endpointPrivacy true&#10;set sv_enableNetworkedPhoneExplosions false&#10;ensure zshield-agent&#10;ensure zshield-ac"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span class="copy-label">Copier</span></button></div></div></div>
-
-        <div class="step"><div class="no">5</div><div class="sc"><h4>Démarre le serveur</h4><p>Au lancement, la console affiche l'<b>identifiant du serveur</b>, l'état de la licence et <b>« Protégé par Z-Shield »</b>. Le serveur apparaît alors ici, protection active.</p><div class="code"><pre>[Z-Shield] Identifiant de ce serveur : 7b9d6cd94dbfd140
-[Z-Shield] Licence : VALIDE (pro — 30 j restants)
-[Z-Shield] Protégé par Z-Shield</pre></div></div></div>
-      </div>
+        </div>
+      </details>
 
       <div class="notice" style="margin-top:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>Les protections se règlent ensuite depuis l'onglet <b>Configuration</b>, en direct : l'anticheat recharge sa config sans redémarrer le serveur.</div></div>
     </section>
@@ -2025,9 +2030,11 @@ function zServerCard(s,lic){
     +'<div class="ds">'+players+' · '+zesc(s.environment||'production')+seen+'</div>'
     +'<div style="margin-top:10px">'+zLicChip(lic)+'</div>'
     +'<div class="mono" style="color:var(--faint);font-size:12px;margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">Identifiant : <span>'+zesc(s.id)+'</span><button class="btn btn-ghost btn-sm" onclick="zCopy('+zJs(s.id)+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span class="copy-label">Copier</span></button></div>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'
-    +'<button class="btn btn-sm" onclick="zServerCreds('+zJs(s.id)+')">Identifiants d\'agent</button>'
-    +((lic&&lic.has_license&&!lic.expired)?'':'<button class="btn btn-sm btn-green" onclick="zServerActivate('+zJs(s.id)+','+zJs(s.name)+')">Activer la licence</button>')
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center">'
+    +((lic&&lic.has_license&&!lic.expired)
+      ?('<button class="btn btn-sm btn-green" onclick="zServerBuild('+zJs(s.id)+','+zJs(s.name)+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Télécharger le build prêt à l\'emploi</button>'
+        +'<button class="btn btn-ghost btn-sm" onclick="zServerCreds('+zJs(s.id)+')" title="Régénère seulement les identifiants d\'agent, sans le fichier de config complet">Identifiants d\'agent seuls</button>')
+      :'<button class="btn btn-sm btn-green" onclick="zServerActivate('+zJs(s.id)+','+zJs(s.name)+')">Activer la licence</button>')
     +'</div></div></div>';
 }
 async function zServersLoad(){
@@ -2045,6 +2052,24 @@ addServer=async function(){
   try{await zapi('/api/servers',{method:'POST',body:{name:name.trim(),environment:'production'}});toast('Serveur créé','grn');await zServersLoad();}
   catch(e){toast('Échec : '+(e.message||e),'red');}
 };
+/* Build prête à déposer : un seul fichier .cfg, déjà rempli pour ce serveur
+   (identifiants d'agent frais + licence + durcissement). Remplace les étapes
+   « colle ces 4 lignes » + « colle ta clé » par un seul téléchargement. */
+async function zServerBuild(id,name){
+  var had=confirm('Générer et télécharger le build de « '+(name||'')+' » ?\n\nCeci crée un fichier .cfg déjà rempli (identifiants d\'agent + licence), prêt à coller dans server.cfg (ou à exec). Comme pour les identifiants d\'agent, cette action révoque tout secret précédemment généré pour ce serveur : si un ancien fichier est encore utilisé ailleurs, il cessera de fonctionner.');
+  if(!had)return;
+  try{
+    var r=await zapi('/api/servers/'+id+'/build',{method:'POST',body:{}});
+    var blob=new Blob([r.cfg],{type:'text/plain;charset=utf-8'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=r.filename||'zshield.cfg';document.body.appendChild(a);a.click();a.remove();
+    setTimeout(function(){URL.revokeObjectURL(a.href);},4000);
+    toast('Build téléchargée · dépose-la avec les dossiers zshield-ac/zshield-agent','grn');
+    if(typeof zLog==='function')zLog('Build générée · '+id);
+  }catch(e){
+    var msg=(e&&e.data&&e.data.message)||(e&&e.message)||'Échec';
+    toast(msg,'red');
+  }
+}
 /* Fenêtre : identifiants d'agent (générés une seule fois). */
 async function zServerCreds(id){
   var m=document.createElement('div');m.id='zCredModal';
@@ -4047,7 +4072,7 @@ function zSetLang(l){ZSETLANG(l);zApplyLang();}
 })();
 </script>
 
-<script>window.ZS_LIVE=true;window.ZS_BUILD="2026-10-01 godeyes-da";</script>
+<script>window.ZS_LIVE=true;window.ZS_BUILD="2026-10-01 build-simple";</script>
 <script>
 (async () => {
   try { const r = await fetch("/api/auth/me", { credentials: "include" }); if (r.status === 401) location.href = "/login"; }

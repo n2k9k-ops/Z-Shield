@@ -1273,4 +1273,59 @@ describe('isolation multi-tenant et passerelle agent', { skip: !available }, () 
       assert.equal((response.json() as { error: string }).error, 'E_AUTH_CREDENTIAL_REVOKED');
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Build prête à déposer : un seul fichier, pas de licence = refusé, avec
+  // licence = un .cfg complet (identifiants frais + clé + durcissement).
+  // Réutilise le serveur de globex (le plan de test limite à 1 serveur par
+  // org) : sûr uniquement parce que ce test est le DERNIER du fichier — POST
+  // /build révoque les credentials existants, ce qui casserait les tests de
+  // la passerelle agent (plus haut) s'ils s'exécutaient après.
+  // ---------------------------------------------------------------------------
+  it('build : refusée sans licence, complète et correcte une fois activée', async () => {
+    const buildServerId = globex.serverId;
+
+    const noLicense = await app.inject({
+      method: 'POST', url: `/api/servers/${buildServerId}/build`, ...asTenant(globex),
+    });
+    assert.equal(noLicense.statusCode, 409);
+    assert.equal((noLicense.json() as { error: string }).error, 'no_license');
+
+    const issued = await app.inject({
+      method: 'POST', url: `/api/servers/${buildServerId}/license`, ...asTenant(globex),
+      payload: { plan: 'pro' },
+    });
+    assert.equal(issued.statusCode, 201, issued.body);
+    const { token: licenseToken } = issued.json() as { token: string };
+
+    const built = await app.inject({
+      method: 'POST', url: `/api/servers/${buildServerId}/build`, ...asTenant(globex),
+    });
+    assert.equal(built.statusCode, 201, built.body);
+    const { filename, cfg } = built.json() as { filename: string; cfg: string };
+    assert.equal(filename, `zshield-${buildServerId}.cfg`);
+    assert.match(cfg, new RegExp(`set zshield_server_id "${buildServerId}"`));
+    assert.match(cfg, /set zshield_agent_id "agt_/);
+    assert.match(cfg, /set zshield_key_id "key_/);
+    assert.match(cfg, /set zshield_agent_secret "\S+"/);
+    assert.match(cfg, new RegExp(`set zshield_license_key "${licenseToken}"`));
+    assert.match(cfg, /set zshield_dashboard_url "https?:\/\//);
+    assert.match(cfg, /ensure zshield-agent/);
+    assert.match(cfg, /ensure zshield-ac/);
+
+    // Le voisin ne peut ni lire ni construire la build de ce serveur.
+    const foreign = await app.inject({
+      method: 'POST', url: `/api/servers/${buildServerId}/build`, ...asTenant(acme),
+    });
+    assert.equal(foreign.statusCode, 404);
+
+    // Un second appel régénère le secret : l'ancien cesse de fonctionner (même
+    // garantie que POST /credentials — voir le test de révocation ci-dessus).
+    const secondBuild = await app.inject({
+      method: 'POST', url: `/api/servers/${buildServerId}/build`, ...asTenant(globex),
+    });
+    assert.equal(secondBuild.statusCode, 201);
+    const second = (secondBuild.json() as { cfg: string }).cfg;
+    assert.notEqual(second, cfg, 'un secret différent doit être généré à chaque build');
+  });
 });
