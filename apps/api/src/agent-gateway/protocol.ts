@@ -45,6 +45,7 @@ export const ENDPOINT = {
   COMMANDS: '/v1/agents/commands',
   COMMAND_RESULT: '/v1/agents/commands/results',
   ROTATE: '/v1/agents/credentials/rotate',
+  LIVE: '/v1/agents/live',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -157,6 +158,9 @@ export const COMMAND_TYPES = [
   // machine du joueur. `spectate_stop` met fin à l'observation.
   'spectate_request',
   'spectate_stop',
+  // Capture du RENDU DE JEU d'un joueur (preuve), demandée par le staff. Jamais
+  // le bureau ni une autre fenêtre. L'URL d'upload est ajoutée à la livraison.
+  'capture_request',
 ] as const;
 
 export type CommandType = (typeof COMMAND_TYPES)[number];

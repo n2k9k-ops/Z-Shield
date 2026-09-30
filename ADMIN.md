@@ -77,9 +77,17 @@ et la protection CSRF. En l'absence de serveur/agent connecté, chaque vue affic
 
 Choix de conception assumés (honnêteté) :
 
-- **Carte live / Multi-vue** : Z-Shield ne capture ni l'écran ni la position temps réel des
-  joueurs (conception serveur-autoritaire, sans spyware). Ces vues l'indiquent et renvoient vers
-  l'onglet Joueurs. L'observation (« spectate ») place une caméra d'administration **dans le jeu**
-  via `spectate_request`, jamais une capture de la machine du joueur.
+- **Carte live** : *désactivée par défaut*. Elle n'existe que si l'agent a `live.enabled = true`.
+  L'agent envoie alors un instantané (position, santé, arme, ping) toutes les ~5 s ; la plateforme
+  ne le stocke **pas en base** : seul le dernier instantané vit en mémoire (Redis, 20 s).
+  Aucune IP, Steam, Discord ni HWID n'est envoyé.
+- **Captures** : à la demande d'un membre du staff uniquement (jamais en continu). C'est une
+  capture du **rendu du jeu** (via `screenshot-basic`), pas de l'écran ni des applications du
+  joueur. Le délai est de ~30 à 60 s (l'agent relève ses commandes à intervalle régulier) et la
+  commande `capture_request` doit être autorisée dans `commands.allowed`. Stockage 30 jours, image
+  à usage unique via un jeton d'envoi de 5 min. Une capture côté client peut être bloquée ou
+  falsifiée par un cheat interne : c'est un élément de preuve corroborant, jamais une preuve seule.
+- **Multi-vue / spectate** : place une caméra d'administration **dans le jeu** via
+  `spectate_request`, jamais une capture de la machine du joueur.
 - **Installation** : le bouton Télécharger génère un vrai `zshield-server.cfg` prêt à coller. Le
   paquet complet des ressources est fourni séparément (`tools/package_client.sh`).

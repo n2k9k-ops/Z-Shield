@@ -6,9 +6,9 @@
  *     inattendu, c'est accepter qu'un agent d'une version future envoie des
  *     données qu'on stocke sans les comprendre ;
  *   - toutes les bornes viennent de docs/PROTOCOL.md, pas d'une estimation ;
- *   - aucun champ ne porte d'identifiant de joueur : le protocole n'en expose
- *     aucun, et en accepter un ici créerait une obligation RGPD que le produit
- *     n'a pas assumée.
+ *   - aucun champ ne porte d'identifiant de joueur, SAUF la vue live (opt-in,
+ *     éphémère, jamais en base SQL — voir `livePayloadSchema`) : en accepter
+ *     ailleurs créerait une obligation RGPD que le produit n'a pas assumée.
  */
 import { z } from 'zod';
 import { COMMAND_TYPES, MAX_COMMANDS_PER_POLL, REMOTE_CONFIG_BOUNDS } from './protocol.ts';
@@ -137,6 +137,38 @@ export const telemetryPayloadSchema = z
       )
       .min(1)
       .max(120),
+  })
+  .strict();
+
+/**
+ * Vue live : instantané éphémère des joueurs connectés. C'est la SEULE surface
+ * agent qui porte des données de joueurs, d'où un schéma strict et borné, et un
+ * stockage qui n'est jamais une base SQL (cache Redis à durée de vie courte).
+ * Ni IP, ni Steam, ni Discord, ni HWID : le schéma les rejetterait.
+ */
+export const livePayloadSchema = z
+  .object({
+    sampled_at: unixSeconds,
+    players: z
+      .array(
+        z
+          .object({
+            id: z.number().int().min(0).max(65535),
+            name: shortText(64),
+            identifier: shortText(64).optional(),
+            x: z.number().min(-20_000).max(20_000),
+            y: z.number().min(-20_000).max(20_000),
+            z: z.number().min(-5_000).max(5_000),
+            h: z.number().min(-720).max(720),
+            hp: z.number().int().min(0).max(10_000),
+            armor: z.number().int().min(0).max(10_000),
+            veh: z.boolean(),
+            weapon: z.number().int().optional(),
+            ping: z.number().int().min(0).max(100_000),
+          })
+          .strict(),
+      )
+      .max(512),
   })
   .strict();
 

@@ -612,6 +612,11 @@ a{color:inherit}
           </svg>
           <div class="mapcount"><span class="num" id="onMap">14</span> joueurs surveillés</div>
           <div class="maplegend"><span><i style="background:#33e58a"></i>OK</span><span><i style="background:#d2a44a"></i>À surveiller</span><span><i style="background:#e0655c"></i>Risque élevé</span></div>
+          <div id="zHeatBar" style="position:absolute;left:10px;bottom:10px;z-index:5;display:flex;align-items:center;gap:8px;background:rgba(5,16,12,.82);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:11.5px">
+            <span id="zHeatStatus" style="color:var(--muted)">…</span>
+            <button class="btn btn-sm" id="zHeatToggle" onclick="zHeatmapOptinToggle()" style="padding:2px 8px">…</button>
+            <button class="btn btn-sm btn-ghost" id="zHeatShow" onclick="zHeatmapShowToggle()" style="padding:2px 8px;display:none">…</button>
+          </div>
         </div>
         <div class="pcard" id="playerCard">
           <div class="empty" id="pcEmpty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="9" r="3.2"/><path d="M5 20a7 7 0 0 1 14 0"/></svg><div>Clique sur un joueur de la carte<br>pour voir sa fiche et agir.</div></div>
@@ -650,38 +655,55 @@ a{color:inherit}
       <div class="card" id="appealList"></div>
     </section>
 
-    <!-- CONFIGURATION (165 réglages, 7 onglets) -->
+    <!-- CONFIGURATION (refonte : catégories à gauche, réglages à droite) -->
     <section class="view content" data-view="prot">
-      <div class="cfghead">
-        <div><h2 style="font-size:16px;margin:0">Protections</h2><div style="color:var(--muted);font-size:12.5px;margin-top:2px">Active/désactive et choisis <b>Surveiller</b> ou <b>Bloquer</b>. L'anticheat recharge sa config en direct.</div></div>
-        <div class="sum"><div><span class="dot-g"></span><b id="cfgActive">0</b> actives</div><div><span class="dot-w"></span><b id="cfgWatch">0</b> surveillées</div><div><b id="cfgTot">0</b> au total</div></div>
-      </div>
-      <div class="card" style="padding:16px 18px;margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <div style="flex:1;min-width:180px"><div style="font-weight:700;font-size:13.5px">Modes prêts à l'emploi</div><div style="color:var(--muted);font-size:12px;margin-top:2px">Un clic applique un réglage complet. Tu vérifies, puis tu enregistres.</div></div>
-          <button class="btn btn-sm" onclick="zApplyPreset('light')">Léger</button>
-          <button class="btn btn-sm" onclick="zApplyPreset('balanced')">Équilibré</button>
-          <button class="btn btn-sm" onclick="zApplyPreset('pvp')">PvP</button>
-          <button class="btn btn-sm btn-green" onclick="zApplyPreset('strict')">Strict</button>
-          <button class="btn btn-sm btn-green" onclick="zApplyPreset('maximum')" title="Toutes les protections en Bloquer + sanctions escaladantes. Le staff reste exempté.">Maximum</button>
+      <div class="cfgx-head">
+        <div>
+          <h2 id="cfgxTitle">Configuration</h2>
+          <p id="cfgxSub">Choisis ce qui est actif et la réaction : <b>Surveiller</b> (alerte, aucune sanction) ou <b>Bloquer</b> (sanction appliquée).</p>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
-          <div style="flex:1;min-width:160px;color:var(--muted);font-size:12px">Modèle partageable — exporte ta config pour la réappliquer sur un autre serveur.</div>
-          <button class="btn btn-sm btn-ghost" onclick="zCfgExport()">Exporter</button>
-          <button class="btn btn-sm btn-ghost" onclick="zCfgImport()">Importer</button>
+        <div class="sum">
+          <div><span class="dot-g"></span><b id="cfgActive">0</b> <span id="cfgxLAct">actives</span></div>
+          <div><span class="dot-w"></span><b id="cfgWatch">0</b> <span id="cfgxLWatch">surveillées</span></div>
+          <div><b id="cfgOff">0</b> <span id="cfgxLOff">désactivées</span></div>
+          <div class="cfgx-tot"><b id="cfgTot">0</b> <span id="cfgxLTot">au total</span></div>
+        </div>
+      </div>
+
+      <div class="cfgx-bar card">
+        <div class="cfgx-presets">
+          <span class="cfgx-lab" id="cfgxPresetLab">Mode prêt à l'emploi</span>
+          <button class="btn btn-sm" data-p="light" onclick="zApplyPreset('light')">Léger</button>
+          <button class="btn btn-sm" data-p="balanced" onclick="zApplyPreset('balanced')">Équilibré</button>
+          <button class="btn btn-sm" data-p="pvp" onclick="zApplyPreset('pvp')">PvP</button>
+          <button class="btn btn-sm" data-p="strict" onclick="zApplyPreset('strict')">Strict</button>
+          <button class="btn btn-sm btn-green" data-p="maximum" onclick="zApplyPreset('maximum')" title="Toutes les protections en Bloquer + sanctions escaladantes. Le staff reste exempté.">Maximum</button>
+        </div>
+        <div class="cfgx-io">
+          <button class="btn btn-sm btn-ghost" id="cfgxExp" onclick="zCfgExport()">Exporter</button>
+          <button class="btn btn-sm btn-ghost" id="cfgxImp" onclick="zCfgImport()">Importer</button>
           <input type="file" id="cfgImportFile" accept="application/json,.json" style="display:none">
         </div>
       </div>
-      <div class="search" style="margin-bottom:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="protSearch" placeholder="Rechercher un réglage…"></div>
+
       <div class="savebar" id="cfgSaveBar" hidden style="position:sticky;top:8px;z-index:40;margin-bottom:14px">
         <span class="dotpulse"></span>
-        <span>Modifications non enregistrées</span>
+        <span id="cfgxUnsaved">Modifications non enregistrées</span>
         <div class="grow"></div>
-        <button class="btn btn-ghost btn-sm" onclick="cfgCancel()">Annuler</button>
-        <button class="btn btn-green btn-sm" onclick="cfgSave()">Enregistrer les modifications</button>
+        <button class="btn btn-ghost btn-sm" onclick="cfgCancel()" id="cfgxCancel">Annuler</button>
+        <button class="btn btn-green btn-sm" onclick="cfgSave()" id="cfgxSave">Enregistrer</button>
       </div>
-      <div class="tabs" id="protTabs"></div>
-      <div id="protPanel"></div>
+
+      <div class="cfgx">
+        <aside class="cfgx-side" id="protTabs"></aside>
+        <div class="cfgx-main">
+          <div class="cfgx-tools">
+            <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="protSearch" placeholder="Rechercher un réglage…"></div>
+            <div class="cfgx-filters" id="cfgxFilters"></div>
+          </div>
+          <div id="protPanel"></div>
+        </div>
+      </div>
     </section>
 
     <!-- BLACKLIST -->
@@ -3550,7 +3572,474 @@ function zSetLang(l){ZSETLANG(l);zApplyLang();}
 })();
 </script>
 
-<script>window.ZS_LIVE=true;window.ZS_BUILD="2026-09-30 17:13 UTC";</script>
+<style id="cfgx-style">
+/* ===== Configuration (refonte) : catégories à gauche, réglages à droite ===== */
+.cfgx-head{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.savebar[hidden]{display:none!important}
+.cfgx-head h2{display:none}
+.cfgx-head p{margin:0;color:var(--muted);font-size:13px;max-width:560px;line-height:1.5}
+.cfgx-head p b{color:var(--ink)}
+.cfgx-head .sum{display:flex;gap:22px;margin-left:auto;font-size:12.5px;color:var(--muted);align-items:center;flex-wrap:wrap}
+.cfgx-head .sum b{color:var(--ink);font-size:17px;font-family:var(--disp);margin-right:2px}
+.cfgx-head .sum .dot-g,.cfgx-head .sum .dot-w{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.cfgx-head .sum .dot-g{background:var(--green)}.cfgx-head .sum .dot-w{background:var(--warn)}
+.cfgx-tot{padding-left:22px;border-left:1px solid var(--line)}
+.cfgx-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;margin-bottom:16px}
+.cfgx-presets{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1}
+.cfgx-lab{font-size:12px;color:var(--muted);font-weight:700;margin-right:4px}
+.cfgx-io{display:flex;gap:6px}
+.cfgx{display:grid;grid-template-columns:232px minmax(0,1fr);gap:20px;align-items:start}
+.cfgx-side{position:sticky;top:16px;display:flex;flex-direction:column;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px;max-height:calc(100vh - 40px);overflow:auto}
+.cfgx-cat{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:transparent;border:0;border-radius:9px;padding:9px 11px;color:var(--sub);font-family:var(--body);font-size:13.5px;font-weight:600;cursor:pointer;transition:background .12s,color .12s}
+.cfgx-cat:hover{background:var(--panel2);color:var(--ink)}
+.cfgx-cat.on{background:var(--green-soft);color:var(--green)}
+.cfgx-cat .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cfgx-cat .ct{font-size:11.5px;font-weight:700;opacity:.75;font-variant-numeric:tabular-nums}
+.cfgx-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.cfgx-tools .search{flex:1;min-width:220px}
+.cfgx-filters{display:inline-flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
+.cfgx-filters button{border:0;background:transparent;color:var(--muted);font-family:var(--body);font-size:12px;font-weight:700;padding:6px 11px;border-radius:7px;cursor:pointer}
+.cfgx-filters button:hover{color:var(--ink)}
+.cfgx-filters button.on{background:var(--panel2);color:var(--ink)}
+.cfgx-phead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 2px 10px}
+.cfgx-phead h3{font-size:15px;margin:0}
+.cfgx-phead .pc{font-size:12px;color:var(--muted)}
+.cfgx-phead .grow{flex:1}
+.cfgx-phead select{background:var(--panel);border:1px solid var(--line2);border-radius:9px;color:var(--sub);font-family:var(--body);font-size:12.5px;font-weight:600;padding:6px 10px;cursor:pointer}
+.cfgx-sub{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:12px 16px 4px}
+.cfgx-list{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:18px}
+.cfgx-row{display:flex;align-items:center;gap:16px;padding:13px 16px;border-bottom:1px solid var(--hair);transition:background .12s}
+.cfgx-row:last-child{border-bottom:0}
+.cfgx-row:hover{background:var(--panel2)}
+.cfgx-txt{flex:1;min-width:0}
+.cfgx-nm{font-weight:650;font-size:13.5px;color:var(--ink);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cfgx-ds{color:var(--muted);font-size:12.3px;line-height:1.45;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cfgx-tag{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--green);background:var(--green-soft);border:1px solid var(--green-line);border-radius:6px;padding:1px 6px}
+.cfgx-row:has(.ptctrl.is-off) .cfgx-nm{color:var(--muted)}
+.cfgx-empty{padding:40px 16px;text-align:center;color:var(--muted);font-size:13.5px;background:var(--panel);border:1px dashed var(--line2);border-radius:14px}
+@media (max-width:900px){
+  .cfgx{grid-template-columns:1fr}
+  .cfgx-side{position:static;flex-direction:row;overflow-x:auto;max-height:none;padding:6px}
+  .cfgx-cat{width:auto;flex:0 0 auto;white-space:nowrap}
+  .cfgx-head .sum{margin-left:0}
+  .cfgx-row{flex-wrap:wrap}
+}
+</style>
+<script id="cfgx-script">
+/* Refonte de l'onglet Configuration. Remplace le rendu ; réutilise la même donnée
+   (ZS.protIndex / CONFIG), les mêmes actions (ptToggle, ptMode, cfgSave…) et donc
+   exactement la même persistance côté API. Rien n'est poussé sans clic sur Enregistrer. */
+(function(){
+  var FILTER='all';
+  var X={
+    title:{fr:'Configuration',en:'Configuration'},
+    sub:{fr:'Choisis ce qui est actif et la réaction : <b>Surveiller</b> (alerte, aucune sanction) ou <b>Bloquer</b> (sanction appliquée).',en:'Choose what is active and how to react: <b>Watch</b> (alert only, no sanction) or <b>Block</b> (sanction applied).'},
+    act:{fr:'actives',en:'active'},watch:{fr:'surveillées',en:'watched'},off:{fr:'désactivées',en:'disabled'},tot:{fr:'au total',en:'total'},
+    preset:{fr:'Mode prêt à l\'emploi',en:'Ready-made mode'},
+    exp:{fr:'Exporter',en:'Export'},imp:{fr:'Importer',en:'Import'},
+    unsaved:{fr:'Modifications non enregistrées',en:'Unsaved changes'},cancel:{fr:'Annuler',en:'Cancel'},save:{fr:'Enregistrer',en:'Save'},
+    search:{fr:'Rechercher un réglage…',en:'Search a setting…'},
+    fAll:{fr:'Tous',en:'All'},fOn:{fr:'Actifs',en:'On'},fWatch:{fr:'Surveillés',en:'Watched'},fOff:{fr:'Désactivés',en:'Off'},
+    actives:{fr:'actives',en:'active'},
+    bulk:{fr:'Actions groupées…',en:'Bulk actions…'},
+    enAll:{fr:'Tout activer',en:'Enable all'},disAll:{fr:'Tout désactiver',en:'Disable all'},
+    blkAll:{fr:'Tout en Bloquer',en:'All to Block'},wchAll:{fr:'Tout en Surveiller',en:'All to Watch'},
+    none:{fr:'Aucun réglage ne correspond.',en:'No matching setting.'},
+    empty:{fr:'Aucune configuration chargée. Sélectionne un serveur (onglet « Serveurs & licence ») pour régler ses protections.',en:'No configuration loaded. Select a server (“Servers & license”) to set its protections.'}
+  };
+  function t(k){return zL(X[k]);}
+  function tabStats(tb){var tot=0,act=0;tb.groups.forEach(function(g){g.items.forEach(function(it){tot++;if(it.t==='pt'&&it.on)act++;});});return {tot:tot,act:act};}
+  function hasPt(tb){return tb.groups.some(function(g){return g.items.some(function(it){return it.t==='pt';});});}
+  function pass(it){
+    if(it.t!=='pt'||FILTER==='all')return true;
+    if(FILTER==='on')return !!it.on;
+    if(FILTER==='off')return !it.on;
+    if(FILTER==='watch')return !!it.on&&it.mode==='watch';
+    return true;
+  }
+  function rowHTML(it,tag){
+    var ds=it.ds||(typeof CFG_HELP!=='undefined'&&CFG_HELP[it.n])||'';
+    return '<div class="cfgx-row"><div class="cfgx-txt"><div class="cfgx-nm">'+zesc(it.n)+(tag?'<span class="cfgx-tag">'+zesc(tag)+'</span>':'')+'</div>'
+      +(ds?'<div class="cfgx-ds">'+zesc(ds)+'</div>':'')+'</div>'+ctrlHTML(it)+'</div>';
+  }
+  function listHTML(groups,tag){
+    var multi=groups.length>1, html='';
+    groups.forEach(function(g){
+      var items=g.items.filter(function(it){return pass(it)&&(!cfgQuery||String(it.n).toLowerCase().indexOf(cfgQuery.toLowerCase())>=0||String(it.ds||'').toLowerCase().indexOf(cfgQuery.toLowerCase())>=0);});
+      if(!items.length)return;
+      html+='<div class="cfgx-list">'+(multi?'<div class="cfgx-sub">'+zesc(g.g)+'</div>':'')+items.map(function(it){return rowHTML(it,tag);}).join('')+'</div>';
+    });
+    return html;
+  }
+  window.renderCfgFilters=function(){
+    var el=document.getElementById('cfgxFilters');if(!el)return;
+    var L=[['all','fAll'],['on','fOn'],['watch','fWatch'],['off','fOff']];
+    el.innerHTML=L.map(function(f){return '<button type="button" class="'+(FILTER===f[0]?'on':'')+'" onclick="zCfgxFilter(\''+f[0]+'\')">'+t(f[1])+'</button>';}).join('');
+    el.style.display=(CONFIG.some(hasPt))?'':'none';
+  };
+  window.zCfgxFilter=function(f){FILTER=f;renderCfgFilters();renderCfgPanel();};
+  window.renderCfgTabs=function(){
+    var el=document.getElementById('protTabs');if(!el)return;
+    el.style.display=CONFIG.length?'':'none';
+    el.innerHTML=CONFIG.map(function(tb,i){
+      var s=tabStats(tb),pt=hasPt(tb);
+      return '<button type="button" class="cfgx-cat'+((i===cfgTab&&!cfgQuery)?' on':'')+'" onclick="cfgSetTab('+i+')"><span class="nm">'+zesc(tb.tab)+'</span><span class="ct">'+(pt?(s.act+'/'+s.tot):s.tot)+'</span></button>';
+    }).join('');
+    renderCfgFilters();
+  };
+  window.renderCfgPanel=function(){
+    var panel=document.getElementById('protPanel');if(!panel)return;
+    if(!CONFIG.length){panel.innerHTML='<div class="cfgx-empty">'+zesc(t('empty'))+'</div>';return;}
+    var html='';
+    if(cfgQuery){
+      CONFIG.forEach(function(tb){var h=listHTML(tb.groups,tb.tab);if(h)html+=h;});
+    }else{
+      var tb=CONFIG[cfgTab]||CONFIG[0],s=tabStats(tb),pt=hasPt(tb);
+      html+='<div class="cfgx-phead"><h3>'+zesc(tb.tab)+'</h3>'+(pt?'<span class="pc" id="cfgxPc">'+s.act+' / '+s.tot+' '+t('actives')+'</span>':'')+'<div class="grow"></div>'
+        +(pt?'<select onchange="zCfgxBulk(this.value);this.value=\'\'"><option value="">'+zesc(t('bulk'))+'</option><option value="en">'+zesc(t('enAll'))+'</option><option value="dis">'+zesc(t('disAll'))+'</option><option value="block">'+zesc(t('blkAll'))+'</option><option value="watch">'+zesc(t('wchAll'))+'</option></select>':'')+'</div>';
+      html+=listHTML(tb.groups,null);
+    }
+    panel.innerHTML=html||'<div class="cfgx-empty">'+zesc(t('none'))+'</div>';
+  };
+  window.zCfgxBulk=function(a){
+    if(!a)return;var tb=CONFIG[cfgTab];if(!tb)return;
+    tb.groups.forEach(function(g){g.items.forEach(function(it){
+      if(it.t!=='pt')return;
+      if(a==='en')it.on=true;else if(a==='dis')it.on=false;
+      else if(a==='block'){it.on=true;it.mode='block';}else if(a==='watch'){it.on=true;it.mode='watch';}
+    });});
+    renderCfgPanel();cfgTouch();zCfgSummary();
+  };
+  window.cfgSetTab=function(i){cfgTab=i;cfgQuery='';var s=document.getElementById('protSearch');if(s)s.value='';renderCfgTabs();renderCfgPanel();window.scrollTo(0,0);};
+  window.zCfgSummary=function(){
+    if(!ZS.protIndex)return;
+    var a=0,w=0,o=0;
+    ZS.protIndex.forEach(function(it){if(it.on){a++;if(it.mode==='watch')w++;}else o++;});
+    var set=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
+    set('cfgActive',a);set('cfgWatch',w);set('cfgOff',o);set('cfgTot',ZS.cfgTotal||ZS.protIndex.size);
+    renderCfgTabs();
+    var tb=CONFIG[cfgTab],pc=document.getElementById('cfgxPc');
+    if(tb&&pc){var s=tabStats(tb);pc.textContent=s.act+' / '+s.tot+' '+t('actives');}
+  };
+  function lang(){
+    var set=function(id,v,h){var e=document.getElementById(id);if(e){if(h)e.innerHTML=v;else e.textContent=v;}};
+    set('cfgxTitle',t('title'));set('cfgxSub',t('sub'),true);
+    set('cfgxLAct',t('act'));set('cfgxLWatch',t('watch'));set('cfgxLOff',t('off'));set('cfgxLTot',t('tot'));
+    set('cfgxPresetLab',t('preset'));set('cfgxExp',t('exp'));set('cfgxImp',t('imp'));
+    set('cfgxUnsaved',t('unsaved'));set('cfgxCancel',t('cancel'));set('cfgxSave',t('save'));
+    var s=document.getElementById('protSearch');if(s)s.setAttribute('placeholder',t('search'));
+    renderCfgTabs();renderCfgPanel();
+  }
+  var _al=window.zApplyLang;
+  if(typeof _al==='function')window.zApplyLang=function(){_al.apply(this,arguments);try{lang();}catch(e){}};
+  lang();
+  try{zCfgSummary();}catch(e){}
+})();
+</script>
+
+<style id="zlive-style">
+/* ===== Carte live + captures du jeu ===== */
+/* Le compteur « joueurs surveillés » était une valeur de démonstration : la pastille LIVE le remplace. */
+.mapwrap .mapcount{display:none}
+#zMapTiles{position:absolute;left:0;top:0;width:111.628%;height:111.628%;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);pointer-events:none;filter:saturate(.78) brightness(.82) contrast(1.05)}
+#zMapTiles img{width:100%;height:100%;display:block}
+#zLiveChip{position:absolute;top:12px;left:12px;z-index:6;background:rgba(6,14,10,.84);border:1px solid var(--line2);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--sub);display:flex;gap:8px;align-items:center;backdrop-filter:blur(6px)}
+#zLiveChip .d{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+#zLiveChip.on{color:var(--ink)}
+#zLiveChip.on .d{background:var(--green);animation:zpulse 1.6s infinite}
+@keyframes zpulse{0%{box-shadow:0 0 0 0 rgba(51,229,138,.55)}70%{box-shadow:0 0 0 7px rgba(51,229,138,0)}100%{box-shadow:0 0 0 0 rgba(51,229,138,0)}}
+#zLiveMsg{position:absolute;left:12px;right:12px;bottom:58px;z-index:6;background:var(--raise);border:1px solid var(--line2);border-radius:12px;padding:12px 14px;color:var(--sub);font-size:12.5px;line-height:1.55}
+#zLiveMsg b{color:var(--ink)}
+#zLiveMsg code{font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:11.5px}
+.pdot.dead{background:#6b7770!important}
+.pdot.veh{border-radius:4px}
+.zcaps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.zcap{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel2);aspect-ratio:16/10;cursor:pointer}
+.zcap img{width:100%;height:100%;object-fit:cover;display:block}
+.zcap .tm{position:absolute;left:0;right:0;bottom:0;padding:10px 6px 3px;font-size:10.5px;background:linear-gradient(transparent,rgba(0,0,0,.78));color:#fff}
+.zcap.wait{display:grid;place-items:center;color:var(--muted);font-size:11.5px;cursor:default;text-align:center;padding:6px}
+.zcaphead{display:flex;align-items:center;gap:8px;margin:14px 0 8px;font-weight:700;font-size:13px}
+.zcaphead .grow{flex:1}
+#zLightbox{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.88);display:grid;place-items:center;padding:24px}
+#zLightbox .box{display:flex;flex-direction:column;gap:10px;align-items:center;max-width:94vw}
+#zLightbox img{max-width:92vw;max-height:78vh;border-radius:10px;border:1px solid var(--line2)}
+#zLightbox .bar{display:flex;gap:8px;align-items:center;color:#cfe0d4;font-size:12.5px}
+</style>
+<script id="zlive-script">
+/* Vue live (positions des joueurs) + captures du RENDU DE JEU.
+   Données réelles uniquement : /api/servers/:id/live (instantané éphémère envoyé par
+   l'agent, opt-in) et /api/servers/:id/capture(s). Aucune position simulée. */
+(function(){
+  var L={timer:null,sel:null,snap:null,dots:new Map(),capPoll:null,tiles:false};
+  window.ZLIVE=L;
+  var X={
+    live:{fr:'LIVE',en:'LIVE'},off:{fr:'Vue live inactive',en:'Live view inactive'},
+    players:{fr:'joueur(s)',en:'player(s)'},ago:{fr:'il y a',en:''},sec:{fr:'s',en:'s ago'},
+    msgTitle:{fr:'Aucune position reçue.',en:'No position received.'},
+    msgBody:{fr:'La vue live est <b>désactivée par défaut</b> : active-la dans la config de l\'agent (<code>live = { enabled = true }</code>), puis redémarre <code>zshield-agent</code>. Seul le dernier instantané est gardé quelques secondes en mémoire : rien n\'est historisé. Informe tes joueurs dans ton règlement.',en:'Live view is <b>off by default</b>: enable it in the agent config (<code>live = { enabled = true }</code>) then restart <code>zshield-agent</code>. Only the latest snapshot is kept for a few seconds in memory: nothing is stored. Tell your players in your rules.'},
+    noServer:{fr:'Aucun serveur lié. Ajoute un serveur (onglet « Serveurs & licence »).',en:'No server linked. Add a server (“Servers & license”).'},
+    health:{fr:'Santé',en:'Health'},armor:{fr:'Armure',en:'Armor'},pos:{fr:'Position (X · Y · Z)',en:'Position (X · Y · Z)'},
+    veh:{fr:'En véhicule',en:'In vehicle'},yes:{fr:'Oui',en:'Yes'},no:{fr:'Non',en:'No'},risk:{fr:'Niveau de risque',en:'Risk level'},
+    capture:{fr:'Capturer l\'écran (jeu)',en:'Capture screen (game)'},sheet:{fr:'Fiche',en:'Profile'},observe:{fr:'Observer',en:'Observe'},
+    caps:{fr:'Captures du jeu',en:'Game captures'},capsNone:{fr:'Aucune capture pour ce joueur.',en:'No captures for this player.'},
+    capsWait:{fr:'En attente du client…',en:'Waiting for client…'},capsExp:{fr:'Expirée',en:'Expired'},
+    capAsked:{fr:'Capture demandée. L\'agent relève les commandes sous ~30 s, puis le client envoie l\'image.',en:'Capture requested. The agent picks up commands within ~30 s, then the client uploads the image.'},
+    capOffline:{fr:'Joueur hors ligne ou vue live inactive : impossible de le capturer maintenant.',en:'Player offline or live view inactive: cannot capture right now.'},
+    capNote:{fr:'Capture le <b>rendu de la fenêtre du jeu</b> uniquement (jamais le bureau), à la demande du staff. Conservée 30 jours.',en:'Captures the <b>game window render</b> only (never the desktop), on staff request. Kept 30 days.'},
+    del:{fr:'Supprimer',en:'Delete'},dl:{fr:'Télécharger',en:'Download'},close:{fr:'Fermer',en:'Close'},
+    delAsk:{fr:'Supprimer cette capture définitivement ?',en:'Delete this capture permanently?'},
+    noteDossier:{fr:'Fiche construite à partir des détections serveur réelles. Z-Shield n\'accède pas aux fichiers du joueur ; une capture du rendu du jeu n\'a lieu que si le staff la demande.',en:'Profile built from real server detections. Z-Shield does not access the player\'s files; a game-render capture only happens when staff requests it.'}
+  };
+  function t(k){return zL(X[k]);}
+  // Étalonnage monde GTA -> carte (atlas z=4, image carrée de 1375 px) : repères Paleto Bay,
+  // Grapeseed, Fort Zancudo, jetée de Del Perro, aéroport de Los Santos (erreur ≈ 1–2 %).
+  var CAL={ox:0.463053,oy:0.674109,k:0.0000810909};
+  function toPct(x,y){return {lx:Math.max(1,Math.min(99,(CAL.ox+CAL.k*x)*100)),ly:Math.max(1,Math.min(99,(CAL.oy-CAL.k*y)*100))};}
+  L.toPct=toPct;
+  var mw=function(){return document.getElementById('mapwrap');};
+
+  /* Fond de carte : 9 tuiles z=3 de l'atlas (carte entière nette), sous les joueurs. */
+  function ensureTiles(){
+    var w=mw();if(!w||L.tiles)return;L.tiles=true;
+    w.querySelectorAll(':scope > img').forEach(function(i){i.remove();}); // ancien fond flou (tuile z=0)
+    var base=window.ZS_TILE_BASE||'https://cdn.jsdelivr.net/gh/martonp96/GTAV-Maps@master/atlas/';
+    var g=document.createElement('div');g.id='zMapTiles';
+    for(var y=0;y<3;y++)for(var x=0;x<3;x++){var im=document.createElement('img');im.alt='';im.loading='lazy';im.onerror=function(){this.style.visibility='hidden';};im.src=base+'3-'+x+'_'+y+'.png';g.appendChild(im);}
+    var svg=w.querySelector('svg.base');if(svg&&svg.nextSibling)w.insertBefore(g,svg.nextSibling);else w.appendChild(g);
+    var chip=document.createElement('div');chip.id='zLiveChip';chip.innerHTML='<span class="d"></span><span class="tx"></span>';w.appendChild(chip);
+  }
+  function cleanDemo(){
+    var w=mw();if(!w)return;
+    w.querySelectorAll('.pdot:not([data-live])').forEach(function(d){d.remove();});
+    try{placeDot=function(){};}catch(e){}
+    var old=document.getElementById('zMapMsg');if(old)old.remove();
+  }
+  window.zMapNotice=function(){cleanDemo();};
+
+  function lvlOf(ident){
+    if(!ident||typeof players==='undefined')return 'lo';
+    for(var i=0;i<players.length;i++){if(players[i]._id===ident)return players[i].lvl||'lo';}
+    return 'lo';
+  }
+  function matchIdx(ident){
+    if(!ident||typeof players==='undefined')return -1;
+    for(var i=0;i<players.length;i++){if(players[i]._id===ident)return i;}
+    return -1;
+  }
+  function setChip(on,text){
+    var c=document.getElementById('zLiveChip');if(!c)return;
+    c.classList.toggle('on',!!on);c.querySelector('.tx').textContent=text;
+  }
+  function setMsg(html){
+    var w=mw();if(!w)return;var m=document.getElementById('zLiveMsg');
+    if(!html){if(m)m.remove();return;}
+    if(!m){m=document.createElement('div');m.id='zLiveMsg';w.appendChild(m);}
+    m.innerHTML=html;
+  }
+
+  function render(d,why){
+    ensureTiles();cleanDemo();
+    var w=mw();if(!w)return;
+    if(!d||!d.live){
+      L.snap=null;
+      w.querySelectorAll('.pdot[data-live]').forEach(function(x){x.remove();});L.dots.clear();
+      setChip(false,t('off'));
+      setMsg(why==='noserver'?'<b>'+t('noServer')+'</b>':'<b>'+t('msgTitle')+'</b> '+t('msgBody'));
+      return;
+    }
+    L.snap=d;setMsg('');
+    var secs=Math.round((d.age_ms||0)/1000);
+    setChip(true,t('live')+' · '+d.players.length+' '+t('players')+' · '+(zL({fr:'il y a '+secs+' s',en:secs+' s ago'})));
+    var seen={};
+    d.players.forEach(function(p){
+      seen[p.id]=1;
+      var el=L.dots.get(p.id);
+      if(!el){el=document.createElement('div');el.dataset.live='1';el.addEventListener('click',function(){selectLive(p.id);});w.appendChild(el);L.dots.set(p.id,el);}
+      el.className='pdot '+lvlOf(p.identifier)+(p.hp<=0?' dead':'')+(p.veh?' veh':'')+(L.sel===p.id?' sel':'');
+      el.title=p.name+' (#'+p.id+')';
+      var q=toPct(p.x,p.y);el.style.left=q.lx+'%';el.style.top=q.ly+'%';
+    });
+    L.dots.forEach(function(el,id){if(!seen[id]){el.remove();L.dots.delete(id);if(L.sel===id)L.sel=null;}});
+    if(L.sel!=null)paintPanel();
+  }
+
+  async function tick(){
+    if(!ZS.serverId){render(null,'noserver');return;}
+    try{var d=await zapi('/api/servers/'+ZS.serverId+'/live');render(d);}catch(e){render(null,'error');}
+  }
+  L.once=async function(){ // instantané frais à la demande (dossier joueur)
+    if(L.snap&&(Date.now()-(L.snapAt||0))<8000)return L.snap;
+    if(!ZS.serverId)return null;
+    try{var d=await zapi('/api/servers/'+ZS.serverId+'/live');L.snap=d.live?d:null;L.snapAt=Date.now();return L.snap;}catch(e){return null;}
+  };
+  L.start=function(){ensureTiles();cleanDemo();if(L.timer)return;tick();L.timer=setInterval(function(){L.snapAt=Date.now();tick();},3000);};
+  L.stop=function(){if(L.timer){clearInterval(L.timer);L.timer=null;}};
+
+  function findLive(id){return L.snap&&L.snap.players.filter(function(p){return p.id===id;})[0]||null;}
+  function selectLive(id){
+    L.sel=id;
+    L.dots.forEach(function(el,k){el.classList.toggle('sel',k===id);});
+    paintPanel();
+  }
+  function paintPanel(){
+    var p=findLive(L.sel);var body=document.getElementById('pcBody'),empty=document.getElementById('pcEmpty');
+    if(!body)return;
+    if(!p){body.hidden=true;if(empty)empty.hidden=false;return;}
+    if(empty)empty.hidden=true;body.hidden=false;
+    var mi=matchIdx(p.identifier),m=mi>=0?players[mi]:null;
+    var riskRow=m?'<div class="rowline"><span class="l">'+t('risk')+'</span><span class="v" style="color:'+riskColor(m.risk)+'">'+m.risk+'/100</span></div><div class="riskbar"><i style="width:'+m.risk+'%;background:'+riskColor(m.risk)+'"></i></div>':'';
+    var keep=document.getElementById('zLiveCaps');
+    body.innerHTML='<div class="phead"><div class="pav">'+initials(p.name)+'</div><div style="flex:1;min-width:0"><div style="font-weight:800">'+zesc(p.name)+'</div><div style="color:var(--muted);font-size:12.5px">#'+p.id+' · ping '+p.ping+' ms</div></div></div>'
+     +'<div class="pinfo">'+riskRow
+     +'<div class="rowline"><span class="l">'+t('health')+'</span><span class="v num">'+p.hp+'</span></div>'
+     +'<div class="rowline"><span class="l">'+t('armor')+'</span><span class="v num">'+p.armor+'</span></div>'
+     +'<div class="rowline"><span class="l">'+t('veh')+'</span><span class="v">'+(p.veh?t('yes'):t('no'))+'</span></div>'
+     +'<div class="rowline"><span class="l">'+t('pos')+'</span><span class="v mono">'+Math.round(p.x)+', '+Math.round(p.y)+', '+Math.round(p.z)+'</span></div></div>'
+     +'<div class="pactions"><button class="btn btn-sm btn-green" onclick="zCaptureLive('+p.id+')">'+t('capture')+'</button>'
+     +(mi>=0?'<button class="btn btn-sm btn-ghost" onclick="openDossier('+mi+')">'+t('sheet')+'</button>':'')
+     +'<button class="btn btn-sm btn-ghost" onclick="zSpectate(\''+p.id+'\')">'+t('observe')+'</button></div>'
+     +'<div style="color:var(--muted);font-size:11.5px;line-height:1.5;margin-top:8px">'+t('capNote')+'</div>'
+     +'<div id="zLiveCaps"></div>';
+    if(p.identifier)renderCaps(document.getElementById('zLiveCaps'),p.identifier);
+  }
+
+  /* ---- Captures ---- */
+  function ago(iso){var s=Math.max(0,Math.round((Date.now()-new Date(iso).getTime())/1000));
+    if(s<5)return zL({fr:'à l\'instant',en:'just now'});if(s<60)return zL({fr:s+' s',en:s+' s'});if(s<3600)return Math.round(s/60)+' min';if(s<86400)return Math.round(s/3600)+' h';return Math.round(s/86400)+' j';}
+  async function renderCaps(host,identifier){
+    if(!host||!ZS.serverId)return;
+    host.dataset.ident=identifier;
+    var d;try{d=await zapi('/api/servers/'+ZS.serverId+'/captures?limit=12&identifier='+encodeURIComponent(identifier));}catch(e){host.innerHTML='';return;}
+    var rows=d.captures||[];
+    var head='<div class="zcaphead"><span>'+t('caps')+'</span><span class="grow"></span></div>';
+    host.innerHTML=head+(rows.length?'<div class="zcaps">'+rows.map(function(c){
+      if(c.status==='RECEIVED')return '<div class="zcap" onclick="zCapOpen(\''+c.id+'\')" title="'+zesc(ago(c.received_at||c.created_at))+'"><img loading="lazy" src="/api/captures/'+c.id+'/image" alt=""><span class="tm">'+zesc(ago(c.received_at||c.created_at))+'</span></div>';
+      return '<div class="zcap wait">'+(c.status==='EXPIRED'?t('capsExp'):t('capsWait'))+'</div>';
+    }).join('')+'</div>':'<div style="color:var(--muted);font-size:12.5px">'+t('capsNone')+'</div>');
+    if(rows.some(function(c){return c.status==='PENDING';}))startCapPoll();
+  }
+  function refreshAllCaps(){document.querySelectorAll('#zLiveCaps,#dossierCaps .zcapbody').forEach(function(h){if(h.dataset.ident)renderCaps(h,h.dataset.ident);});}
+  function startCapPoll(){
+    if(L.capPoll)return;var n=0;
+    L.capPoll=setInterval(function(){n++;refreshAllCaps();if(n>=24||!document.querySelector('.zcap.wait:not([data-exp])')){clearInterval(L.capPoll);L.capPoll=null;}},4000);
+  }
+  async function doCapture(slot,identifier,name){
+    if(!ZS.serverId){toast(t('noServer'),'red');return;}
+    try{
+      await zapi('/api/servers/'+ZS.serverId+'/capture',{method:'POST',body:{slot:slot,identifier:identifier||undefined,name:name||undefined}});
+      toast(t('capAsked'),'grn');
+      setTimeout(function(){refreshAllCaps();startCapPoll();},600);
+    }catch(e){toast(e.message||'Échec','red');}
+  }
+  window.zCaptureLive=function(id){var p=findLive(id);if(!p){toast(t('capOffline'),'red');return;}doCapture(p.id,p.identifier,p.name);};
+  window.zCapOpen=function(id){
+    var o=document.createElement('div');o.id='zLightbox';
+    o.innerHTML='<div class="box"><img src="/api/captures/'+id+'/image" alt=""><div class="bar"><a class="btn btn-sm btn-ghost" href="/api/captures/'+id+'/image" download="capture-'+id+'.jpg">'+t('dl')+'</a><button class="btn btn-sm btn-red" id="zcDel">'+t('del')+'</button><button class="btn btn-sm" id="zcClose">'+t('close')+'</button></div></div>';
+    function close(){o.remove();document.removeEventListener('keydown',esc);}
+    function esc(e){if(e.key==='Escape')close();}
+    o.addEventListener('click',function(e){if(e.target===o)close();});
+    document.addEventListener('keydown',esc);document.body.appendChild(o);
+    document.getElementById('zcClose').onclick=close;
+    document.getElementById('zcDel').onclick=async function(){
+      if(!confirm(t('delAsk')))return;
+      try{await zapi('/api/captures/'+id,{method:'DELETE'});close();refreshAllCaps();}catch(e){toast(e.message||'Échec','red');}
+    };
+  };
+  // Ancien bouton « Capture » de la multi-vue : passe par le vrai flux.
+  window.zSpectateCapture=async function(ident){
+    var d=await L.once();var p=d&&d.players.filter(function(x){return x.identifier===ident||String(x.id)===String(ident);})[0];
+    if(!p){toast(t('capOffline'),'red');return;}doCapture(p.id,p.identifier,p.name);
+  };
+
+  /* ---- Dossier joueur : galerie + bouton ---- */
+  var _od=window.openDossier;
+  if(typeof _od==='function')window.openDossier=function(i){
+    _od.apply(this,arguments);
+    var p=players[i];if(!p||!p._id)return;
+    var anchor=document.getElementById('dossierIntel');if(!anchor)return;
+    anchor.insertAdjacentHTML('afterend','<div id="dossierCaps" style="margin-top:14px"><div style="display:flex;align-items:center;gap:8px"><b style="font-size:13px">'+t('caps')+'</b><span style="flex:1"></span><button class="btn btn-sm btn-green" id="dossierCapBtn">'+t('capture')+'</button></div><div style="color:var(--muted);font-size:11.5px;line-height:1.5;margin:6px 0 8px">'+t('capNote')+'</div><div class="zcapbody" data-ident="'+zesc(p._id)+'"></div></div>');
+    var n=document.querySelector('.drawer .notice div');if(n)n.textContent=t('noteDossier');
+    renderCaps(document.querySelector('#dossierCaps .zcapbody'),p._id);
+    document.getElementById('dossierCapBtn').onclick=async function(){
+      var d=await L.once();var lp=d&&d.players.filter(function(x){return x.identifier===p._id;})[0];
+      if(!lp){toast(t('capOffline'),'red');return;}doCapture(lp.id,lp.identifier,lp.name);
+    };
+  };
+
+  /* ---- Heatmap : compteurs par case de grille, opt-in, JAMAIS de trajectoire
+     individuelle. Le calcul est fait côté API à partir des instantanés live déjà
+     reçus ; ici on ne fait qu'afficher les compteurs sous forme de dégradé. ---- */
+  var HX={
+    on:{fr:'Heatmap activée',en:'Heatmap on'},off:{fr:'Heatmap désactivée',en:'Heatmap off'},
+    enable:{fr:'Activer',en:'Enable'},disable:{fr:'Désactiver',en:'Disable'},
+    show:{fr:'Afficher',en:'Show'},hide:{fr:'Masquer',en:'Hide'},
+    confirm:{fr:'Activer la heatmap ?\nL\'API additionnera les positions déjà reçues par la vue live en compteurs par case de 50 m, sur les 30 dernières minutes. Aucune position individuelle n\'est conservée ni exposée : uniquement des compteurs.',en:'Enable the heatmap?\nThe API will sum positions already received by the live view into 50 m grid-cell counters, over the last 30 minutes. No individual position is kept or exposed: counters only.'}
+  };
+  function ht(k){return zL(HX[k]);}
+  var H={enabled:false,show:false,cells:[],cellSize:50,timer:null};
+  function heatCanvas(){
+    var w=mw();if(!w)return null;var c=document.getElementById('zHeatCanvas');
+    if(!c){c=document.createElement('canvas');c.id='zHeatCanvas';
+      c.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3';
+      var svg=w.querySelector('svg.base');if(svg&&svg.nextSibling)w.insertBefore(c,svg.nextSibling);else w.appendChild(c);}
+    return c;
+  }
+  function drawHeat(){
+    var c=heatCanvas();if(!c)return;var w=mw();if(!w)return;
+    var rect=w.getBoundingClientRect();c.width=Math.max(1,rect.width);c.height=Math.max(1,rect.height);
+    var ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
+    if(!H.show||!H.cells.length)return;
+    var max=1;H.cells.forEach(function(cell){max=Math.max(max,cell.count);});
+    H.cells.forEach(function(cell){
+      var q=toPct(cell.gx*H.cellSize,cell.gy*H.cellSize);
+      var px=q.lx/100*c.width,py=q.ly/100*c.height;
+      var inten=Math.min(1,cell.count/max),r=Math.max(9,Math.min(30,8+inten*26));
+      var g=ctx.createRadialGradient(px,py,0,px,py,r);
+      g.addColorStop(0,'rgba(255,96,64,'+(0.18+inten*0.45).toFixed(2)+')');
+      g.addColorStop(1,'rgba(255,96,64,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,r,0,Math.PI*2);ctx.fill();
+    });
+  }
+  function paintHeatUI(){
+    var st=document.getElementById('zHeatStatus'),tg=document.getElementById('zHeatToggle'),sh=document.getElementById('zHeatShow');
+    if(!st||!tg)return;
+    st.textContent=H.enabled?ht('on'):ht('off');
+    tg.textContent=H.enabled?ht('disable'):ht('enable');
+    tg.className='btn btn-sm'+(H.enabled?' btn-ghost':'');
+    if(sh){sh.style.display=H.enabled?'':'none';sh.textContent=H.show?ht('hide'):ht('show');}
+  }
+  async function loadHeat(){
+    if(!ZS.serverId){H.enabled=false;paintHeatUI();return;}
+    try{var d=await zapi('/api/servers/'+ZS.serverId+'/heatmap');H.enabled=!!d.enabled;H.cells=d.cells||[];H.cellSize=d.cell_size||50;}
+    catch(e){H.enabled=false;H.cells=[];}
+    paintHeatUI();
+    if(H.enabled&&H.show)drawHeat();else{var c=document.getElementById('zHeatCanvas');if(c){var ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);}}
+  }
+  window.zHeatmapOptinToggle=async function(){
+    var next=!H.enabled;
+    if(next&&!confirm(ht('confirm')))return;
+    try{await zapi('/api/organization/heatmap-optin',{method:'POST',body:{enabled:next}});toast(next?ht('on'):ht('off'),'grn');await loadHeat();}
+    catch(e){toast('Échec : '+(e.message||e),'red');}
+  };
+  window.zHeatmapShowToggle=function(){
+    H.show=!H.show;paintHeatUI();
+    if(H.show){startHeatPoll();drawHeat();}else{stopHeatPoll();drawHeat();}
+  };
+  function startHeatPoll(){if(H.timer)return;H.timer=setInterval(function(){loadHeat();},15000);}
+  function stopHeatPoll(){if(H.timer){clearInterval(H.timer);H.timer=null;}}
+
+  /* ---- Branchement sur la navigation ---- */
+  var _av=window.applyView;
+  if(typeof _av==='function')window.applyView=function(v){
+    _av.apply(this,arguments);
+    if(v==='map'){L.start();loadHeat();}else{L.stop();stopHeatPoll();}
+  };
+  cleanDemo();
+  if(typeof currentView!=='undefined'&&currentView==='map'){L.start();loadHeat();}
+})();
+</script>
+
+<script>window.ZS_LIVE=true;window.ZS_BUILD="2026-10-01 heatmap";</script>
 <script>
 (async () => {
   try { const r = await fetch("/api/auth/me", { credentials: "include" }); if (r.status === 401) location.href = "/login"; }

@@ -15,6 +15,14 @@ import { withTenant, withUser, withPlatformAdmin } from '../lib/db.ts';
 import { newId, newOpaqueToken, hmacSha256Hex, hashToken, hashPassword, constantTimeEqual } from '../lib/crypto.ts';
 import { env } from '../config/env.ts';
 import { organizationChannel } from '../lib/redis.ts';
+import {
+  liveKey,
+  heatmapKey,
+  heatmapBucket,
+  HEATMAP_BUCKET_SECONDS,
+  HEATMAP_RETENTION_BUCKETS,
+  HEATMAP_CELL_SIZE,
+} from '../agent-gateway/service.ts';
 import type { AuthService } from '../auth/sessions.ts';
 import type { CredentialStore } from '../agent-gateway/credentials.ts';
 import { remoteConfigSchema, issueCommandSchema } from '../agent-gateway/schemas.ts';
@@ -1520,6 +1528,238 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
 
     reply.status(202);
     return { command: { id: commandId, type, status: 'PENDING' } };
+  }));
+
+  // =========================================================================
+  // Vue live + captures du rendu de jeu
+  // =========================================================================
+
+  // Vue live : dernier instantané des joueurs (Redis, TTL court, jamais en SQL).
+  // `live:false` = aucun instantané récent (agent éteint, `live.enabled` à false
+  // dans la config de l'agent, ou serveur vide/hors ligne) : l'UI l'explique.
+  app.get('/api/servers/:id/live', handle(async (request, reply) => {
+    const actor = await guard.requireRead(request, 'server.read');
+    const serverId = (request.params as { id: string }).id;
+
+    const exists = await withTenant(pool, actor.organizationId, async (client) => {
+      const { rowCount } = await client.query(
+        `SELECT 1 FROM servers WHERE organization_id = $1 AND id = $2 AND deleted_at IS NULL`,
+        [actor.organizationId, serverId],
+      );
+      return (rowCount ?? 0) > 0;
+    });
+    if (!exists) { reply.status(404); return { error: 'not_found' }; }
+
+    reply.header('Cache-Control', 'no-store');
+    let raw: string | null = null;
+    try { raw = await deps.publisher.get(liveKey(actor.organizationId, serverId)); } catch { raw = null; }
+    if (!raw) return { live: false };
+    try {
+      const snap = JSON.parse(raw) as { at: number; sampled_at: number; players: unknown[] };
+      return { live: true, age_ms: Math.max(0, Date.now() - snap.at), sampled_at: snap.sampled_at, players: snap.players };
+    } catch {
+      return { live: false };
+    }
+  }));
+
+  // Heatmap : compteurs par case de grille (50 m), sur les ~30 dernières minutes.
+  // Opt-in par organisation (`organizations.heatmap_enabled`) — désactivée par défaut,
+  // séparément de `live.enabled` côté agent. Jamais de trajectoire individuelle :
+  // seulement des compteurs additionnés, sans lien vers un joueur.
+  app.get('/api/servers/:id/heatmap', handle(async (request, reply) => {
+    const actor = await guard.requireRead(request, 'server.read');
+    const serverId = (request.params as { id: string }).id;
+
+    const exists = await withTenant(pool, actor.organizationId, async (client) => {
+      const { rowCount } = await client.query(
+        `SELECT 1 FROM servers WHERE organization_id = $1 AND id = $2 AND deleted_at IS NULL`,
+        [actor.organizationId, serverId],
+      );
+      return (rowCount ?? 0) > 0;
+    });
+    if (!exists) { reply.status(404); return { error: 'not_found' }; }
+
+    const { rows } = await pool.query<{ heatmap_enabled: boolean }>(
+      `SELECT heatmap_enabled FROM organizations WHERE id = $1`, [actor.organizationId]);
+    if (rows[0]?.heatmap_enabled !== true) return { enabled: false, cells: [] };
+
+    reply.header('Cache-Control', 'no-store');
+    const now = heatmapBucket();
+    const totals = new Map<string, number>();
+    for (let i = 0; i < HEATMAP_RETENTION_BUCKETS; i++) {
+      let hash: Record<string, string> = {};
+      try { hash = await deps.publisher.hgetall(heatmapKey(actor.organizationId, serverId, now - i)); }
+      catch { hash = {}; }
+      for (const [field, value] of Object.entries(hash)) {
+        totals.set(field, (totals.get(field) ?? 0) + (Number(value) || 0));
+      }
+    }
+
+    const cells = Array.from(totals.entries()).map(([field, count]) => {
+      const [gx, gy] = field.split(':').map(Number);
+      return { gx, gy, count };
+    });
+    return {
+      enabled: true,
+      cell_size: HEATMAP_CELL_SIZE,
+      window_seconds: HEATMAP_BUCKET_SECONDS * HEATMAP_RETENTION_BUCKETS,
+      cells,
+    };
+  }));
+
+  // Activer / désactiver la heatmap pour l'organisation (opt-in, comme le réseau de bans).
+  app.post('/api/organization/heatmap-optin', handle(async (request, reply) => {
+    const actor = await guard.require(request, 'server.write');
+    const parsed = z.object({ enabled: z.boolean() }).strict().safeParse(request.body ?? {});
+    if (!parsed.success) { reply.status(400); return { error: 'validation' }; }
+    await pool.query(`UPDATE organizations SET heatmap_enabled = $2 WHERE id = $1`,
+      [actor.organizationId, parsed.data.enabled]);
+    await audit(actor, 'heatmap.optin', { kind: 'organization', id: actor.organizationId },
+      { enabled: parsed.data.enabled }, request.ip);
+    return { status: 'ok', enabled: parsed.data.enabled };
+  }));
+
+  // Demande de capture du RENDU DE JEU d'un joueur EN LIGNE (slot serveur). Crée une
+  // ligne PENDING (hachage d'un jeton à usage unique) + une commande `capture_request`.
+  // L'URL d'upload n'est construite qu'à la livraison à l'agent (jamais stockée).
+  const captureSchema = z
+    .object({
+      slot: z.number().int().min(0).max(65535),
+      identifier: z.string().max(128).optional(),
+      name: z.string().max(64).optional(),
+    })
+    .strict();
+
+  app.post('/api/servers/:id/capture', handle(async (request, reply) => {
+    const actor = await guard.require(request, 'command.issue');
+    const body = captureSchema.safeParse(request.body);
+    if (!body.success) {
+      reply.status(400);
+      return { error: 'validation', message: body.error.issues[0]?.message };
+    }
+    const serverId = (request.params as { id: string }).id;
+    const captureId = newId('cap');
+    const commandId = newId('cmd');
+    const token = newOpaqueToken();
+
+    const outcome = await withTenant(pool, actor.organizationId, async (client) => {
+      const { rowCount: srv } = await client.query(
+        `SELECT 1 FROM servers WHERE organization_id = $1 AND id = $2 AND deleted_at IS NULL`,
+        [actor.organizationId, serverId],
+      );
+      if ((srv ?? 0) === 0) return 'not_found' as const;
+
+      // Anti-abus : 6 demandes par minute et par membre.
+      const { rows: recent } = await client.query<{ n: string }>(
+        `SELECT count(*)::text AS n FROM evidence_captures
+          WHERE organization_id = $1 AND requested_by = $2 AND created_at > now() - interval '1 minute'`,
+        [actor.organizationId, actor.user.userId],
+      );
+      if (Number(recent[0]?.n ?? 0) >= 6) return 'rate_limited' as const;
+
+      // Rétention : 30 jours, et au plus 300 captures par organisation.
+      await client.query(
+        `DELETE FROM evidence_captures
+          WHERE organization_id = $1
+            AND (created_at < now() - interval '30 days'
+                 OR id IN (SELECT id FROM evidence_captures WHERE organization_id = $1
+                            ORDER BY created_at DESC OFFSET 300))`,
+        [actor.organizationId],
+      );
+
+      await client.query(
+        `INSERT INTO evidence_captures
+           (id, organization_id, server_id, target_slot, target_identifier, target_name,
+            requested_by, command_id, token_hash, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + make_interval(secs => 300))`,
+        [captureId, actor.organizationId, serverId, body.data.slot,
+         body.data.identifier ?? null, body.data.name ?? null,
+         actor.user.userId, commandId, hashToken(token)],
+      );
+      await client.query(
+        `INSERT INTO agent_commands (id, organization_id, server_id, type, payload, issued_by, expires_at)
+         VALUES ($1, $2, $3, 'capture_request', $4, $5, now() + make_interval(secs => 300))`,
+        [commandId, actor.organizationId, serverId,
+         JSON.stringify({ target: String(body.data.slot), capture_id: captureId, token,
+                          admin: actor.user.userId }),
+         actor.user.userId],
+      );
+      return 'ok' as const;
+    });
+
+    if (outcome === 'not_found') { reply.status(404); return { error: 'not_found' }; }
+    if (outcome === 'rate_limited') { reply.status(429); return { error: 'rate_limited', message: 'Trop de captures demandées, réessaie dans une minute.' }; }
+
+    await audit(actor, 'capture.requested', { kind: 'server', id: serverId }, {
+      capture_id: captureId, slot: body.data.slot, identifier: body.data.identifier ?? null,
+    }, request.ip);
+
+    reply.status(202);
+    return { capture: { id: captureId, status: 'PENDING' }, command: { id: commandId } };
+  }));
+
+  app.get('/api/servers/:id/captures', handle(async (request) => {
+    const actor = await guard.requireRead(request, 'detection.read');
+    const serverId = (request.params as { id: string }).id;
+    const q = request.query as { identifier?: string; limit?: string };
+    const limit = Math.min(Math.max(Number(q.limit ?? 30) || 30, 1), 100);
+    const identifier = typeof q.identifier === 'string' && q.identifier.length <= 128 ? q.identifier : null;
+
+    return withTenant(pool, actor.organizationId, async (client) => {
+      const { rows } = await client.query(
+        `SELECT c.id,
+                CASE WHEN c.status = 'PENDING' AND c.expires_at <= now() THEN 'EXPIRED' ELSE c.status END AS status,
+                c.target_slot, c.target_identifier, c.target_name, c.bytes, c.mime,
+                c.created_at, c.received_at, u.display_name AS requested_by_name
+           FROM evidence_captures c LEFT JOIN users u ON u.id = c.requested_by
+          WHERE c.organization_id = $1 AND c.server_id = $2
+            AND ($3::text IS NULL OR c.target_identifier = $3)
+          ORDER BY c.created_at DESC LIMIT $4`,
+        [actor.organizationId, serverId, identifier, limit],
+      );
+      return { captures: rows };
+    });
+  }));
+
+  app.get('/api/captures/:id/image', handle(async (request, reply) => {
+    const actor = await guard.requireRead(request, 'detection.read');
+    const id = (request.params as { id: string }).id;
+    if (!/^cap_[0-9a-z]{26}$/.test(id)) { reply.status(404); return { error: 'not_found' }; }
+
+    const row = await withTenant(pool, actor.organizationId, async (client) => {
+      const { rows } = await client.query<{ mime: string; image: Buffer }>(
+        `SELECT mime, image FROM evidence_captures
+          WHERE organization_id = $1 AND id = $2 AND status = 'RECEIVED'`,
+        [actor.organizationId, id],
+      );
+      return rows[0] ?? null;
+    });
+    if (!row) { reply.status(404); return { error: 'not_found' }; }
+
+    reply.header('Content-Type', row.mime);
+    reply.header('Cache-Control', 'private, max-age=300');
+    reply.header('Content-Security-Policy', "default-src 'none'; sandbox");
+    reply.header('Content-Disposition', 'inline');
+    return reply.send(row.image);
+  }));
+
+  app.delete('/api/captures/:id', handle(async (request, reply) => {
+    const actor = await guard.require(request, 'command.issue');
+    const id = (request.params as { id: string }).id;
+    if (!/^cap_[0-9a-z]{26}$/.test(id)) { reply.status(404); return { error: 'not_found' }; }
+
+    const removed = await withTenant(pool, actor.organizationId, async (client) => {
+      const { rowCount } = await client.query(
+        `DELETE FROM evidence_captures WHERE organization_id = $1 AND id = $2`,
+        [actor.organizationId, id],
+      );
+      return (rowCount ?? 0) > 0;
+    });
+    if (!removed) { reply.status(404); return { error: 'not_found' }; }
+
+    await audit(actor, 'capture.deleted', { kind: 'capture', id }, {}, request.ip);
+    reply.status(204);
+    return null;
   }));
 
   // =========================================================================

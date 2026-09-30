@@ -1011,6 +1011,249 @@ describe('isolation multi-tenant et passerelle agent', { skip: !available }, () 
       assert.equal((response.json() as { error: string }).error, 'E_VALIDATION');
     });
 
+    // -----------------------------------------------------------------------
+    // Vue live + captures du rendu de jeu
+    // -----------------------------------------------------------------------
+
+    const livePlayer = (id: number, extra: Record<string, unknown> = {}) => ({
+      id, name: `Joueur${id}`, identifier: `license:abc${id}`,
+      x: 123.4, y: -456.7, z: 30, h: 90, hp: 200, armor: 0, veh: false, ping: 42, ...extra,
+    });
+
+    it('vue live : un instantané signé est visible côté dashboard, cloisonné par organisation', async () => {
+      const none = await app.inject({
+        method: 'GET', url: `/api/servers/${serverId}/live`, ...asTenant(globex),
+      });
+      assert.equal(none.statusCode, 200);
+      assert.equal((none.json() as { live: boolean }).live, false, 'pas encore d’instantané');
+
+      const body = envelope('live', {
+        sampled_at: Math.floor(Date.now() / 1000),
+        players: [livePlayer(1), livePlayer(2, { veh: true, weapon: 123 })],
+      });
+      const push = await app.inject({
+        method: 'POST', url: '/v1/agents/live',
+        headers: sign({ method: 'POST', path: '/v1/agents/live', body }), payload: body,
+      });
+      assert.equal(push.statusCode, 200, push.body);
+      assert.equal((push.json() as { accepted: number }).accepted, 2);
+
+      const seen = await app.inject({
+        method: 'GET', url: `/api/servers/${serverId}/live`, ...asTenant(globex),
+      });
+      const snap = seen.json() as { live: boolean; players: Array<{ id: number }> };
+      assert.equal(snap.live, true);
+      assert.deepEqual(snap.players.map((p) => p.id), [1, 2]);
+
+      const neighbour = await app.inject({
+        method: 'GET', url: `/api/servers/${serverId}/live`, ...asTenant(acme),
+      });
+      assert.equal(neighbour.statusCode, 404, 'le voisin ne voit pas ce serveur');
+    });
+
+    it('vue live : un champ hors schéma (ex. IP) est rejeté', async () => {
+      const body = envelope('live', {
+        sampled_at: Math.floor(Date.now() / 1000),
+        players: [livePlayer(1, { ip: '1.2.3.4' })],
+      });
+      const push = await app.inject({
+        method: 'POST', url: '/v1/agents/live',
+        headers: sign({ method: 'POST', path: '/v1/agents/live', body }), payload: body,
+      });
+      assert.equal(push.statusCode, 400);
+    });
+
+    it('heatmap : désactivée par défaut, puis compteurs agrégés après opt-in', async () => {
+      // Désactivée par défaut : aucun compteur écrit, même avec un push live.
+      const beforeOptin = await app.inject({
+        method: 'GET', url: `/api/servers/${serverId}/heatmap`, ...asTenant(globex),
+      });
+      assert.equal(beforeOptin.statusCode, 200);
+      assert.equal((beforeOptin.json() as { enabled: boolean }).enabled, false);
+
+      // Opt-in.
+      const optin = await app.inject({
+        method: 'POST', url: '/api/organization/heatmap-optin', ...asTenant(globex),
+        payload: { enabled: true },
+      });
+      assert.equal(optin.statusCode, 200, optin.body);
+
+      // Deux joueurs proches (même case de grille 50 m) + un loin.
+      const body = envelope('live', {
+        sampled_at: Math.floor(Date.now() / 1000),
+        players: [
+          livePlayer(1, { x: 100, y: 100 }),
+          livePlayer(2, { x: 110, y: 105 }),
+          livePlayer(3, { x: 900, y: 900 }),
+        ],
+      });
+      const push = await app.inject({
+        method: 'POST', url: '/v1/agents/live',
+        headers: sign({ method: 'POST', path: '/v1/agents/live', body }), payload: body,
+      });
+      assert.equal(push.statusCode, 200, push.body);
+
+      const heat = await app.inject({
+        method: 'GET', url: `/api/servers/${serverId}/heatmap`, ...asTenant(globex),
+      });
+      assert.equal(heat.statusCode, 200);
+      const parsed = heat.json() as { enabled: boolean; cell_size: number; cells: Array<{ gx: number; gy: number; count: number }> };
+      assert.equal(parsed.enabled, true);
+      assert.equal(parsed.cell_size, 50);
+      const total = parsed.cells.reduce((sum, c) => sum + c.count, 0);
+      assert.equal(total, 3, 'les 3 positions sont comptées, sans identité de joueur');
+      assert.ok(parsed.cells.length <= 2, 'les deux joueurs proches tombent dans la même case');
+
+      // Cloisonnement : le voisin ne voit rien (pas opt-in) même pour un autre serveur.
+      const neighbour = await app.inject({
+        method: 'GET', url: `/api/servers/${serverId}/heatmap`, ...asTenant(acme),
+      });
+      assert.equal(neighbour.statusCode, 404);
+
+      // Nettoyage : referme l'opt-in pour ne pas influencer d'autres tests.
+      await app.inject({
+        method: 'POST', url: '/api/organization/heatmap-optin', ...asTenant(globex),
+        payload: { enabled: false },
+      });
+    });
+
+    it('capture : flux complet demande -> agent -> upload -> galerie, jeton à usage unique', async () => {
+      // 1) demande du staff
+      const asked = await app.inject({
+        method: 'POST', url: `/api/servers/${serverId}/capture`, ...asTenant(globex),
+        payload: { slot: 7, identifier: 'license:abc7', name: 'Bob' },
+      });
+      assert.equal(asked.statusCode, 202, asked.body);
+      const captureId = (asked.json() as { capture: { id: string } }).capture.id;
+
+      // le voisin ne peut pas capturer sur ce serveur
+      const foreign = await app.inject({
+        method: 'POST', url: `/api/servers/${serverId}/capture`, ...asTenant(acme),
+        payload: { slot: 7 },
+      });
+      assert.equal(foreign.statusCode, 404);
+
+      // 2) l'agent relève la commande : URL d'upload construite, jeton hors payload
+      const query = 'limit=25';
+      const polled = await app.inject({
+        method: 'GET', url: `/v1/agents/commands?${query}`,
+        headers: sign({ method: 'GET', path: '/v1/agents/commands', query }),
+      });
+      assert.equal(polled.statusCode, 200, polled.body);
+      const cmds = (polled.json() as { commands: Array<{ type: string; payload: Record<string, string> }> }).commands;
+      const cap = cmds.find((c) => c.type === 'capture_request');
+      assert.ok(cap, 'commande capture_request livrée');
+      assert.equal(cap.payload.target, '7');
+      assert.equal(cap.payload.capture_id, captureId);
+      assert.equal(cap.payload.token, undefined, 'le jeton brut ne figure pas dans le payload');
+      assert.match(cap.payload.upload_url!, new RegExp(`/api/evidence/upload/${globex.organizationId}/${captureId}\\?t=`));
+      const uploadPath = new URL(cap.payload.upload_url!).pathname + new URL(cap.payload.upload_url!).search;
+      const token = new URL(cap.payload.upload_url!).searchParams.get('t')!;
+
+      // 3) galerie : la capture est en attente, aucun jeton exposé
+      const listed = await app.inject({
+        method: 'GET', url: `/api/servers/${serverId}/captures?identifier=${encodeURIComponent('license:abc7')}`,
+        ...asTenant(globex),
+      });
+      const row0 = (listed.json() as { captures: Array<Record<string, unknown>> }).captures[0]!;
+      assert.equal(row0.id, captureId);
+      assert.equal(row0.status, 'PENDING');
+      assert.equal(JSON.stringify(row0).includes(token), false);
+
+      // 4) uploads refusés : mauvais jeton, contenu non image
+      const boundary = '----zsTestBoundary';
+      const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), randomBytes(2000)]);
+      const multipart = (data: Buffer) => Buffer.concat([
+        Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="a.jpg"\r\nContent-Type: image/jpeg\r\n\r\n`),
+        data,
+        Buffer.from(`\r\n--${boundary}--\r\n`),
+      ]);
+      const ct = { 'content-type': `multipart/form-data; boundary=${boundary}` };
+
+      const badToken = await app.inject({
+        method: 'POST',
+        url: `/api/evidence/upload/${globex.organizationId}/${captureId}?t=${'x'.repeat(43)}`,
+        headers: ct, payload: multipart(jpeg),
+      });
+      assert.equal(badToken.statusCode, 404);
+
+      const notImage = await app.inject({
+        method: 'POST', url: uploadPath, headers: ct, payload: multipart(Buffer.from('<html>pas une image</html>')),
+      });
+      assert.equal(notImage.statusCode, 400);
+
+      // 5) upload valide
+      const ok = await app.inject({ method: 'POST', url: uploadPath, headers: ct, payload: multipart(jpeg) });
+      assert.equal(ok.statusCode, 200, ok.body);
+      assert.equal(ok.headers['access-control-allow-origin'], '*');
+
+      // jeton à usage unique
+      const again = await app.inject({ method: 'POST', url: uploadPath, headers: ct, payload: multipart(jpeg) });
+      assert.equal(again.statusCode, 404);
+
+      // 6) lecture : octets identiques, en-têtes défensifs, cloisonnement
+      const image = await app.inject({
+        method: 'GET', url: `/api/captures/${captureId}/image`, ...asTenant(globex),
+      });
+      assert.equal(image.statusCode, 200);
+      assert.equal(image.headers['content-type'], 'image/jpeg');
+      assert.match(String(image.headers['content-security-policy']), /default-src 'none'/);
+      assert.ok(Buffer.compare(image.rawPayload, jpeg) === 0, 'image identique à l’upload');
+
+      const foreignImage = await app.inject({
+        method: 'GET', url: `/api/captures/${captureId}/image`, ...asTenant(acme),
+      });
+      assert.equal(foreignImage.statusCode, 404);
+
+      const listed2 = await app.inject({
+        method: 'GET', url: `/api/servers/${serverId}/captures`, ...asTenant(globex),
+      });
+      const row1 = (listed2.json() as { captures: Array<{ id: string; status: string; bytes: number }> })
+        .captures.find((c) => c.id === captureId)!;
+      assert.equal(row1.status, 'RECEIVED');
+      assert.equal(row1.bytes, jpeg.length);
+
+      // 7) suppression
+      const gone = await app.inject({
+        method: 'DELETE', url: `/api/captures/${captureId}`, ...asTenant(acme),
+      });
+      assert.equal(gone.statusCode, 404, 'le voisin ne peut pas supprimer');
+      const del = await app.inject({
+        method: 'DELETE', url: `/api/captures/${captureId}`, ...asTenant(globex),
+      });
+      assert.equal(del.statusCode, 204);
+      const after = await app.inject({
+        method: 'GET', url: `/api/captures/${captureId}/image`, ...asTenant(globex),
+      });
+      assert.equal(after.statusCode, 404);
+    });
+
+    it('capture : une demande expirée ne peut plus recevoir d’image', async () => {
+      const asked = await app.inject({
+        method: 'POST', url: `/api/servers/${serverId}/capture`, ...asTenant(globex),
+        payload: { slot: 3 },
+      });
+      const captureId = (asked.json() as { capture: { id: string } }).capture.id;
+      await admin.query(
+        `UPDATE evidence_captures SET expires_at = now() - interval '1 second' WHERE id = $1`, [captureId],
+      );
+      const query = 'limit=25';
+      await app.inject({
+        method: 'GET', url: `/v1/agents/commands?${query}`,
+        headers: sign({ method: 'GET', path: '/v1/agents/commands', query }),
+      });
+      const token = (await admin.query(
+        `SELECT payload->>'token' AS t FROM agent_commands WHERE payload->>'capture_id' = $1`, [captureId],
+      )).rows[0]?.t as string;
+      const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), randomBytes(200)]);
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/evidence/upload/${globex.organizationId}/${captureId}?t=${token}`,
+        headers: { 'content-type': 'image/jpeg' }, payload: jpeg,
+      });
+      assert.equal(res.statusCode, 404);
+    });
+
     it('une credential révoquée cesse immédiatement de fonctionner', async () => {
       const revoke = await app.inject({
         method: 'DELETE',

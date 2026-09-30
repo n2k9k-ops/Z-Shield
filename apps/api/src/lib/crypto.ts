@@ -218,7 +218,8 @@ export type IdPrefix =
   | 'det'
   | 'ban'
   | 'rul'
-  | 'sig';
+  | 'sig'
+  | 'cap';
 
 /** 26 caractères base32, soit 130 bits d'aléa. Non séquentiel, non énumérable. */
 export function newId(prefix: IdPrefix): string {

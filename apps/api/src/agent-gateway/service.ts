@@ -26,12 +26,33 @@ import type {
   commandResultsPayloadSchema,
   handshakePayloadSchema,
   heartbeatPayloadSchema,
+  livePayloadSchema,
   telemetryPayloadSchema,
 } from './schemas.ts';
 
 type HandshakePayload = z.infer<typeof handshakePayloadSchema>;
 type HeartbeatPayload = z.infer<typeof heartbeatPayloadSchema>;
 type TelemetryPayload = z.infer<typeof telemetryPayloadSchema>;
+type LivePayload = z.infer<typeof livePayloadSchema>;
+
+/** Durée de vie d'un instantané live. Au-delà, la carte déclare le serveur « hors ligne ». */
+export const LIVE_TTL_SECONDS = 20;
+export const liveKey = (organizationId: string, serverId: string) =>
+  `zs:live:${organizationId}:${serverId}`;
+
+/**
+ * Heatmap : uniquement des COMPTEURS par case de grille, jamais une position ou une
+ * trajectoire individuelle. Chaque minute a sa propre clé Redis (courte durée de vie) ;
+ * la lecture (agent-gateway route `/api/servers/:id/heatmap`) additionne les dernières
+ * minutes. Impossible de reconstituer le trajet d'un joueur à partir de ces compteurs.
+ */
+export const HEATMAP_CELL_SIZE = 50; // mètres (unités du jeu)
+export const HEATMAP_BUCKET_SECONDS = 60;
+export const HEATMAP_RETENTION_BUCKETS = 30; // 30 min glissantes
+export const heatmapKey = (organizationId: string, serverId: string, bucket: number) =>
+  `zs:heatmap:${organizationId}:${serverId}:${bucket}`;
+export const heatmapBucket = (atMs = Date.now()) =>
+  Math.floor(atMs / (HEATMAP_BUCKET_SECONDS * 1000));
 type AlertsPayload = z.infer<typeof alertsPayloadSchema>;
 type CommandResultsPayload = z.infer<typeof commandResultsPayloadSchema>;
 
@@ -503,7 +524,68 @@ export class AgentGatewayService {
   // -------------------------------------------------------------------------
   // commandes
   // -------------------------------------------------------------------------
-  async claimCommands(ctx: AgentAuthContext, limit: number) {
+  /**
+   * Vue live : on garde UNIQUEMENT le dernier instantané, dans Redis, avec une durée
+   * de vie courte. Rien n'est écrit en SQL : pas d'historique de positions.
+   */
+  async live(ctx: AgentAuthContext, payload: LivePayload) {
+    const { organizationId, serverId } = ctx.credential;
+    try {
+      await this.publisher.set(
+        liveKey(organizationId, serverId),
+        JSON.stringify({ at: Date.now(), sampled_at: payload.sampled_at, players: payload.players }),
+        'EX',
+        LIVE_TTL_SECONDS,
+      );
+      await this.aggregateHeatmap(organizationId, serverId, payload.players);
+    } catch {
+      // Best-effort : un Redis indisponible ne doit pas faire échouer l'agent.
+    }
+    return { accepted: payload.players.length };
+  }
+
+  /**
+   * Heatmap : incrémente des compteurs par case de grille (50 m) dans le bucket Redis
+   * de la minute courante. Opt-in par organisation (`organizations.heatmap_enabled`) :
+   * une org qui ne l'a pas activée n'a aucun compteur écrit, même si `live` est actif.
+   * Aucune identité de joueur n'entre dans cette agrégation, uniquement des positions
+   * arrondies puis comptées — on ne peut pas en ressortir un trajet individuel.
+   */
+  private async aggregateHeatmap(
+    organizationId: string,
+    serverId: string,
+    players: LivePayload['players'],
+  ): Promise<void> {
+    if (players.length === 0) return;
+    const { rows } = await this.pool.query<{ heatmap_enabled: boolean }>(
+      `SELECT heatmap_enabled FROM organizations WHERE id = $1`,
+      [organizationId],
+    );
+    if (rows[0]?.heatmap_enabled !== true) return;
+
+    const counts = new Map<string, number>();
+    for (const p of players) {
+      const gx = Math.round(p.x / HEATMAP_CELL_SIZE);
+      const gy = Math.round(p.y / HEATMAP_CELL_SIZE);
+      const field = `${gx}:${gy}`;
+      counts.set(field, (counts.get(field) ?? 0) + 1);
+    }
+    if (counts.size === 0) return;
+
+    const key = heatmapKey(organizationId, serverId, heatmapBucket());
+    const pipeline = this.publisher.pipeline();
+    for (const [field, count] of counts) pipeline.hincrby(key, field, count);
+    pipeline.expire(key, HEATMAP_BUCKET_SECONDS * (HEATMAP_RETENTION_BUCKETS + 1));
+    await pipeline.exec();
+  }
+
+  /**
+   * `baseUrl` : origine par laquelle l'agent joint la plateforme (celle de SA requête).
+   * L'URL d'upload d'une capture est construite ici, à la livraison, pour que l'agent
+   * puisse vérifier qu'elle appartient bien à son API configurée ; le jeton à usage
+   * unique est sorti du payload et n'apparaît que dans cette URL.
+   */
+  async claimCommands(ctx: AgentAuthContext, limit: number, baseUrl?: string) {
     const { organizationId, serverId } = ctx.credential;
 
     return withTenant(this.pool, organizationId, async (client) => {
@@ -543,13 +625,24 @@ export class AgentGatewayService {
       );
 
       return {
-        commands: rows.map((row) => ({
-          id: row.id,
-          type: row.type,
-          issued_at: Number(row.issued_at),
-          expires_at: Number(row.expires_at),
-          payload: row.payload ?? {},
-        })),
+        commands: rows.map((row) => {
+          let payload: Record<string, unknown> = row.payload ?? {};
+          if (row.type === 'capture_request') {
+            const { token, ...rest } = payload as Record<string, unknown> & { token?: unknown };
+            payload = rest;
+            if (baseUrl && typeof token === 'string' && typeof rest.capture_id === 'string') {
+              payload.upload_url =
+                `${baseUrl}/api/evidence/upload/${organizationId}/${rest.capture_id}?t=${token}`;
+            }
+          }
+          return {
+            id: row.id,
+            type: row.type,
+            issued_at: Number(row.issued_at),
+            expires_at: Number(row.expires_at),
+            payload,
+          };
+        }),
       };
     });
   }

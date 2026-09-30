@@ -19,6 +19,7 @@ import {
   envelopeSchema,
   handshakePayloadSchema,
   heartbeatPayloadSchema,
+  livePayloadSchema,
   rotatePayloadSchema,
   telemetryPayloadSchema,
 } from './schemas.ts';
@@ -260,6 +261,16 @@ export async function agentGatewayRoutes(
     await handle(reply, ctx, () => service.telemetry(ctx, payload));
   });
 
+  app.post(ENDPOINT.LIVE, async (request, reply) => {
+    const ctx = await guard(request, reply);
+    if (!ctx) return;
+
+    const payload = parseEnvelope(ctx, reply, 'live', livePayloadSchema);
+    if (!payload) return;
+
+    await handle(reply, ctx, () => service.live(ctx, payload));
+  });
+
   app.post(ENDPOINT.ALERTS, async (request, reply) => {
     const ctx = await guard(request, reply);
     if (!ctx) return;
@@ -306,7 +317,9 @@ export async function agentGatewayRoutes(
     const raw = (request.query as { limit?: string }).limit;
     const limit = Math.min(Number(raw ?? MAX_COMMANDS_PER_POLL) || MAX_COMMANDS_PER_POLL, MAX_COMMANDS_PER_POLL);
 
-    await handle(reply, ctx, () => service.claimCommands(ctx, limit));
+    // Origine par laquelle CET agent nous joint (proxy de confiance : x-forwarded-*).
+    const baseUrl = `${request.protocol}://${request.host}`;
+    await handle(reply, ctx, () => service.claimCommands(ctx, limit, baseUrl));
   });
 
   app.post(ENDPOINT.COMMAND_RESULT, async (request, reply) => {

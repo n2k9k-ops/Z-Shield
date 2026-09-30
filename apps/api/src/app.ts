@@ -19,6 +19,7 @@ import { AgentRateLimiter, ReplayGuard } from './agent-gateway/replay.ts';
 import { AgentAuthenticator } from './agent-gateway/authenticate.ts';
 import { AgentGatewayService } from './agent-gateway/service.ts';
 import { agentGatewayRoutes } from './agent-gateway/routes.ts';
+import { evidenceUploadRoutes } from './evidence/upload.ts';
 import { AuthService } from './auth/sessions.ts';
 import { Guard } from './api/middleware.ts';
 import { apiRoutes } from './api/routes.ts';
@@ -113,6 +114,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       credentials,
       logger: logger.child({ surface: 'agent' }),
     });
+  });
+
+  // --- réception des captures du jeu : portée isolée, corps brut, jeton à usage unique
+  await app.register(async (instance) => {
+    await evidenceUploadRoutes(instance, { pool, logger: logger.child({ surface: 'evidence' }) });
   });
 
   // --- surface utilisateur --------------------------------------------------
