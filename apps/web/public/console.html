@@ -1896,7 +1896,7 @@ async function zOverview(){
 
 /* ---- Bans & sanctions ---- */
 async function zBansLoad(){
-  let list;try{list=(await zapi('/api/bans')).bans||[];}catch(e){return;}
+  let list=[];try{list=(await zapi('/api/bans')).bans||[];}catch(e){list=[];}
   bans.length=0;
   list.forEach(function(b){bans.push({_id:b.id,_status:b.status,n:b.player_name||b.identifier||'—',id:b.identifier||'',reason:b.reason||'—',cat:b.detection_category||'—',type:b.issued_by_auto?'auto':'manual',when:zAgo(b.created_at),risk:Number(b.risk!=null?b.risk:0),det:b.detector||'—',pending:b.status==='PENDING',rec:false});});
   // KPI réels de la vue Bans (remplacent les valeurs de démo).
@@ -1929,7 +1929,7 @@ openBanDrawer=function(i){const b=bans[i];if(!b)return;
 
 /* ---- Joueurs (renseignement) ---- */
 async function zPlayersLoad(){
-  let list;try{list=(await zapi('/api/players')).players||[];}catch(e){return;}
+  let list=[];try{list=(await zapi('/api/players')).players||[];}catch(e){list=[];}
   players.length=0;
   Object.keys(plExtra).forEach(function(k){delete plExtra[k];});
   list.forEach(function(p,i){var risk=Math.max(0,Math.min(100,Math.round(Number(p.threat_score||0))));players.push({n:p.player_name||p.player_identifier||'joueur',_id:p.player_identifier,risk:risk,lvl:risk>=70?'hi':risk>=35?'me':'lo',ping:Number(p.detections_24h||0),det:Number(p.detection_count||0),hp:100,wp:'—',flag:(p.detection_count||0)+' détection(s) · vu '+zAgo(p.last_seen_at),seen:zAgo(p.last_seen_at),gx:0,gy:0});plExtra[i]={alts:0,bans:Number(p.detection_count||0),recent:i<5,flagged:risk>=60};});
@@ -2249,7 +2249,7 @@ function zMultiview(){var grid=document.getElementById('mvGrid');if(!grid)return
   grid.innerHTML=watch.length?watch.map(function(p){
     var id=p._id||p.identifier||'';var risk=p.risk||0;
     return '<div class="mvtile"><div class="mvhead"><span>'+zesc(p.n||p.name||'joueur')+'</span><span class="ping" style="color:'+zMvColor(risk)+'">risque '+risk+'</span></div>'
-      +'<div class="mvview"><span class="live"><span class="dot"></span>EN DIRECT</span>'
+      +'<div class="mvview"><span class="live"><span class="dot"></span>'+(window.ZLANG&&ZLANG()==='en'?'LIVE TELEMETRY':'TÉLÉMÉTRIE LIVE')+'</span>'
       +'<div style="text-align:center;font-size:11.5px;color:var(--sub);line-height:1.6">'
       +(p.wp||p.weapon?('🔫 '+zesc(p.wp||p.weapon)+'<br>'):'')
       +(p.flag?('⚠ '+zesc(p.flag)+'<br>'):'')
@@ -2392,7 +2392,28 @@ async function zMe(){
   }
   return {__unreachable:true};
 }
+/* Compte neuf / mode live : on n'affiche JAMAIS de données de démo. On vide toutes
+   les surfaces (tableaux, KPIs, flux, membres) avant tout appel API ; les loaders
+   ne font ensuite qu'ajouter des données RÉELLES. Un cold-start qui échoue laisse
+   donc un panel VIDE et honnête, jamais des chiffres inventés. */
+function zResetDemo(){
+  try{
+    if(typeof bans!=='undefined')bans.length=0;
+    if(typeof players!=='undefined')players.length=0;
+    if(typeof plExtra!=='undefined')Object.keys(plExtra).forEach(function(k){delete plExtra[k];});
+    if(typeof members!=='undefined')members.length=0;
+    document.querySelectorAll('.kpi .k-val').forEach(function(v){var u=v.querySelector('span');v.textContent='0';if(u)v.appendChild(u);});
+    document.querySelectorAll('.kpi .k-delta').forEach(function(d){d.innerHTML='<span class="mut">—</span>';});
+    var lf=document.getElementById('liveFeed');if(lf)lf.innerHTML='<div class="row"><div class="msg"><div>Aucune activité pour l\'instant</div><div class="meta">En attente de l\'agent et des serveurs connectés.</div></div></div>';
+    var bars=document.getElementById('bars');if(bars)bars.innerHTML='';
+    var ml=document.getElementById('memberList');if(ml)ml.innerHTML='';
+    if(typeof renderBans==='function')renderBans();
+    if(typeof renderPlayers==='function')renderPlayers();
+    ['overview','players','bans'].forEach(function(v){var b=document.querySelector('.navitem[data-view="'+v+'"] .badge');if(b)b.textContent='0';});
+  }catch(e){}
+}
 zBoot=async function(){
+  if(window.ZS_LIVE)zResetDemo();
   var me=await zMe();
   if(me.__loggedOut){location.href='/login';return;}
   if(me.__unreachable){
@@ -3107,12 +3128,12 @@ function ZSETLANG(l){try{localStorage.setItem('zshield_lang',l);}catch(e){}}
 function zL(o){if(!o)return '';var l=ZLANG();return (l==='en'?(o.en||o.fr):(o.fr||o.en))||'';}
 
 /* Titres de page en EN (les FR existent déjà dans `titles`) */
-var TITLES_EN={overview:"Overview",players:"Players — intel",map:"Live map",multiview:"Multi‑view",bans:"Bans & sanctions",prot:"Configuration",blacklist:"Blacklist",signatures:"Signatures",servers:"Servers & license",tarifs:"Pricing",install:"Install",terminal:"Terminal",members:"Accounts & access",analytics:"Analytics",livethreats:"Live threats",incidents:"Incidents",presets:"Protection presets",features:"Features & detections"};
-var NAV_I18N={overview:{fr:"Vue d'ensemble",en:"Overview"},players:{fr:"Joueurs",en:"Players"},map:{fr:"Carte live",en:"Live map"},multiview:{fr:"Multi‑vue",en:"Multi‑view"},bans:{fr:"Bans & sanctions",en:"Bans & sanctions"},livethreats:{fr:"Menaces live",en:"Live threats"},analytics:{fr:"Analytics",en:"Analytics"},incidents:{fr:"Incidents",en:"Incidents"},prot:{fr:"Configuration",en:"Configuration"},features:{fr:"Fonctions & détections",en:"Features & detections"},blacklist:{fr:"Blacklist",en:"Blacklist"},signatures:{fr:"Signatures",en:"Signatures"},presets:{fr:"Presets",en:"Presets"},install:{fr:"Installation",en:"Install"},servers:{fr:"Serveurs & licence",en:"Servers & license"},tarifs:{fr:"Tarifs & offres",en:"Pricing"},terminal:{fr:"Terminal",en:"Terminal"},members:{fr:"Comptes & accès",en:"Accounts & access"},admin:{fr:"Admin — tous serveurs",en:"Admin — all servers"}};
+var TITLES_EN={overview:"Overview",players:"Players — intel",map:"Live map",multiview:"Multi‑view",bans:"Bans & sanctions",prot:"Configuration",blacklist:"Blacklist",signatures:"Signatures",servers:"Servers & license",tarifs:"Pricing",install:"Install",terminal:"Terminal",members:"Accounts & access",analytics:"Analytics",livethreats:"Live threats",incidents:"Incidents",presets:"Protection presets",features:"Configuration"};
+var NAV_I18N={overview:{fr:"Vue d'ensemble",en:"Overview"},players:{fr:"Joueurs",en:"Players"},map:{fr:"Carte live",en:"Live map"},multiview:{fr:"Multi‑vue",en:"Multi‑view"},bans:{fr:"Bans & sanctions",en:"Bans & sanctions"},livethreats:{fr:"Menaces live",en:"Live threats"},analytics:{fr:"Analytics",en:"Analytics"},incidents:{fr:"Incidents",en:"Incidents"},prot:{fr:"Configuration",en:"Configuration"},features:{fr:"Configuration",en:"Configuration"},blacklist:{fr:"Blacklist",en:"Blacklist"},signatures:{fr:"Signatures",en:"Signatures"},presets:{fr:"Presets",en:"Presets"},install:{fr:"Installation",en:"Install"},servers:{fr:"Serveurs & licence",en:"Servers & license"},tarifs:{fr:"Tarifs & offres",en:"Pricing"},terminal:{fr:"Terminal",en:"Terminal"},members:{fr:"Comptes & accès",en:"Accounts & access"},admin:{fr:"Admin — tous serveurs",en:"Admin — all servers"}};
 
 /* Libellés d'interface réutilisés (écran Fonctions) */
 var FUI={
-  title:{fr:"Fonctions & détections",en:"Features & detections"},
+  title:{fr:"Configuration",en:"Configuration"},
   intro:{fr:"Active chaque protection et règle ses détails. Chaque carte indique son palier réel : <b>Serveur</b> = serveur‑autoritatif (fiable), <b>Client</b> = signal corroborant (un internal à jour peut le contourner ; il ne banni jamais seul), <b>Hybride</b> = serveur + client, <b>Journal</b> = enregistrement.",
        en:"Enable each protection and tune its details. Every card shows its real tier: <b>Server</b> = server‑authoritative (reliable), <b>Client</b> = corroborating signal (an up‑to‑date internal can bypass it; it never bans on its own), <b>Hybrid</b> = server + client, <b>Log</b> = logging."},
   search:{fr:"Rechercher une fonction…",en:"Search a feature…"},
@@ -3128,7 +3149,12 @@ var FUI={
   demoBadge:{fr:"démo (sélectionne un serveur pour la config réelle)",en:"demo (select a server for live config)"},
   noResult:{fr:"Aucun résultat",en:"No result"},
   save:{fr:"Enregistrer",en:"Save"},cancel:{fr:"Annuler",en:"Cancel"},
-  saveHint:{fr:"Modifications non enregistrées — l'anticheat rechargera sa config.",en:"Unsaved changes — the anticheat will reload its config."}
+  saveHint:{fr:"Modifications non enregistrées — l'anticheat rechargera sa config.",en:"Unsaved changes — the anticheat will reload its config."},
+  qsTitle:{fr:"Sécurité de base active automatiquement",en:"Basic security enabled automatically"},
+  qsText:{fr:"Rien à configurer pour démarrer : les protections essentielles (anti-triche serveur, explosions, entités, événements) sont actives par défaut dès l'installation. Débutant ? Choisis simplement un profil ci-dessous, puis Enregistre.",en:"Nothing to set up to get going: the essential protections (server-side anti-cheat, explosions, entities, events) are on by default from install. New here? Just pick a profile below, then Save."},
+  qsPick:{fr:"Profil en un clic :",en:"One-click profile:"},
+  needServer:{fr:"Sélectionne un serveur pour appliquer un profil.",en:"Select a server to apply a profile."},
+  qsStrict:{fr:"Strict (recommandé)",en:"Strict (recommended)"},qsBalanced:{fr:"Équilibré",en:"Balanced"},qsPvp:{fr:"PvP",en:"PvP"}
 };
 
 /* ---------- Catalogue des fonctions (liste complète demandée + paliers honnêtes) ----------
@@ -3297,6 +3323,12 @@ function zFeatModeLive(id,mode){ var it=ZS.protIndex&&ZS.protIndex.get(id); if(!
 function zFeatBulkLive(label,on){ if(!ZS.protIndex)return; var n=0; (CONFIG||[]).forEach(function(cat){ if(cat.tab!==label)return; cat.groups.forEach(function(g){ g.items.forEach(function(it){ if(it.on!==on){it.on=on;} n++; }); }); }); if(typeof cfgTouch==='function')cfgTouch(); zFeatShowSave(true); zFeaturesRender(); if(typeof toast==='function')toast((on?zL(FUI.allOn):zL(FUI.allOff))+' · '+zesc(label),on?'grn':undefined); }
 function zFeatSaveLive(){ if(typeof cfgSave==='function')cfgSave(); zFeatShowSave(false); }
 function zFeatCancelLive(){ if(typeof cfgDirty!=='undefined')cfgDirty=false; zFeatShowSave(false); if(ZS.serverId&&typeof zConfigLoad==='function'){zConfigLoad().then(zFeaturesRender);} else zFeaturesRender(); }
+// Applique un profil pré-configuré (débutant) puis laisse l'utilisateur Enregistrer.
+function zFeatApplyPreset(name){
+  if(!zFeatLiveReady()){ if(typeof toast==='function')toast(zL(FUI.needServer),'red'); return; }
+  if(typeof zApplyPreset==='function')zApplyPreset(name);
+  zFeatShowSave(true); zFeaturesRender();
+}
 
 function zFeaturesRenderLive(){
   var host=document.getElementById('featBody');if(!host)return;
@@ -3385,6 +3417,43 @@ function zFeatToggle(k){zFeatState[k]=zFeatState[k]||{};zFeatState[k].on=!zFeatO
 function zFeatChild(k,ck,v){zFeatState[k]=zFeatState[k]||{on:true};zFeatState[k][ck]=v;zFeatSave(zFeatState);}
 function zFeatBulk(secId,on){var sec=ZS_FEATURES.find(function(s){return s.id===secId;});if(!sec)return;sec.items.forEach(function(it){zFeatState[it.k]=zFeatState[it.k]||{};zFeatState[it.k].on=on;});zFeatSave(zFeatState);zFeaturesRender();if(typeof toast==='function')toast((on?zL(FUI.allOn):zL(FUI.allOff))+' · '+zesc(zL({fr:sec.fr,en:sec.en})),on?'grn':undefined);}
 
+/* ---------- Dictionnaire FR->EN pour le CHROME statique (titres, labels, boutons) ----------
+   Appliqué UNIQUEMENT aux éléments sans enfant (texte pur) sur des sélecteurs sûrs :
+   jamais sur des lignes dynamiques. Réversible (on mémorise le FR d'origine). */
+var ZI18N={
+  // KPI
+  "Joueurs en ligne":"Players online","Menaces bloquées · 24 h":"Threats blocked · 24h","Incidents ouverts":"Open incidents",
+  "Impact performance":"Performance impact","Bans · 24 h":"Bans · 24h","Sanctions à revoir":"Sanctions to review",
+  "Faux positifs (appris)":"False positives (learned)","Bans actifs":"Active bans","Serveurs":"Servers","En ligne":"Online",
+  "Sous licence":"Licensed","Joueurs cumulés":"Total players","Détections (30 j)":"Detections (30d)","Bans (total)":"Bans (total)",
+  "Taux de faux positifs":"False-positive rate",
+  // Titres de section
+  "Activité en direct":"Live activity","Détections par heure":"Detections per hour","Protections":"Protections",
+  "Tes serveurs":"Your servers","Installation en 5 étapes":"Install in 5 steps","Multi‑vue — surveille plusieurs joueurs":"Multi-view — watch several players",
+  "Marketplace de signatures":"Signature marketplace","Mes propositions":"My submissions","Presets de protection":"Protection presets",
+  "Mes presets perso":"My custom presets","Qui a accès à ce dashboard":"Who has access to this dashboard","Qui accède à quoi":"Who can access what",
+  "Invitations en attente":"Pending invitations","Menaces live":"Live threats","Incidents":"Incidents","Analytics":"Analytics",
+  "Nos offres":"Our plans","Apparence du panel":"Panel appearance","Bans par jour (14 j)":"Bans per day (14d)",
+  "Top détecteurs (30 j)":"Top detectors (30d)","Bans par jour":"Bans per day","Tous les serveurs sous Z-Shield":"All servers on Z-Shield",
+  // Boutons / chips courants
+  "Actualiser":"Refresh","Enregistrer":"Save","Annuler":"Cancel","Ajouter un serveur":"Add a server","Appliquer":"Apply",
+  "Générer":"Generate","Copier":"Copy","Fermer":"Close","Retour":"Back","Ajouter":"Add","Inviter":"Invite","Modèle server.cfg":"server.cfg template",
+  "Identifiants d'agent":"Agent credentials","Activer la licence":"Activate license","Tout":"All","Récents":"Recent","Signalés":"Flagged",
+  "Auto‑actualisation":"Auto-refresh","Sanctions en attente":"Pending sanctions","Bannissements":"Bans",
+  // Segments de période
+  "24 h":"24h","7 j":"7d","30 j":"30d","14 j":"14d"
+};
+function zI18nSweep(){
+  var en=ZLANG()==='en';
+  var els=document.querySelectorAll('.k-lab, h2, h4, .chip, .seg button, .section-head h2, #banSub button, [data-plf]');
+  els.forEach(function(el){
+    if(el.children.length!==0)return;               // texte pur uniquement
+    if(el.dataset.i18nO===undefined)el.dataset.i18nO=el.textContent.trim();
+    var fr=el.dataset.i18nO;
+    el.textContent=(en&&ZI18N[fr])?ZI18N[fr]:fr;
+  });
+}
+
 /* ---------- Application de la langue à tout le dashboard ---------- */
 function zApplyLang(){
   var l=ZLANG();
@@ -3405,12 +3474,19 @@ function zApplyLang(){
   // écran Fonctions
   var ft=document.getElementById('featTitle');if(ft)ft.textContent=zL(FUI.title);
   var fi=document.getElementById('featIntro');if(fi)fi.innerHTML=zL(FUI.intro);
+  var qst=document.getElementById('qsTitle');if(qst)qst.textContent=zL(FUI.qsTitle);
+  var qsx=document.getElementById('qsText');if(qsx)qsx.textContent=zL(FUI.qsText);
+  var qsp=document.getElementById('qsPick');if(qsp)qsp.textContent=zL(FUI.qsPick);
+  var qsS=document.getElementById('qsStrict');if(qsS)qsS.textContent=zL(FUI.qsStrict);
+  var qsB=document.getElementById('qsBalanced');if(qsB)qsB.textContent=zL(FUI.qsBalanced);
+  var qsP=document.getElementById('qsPvp');if(qsP)qsP.textContent=zL(FUI.qsPvp);
   var fs=document.getElementById('featSearch');if(fs)fs.setAttribute('placeholder',zL(FUI.search));
   var fsh=document.getElementById('featSaveHint');if(fsh)fsh.textContent=zL(FUI.saveHint);
   var fsb=document.getElementById('featSaveBtn');if(fsb)fsb.textContent=zL(FUI.save);
   var fcb=document.getElementById('featCancelBtn');if(fcb)fcb.textContent=zL(FUI.cancel);
   // boutons langue
   document.querySelectorAll('.langsw button').forEach(function(b){b.classList.toggle('on',b.dataset.l===l);});
+  try{zI18nSweep();}catch(e){}
   zFeaturesRender();
 }
 function zSetLang(l){ZSETLANG(l);zApplyLang();}
@@ -3424,16 +3500,18 @@ function zSetLang(l){ZSETLANG(l);zApplyLang();}
       for(var i=0;i<n.childNodes.length;i++){var nd=n.childNodes[i];
         if(nd.nodeType===3&&nd.textContent.trim()){var sp=document.createElement('span');sp.className='nvlabel';sp.textContent=nd.textContent.trim();n.replaceChild(sp,nd);break;}}
     });
-    // 1) onglet "Fonctions & détections" après Configuration
+    // 1) UN SEUL onglet Configuration (vue cartes, live). On remplace l'ancien
+    //    onglet « Configuration » dense par la vue cartes et on retire le doublon.
     var protNav=document.querySelector('.navitem[data-view="prot"]');
     if(protNav&&!document.querySelector('.navitem[data-view="features"]')){
       var nv=document.createElement('div');nv.className='navitem';nv.dataset.view='features';
-      nv.innerHTML='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4Z"/><path d="m9 12 2 2 4-4"/></svg><span class="nvlabel">Fonctions & détections</span>';
-      protNav.parentNode.insertBefore(nv,protNav.nextSibling);
+      nv.innerHTML='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4Z"/><path d="m9 12 2 2 4-4"/></svg><span class="nvlabel">Configuration</span>';
+      protNav.parentNode.insertBefore(nv,protNav);
+      protNav.remove();   // retire l'ancien onglet Configuration dense (doublon)
       nv.addEventListener('click',function(){zFeatEnter();});
     }
     // 2) titres
-    if(typeof titles!=='undefined')titles.features="Fonctions & détections";
+    if(typeof titles!=='undefined')titles.features="Configuration";
     // 3) sélecteur de langue dans la topbar (avant la cloche)
     var bell=document.getElementById('bellBtn');
     if(bell&&!document.querySelector('.langsw')){
@@ -3449,6 +3527,15 @@ function zSetLang(l){ZSETLANG(l);zApplyLang();}
         '<div style="max-width:940px">'+
         '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px"><h2 id="featTitle" style="font-size:18px;margin:0">Fonctions & détections</h2><span id="featCount" style="color:var(--muted);font-size:12.5px"></span></div>'+
         '<p id="featIntro" style="color:var(--sub);font-size:13px;line-height:1.6;margin:0 0 16px"></p>'+
+        '<div id="featQuickStart" class="card" style="padding:16px;margin-bottom:16px;border-color:var(--green-line)">'+
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--green)" stroke-width="2"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg><b id="qsTitle" style="color:var(--ink)">Sécurité de base active automatiquement</b></div>'+
+          '<div id="qsText" style="color:var(--sub);font-size:12.5px;line-height:1.5;margin-bottom:10px"></div>'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap"><span id="qsPick" style="align-self:center;font-size:12px;color:var(--muted)"></span>'+
+            '<button class="btn btn-sm btn-green" onclick="zFeatApplyPreset(\'strict\')" id="qsStrict">Strict (recommandé)</button>'+
+            '<button class="btn btn-sm" onclick="zFeatApplyPreset(\'balanced\')" id="qsBalanced">Équilibré</button>'+
+            '<button class="btn btn-sm" onclick="zFeatApplyPreset(\'pvp\')" id="qsPvp">PvP</button>'+
+          '</div>'+
+        '</div>'+
         '<div id="featSaveBar" hidden><span class="fh" id="featSaveHint"></span><button class="btn btn-ghost btn-sm" onclick="zFeatCancelLive()" id="featCancelBtn">Annuler</button><button class="btn btn-green btn-sm" onclick="zFeatSaveLive()" id="featSaveBtn">Enregistrer</button></div>'+
         '<div class="search" style="margin-bottom:18px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="featSearch" placeholder="Rechercher une fonction…"></div>'+
         '<div id="featBody"></div>'+
@@ -3463,7 +3550,7 @@ function zSetLang(l){ZSETLANG(l);zApplyLang();}
 })();
 </script>
 
-<script>window.ZS_BUILD="2026-09-27 13:21 UTC";</script>
+<script>window.ZS_LIVE=true;window.ZS_BUILD="2026-09-30 17:13 UTC";</script>
 <script>
 (async () => {
   try { const r = await fetch("/api/auth/me", { credentials: "include" }); if (r.status === 401) location.href = "/login"; }
