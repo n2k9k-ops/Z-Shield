@@ -29,4 +29,4 @@ EXPOSE 4000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["node", "--experimental-strip-types", "apps/api/src/server.ts"]
+CMD ["sh", "-c", "node --experimental-strip-types apps/api/src/lib/migrate.ts && node --experimental-strip-types apps/api/src/server.ts"]
