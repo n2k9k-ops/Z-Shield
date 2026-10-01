@@ -2588,6 +2588,17 @@ export async function apiRoutes(app: FastifyInstance, deps: ApiDeps): Promise<vo
     const ok = await withTenant(pool, actor.organizationId, async (client) => {
       const ban = await loadPendingBan(client, actor.organizationId, banId);
       if (!ban) return false;
+      // Un ban ACTIVE existant pour le meme identifiant entrerait en conflit avec
+      // l'index unique partiel (bans_active_identifier_idx) et ferait echouer
+      // l'UPDATE ci-dessous avec une erreur Postgres brute (500 cote client). On
+      // leve ce conflit nous-memes : l'ancien est leve (LIFTED), celui-ci devient
+      // la sanction active en cours.
+      await client.query(
+        `UPDATE bans SET status = 'LIFTED'
+          WHERE organization_id = $1 AND scope = $2 AND identifier = $3
+            AND COALESCE(server_id, '') = COALESCE($4, '') AND status = 'ACTIVE'`,
+        [actor.organizationId, ban.scope, ban.identifier, ban.server_id],
+      );
       await client.query(
         `UPDATE bans SET status = 'ACTIVE', reviewed_by = $3, reviewed_at = now()
           WHERE organization_id = $1 AND id = $2 AND status = 'PENDING'`,
